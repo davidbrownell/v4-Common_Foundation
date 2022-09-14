@@ -119,6 +119,7 @@ ACTIVATE_ENVIRONMENT_CUSTOM_SCRIPT_EXTRACTOR_METHOD_NAME                    = "G
 
 # ----------------------------------------------------------------------
 SCRIPT_LIST_NAME                                                            = "DevEnvScripts"
+SCRIPT_DATA_NAME                                                            = "ScriptData.json"
 
 # ----------------------------------------------------------------------
 # |  Custom Methods defined in `HOOK_ENVIRONMENT_CUSTOMIZATION_FILENAME`

@@ -20,18 +20,16 @@ import textwrap
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Callable, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
-import colorama
 import inflect as inflect_mod
 
 from rich import print as rich_print
 from rich.align import Align
-from rich.box import ASCII, ROUNDED
 from rich.console import Group
 from rich.panel import Panel
 
-from Common_Foundation.PathEx import CreateRelativePath  # type: ignore
+from Common_Foundation import JsonEx
 from Common_Foundation.Shell import Commands  # type: ignore
 from Common_Foundation.Shell.All import CurrentShell  # type: ignore
 from Common_Foundation.Streams.DoneManager import DoneManager  # type: ignore
@@ -306,7 +304,6 @@ class ScriptsActivateActivity(ActivateActivity):
                 class WrappedInfo(object):
                     # ----------------------------------------------------------------------
                     name: str
-                    display_location: str
                     documentation: Optional[str]
                     script_info: ScriptInfo
 
@@ -314,7 +311,6 @@ class ScriptsActivateActivity(ActivateActivity):
 
                 wrappers: List[WrappedInfo] = []
                 rename_warnings: List[str] = []
-                script_list_filename: Optional[Path] = None
 
                 with dm.VerboseNested(
                     "Creating script wrappers...",
@@ -376,15 +372,9 @@ class ScriptsActivateActivity(ActivateActivity):
                         CurrentShell.MakeFileExecutable(potential_filename)
 
                         # Create the information that will be used for additional help
-                        display_location = CreateRelativePath(script_info.repository.root, script_info.filename)
-
-                        assert display_location.parts[0] == Constants.SCRIPTS_SUBDIR, display_location
-                        display_location = "/".join(display_location.parts[1:])
-
                         wrappers.append(
                             WrappedInfo(
                                 potential_filename.name,
-                                display_location,
                                 script_info.extractor.create_documentation_func(script_info.filename)
                                     if script_info.extractor.create_documentation_func is not None
                                     else None,
@@ -399,100 +389,35 @@ class ScriptsActivateActivity(ActivateActivity):
                             CurrentShell.MakeFileExecutable(extensionless_filename)
 
                 if wrappers:
+                    # Above, we reversed the items so we could order from most-specific to least-specific.
+                    # Here, we want to order the other way around.
+                    wrappers.reverse()
+
                     with dm.VerboseNested(
-                        "Creating '{}'...".format(Constants.SCRIPT_LIST_NAME),
+                        "Preserving script data...",
                         display_exceptions=False,
                     ):
-                        these_commands: List[Commands.Command] = [
-                            Commands.EchoOff(),
-                            Commands.Message("\nAvailable scripts are:\n"),
-                        ]
-
-                        prev_repo: Optional[DataTypes.ConfiguredRepoDataWithPath] = None
-
-                        # Above, we reversed the items so we could order from most-specific to least-specific.
-                        # Here, we want to order the other way around.
-                        wrappers.reverse()
+                        # Group the scripts by repository
+                        repos: Dict[str, Tuple[str, Path, List[Any]]] = {}
 
                         for wrapper in wrappers:
-                            if wrapper.script_info.repository != prev_repo:
-                                header = "{0:<70} {1:>80}".format(
-                                    "{} <{}>".format(
-                                        wrapper.script_info.repository.name,
-                                        wrapper.script_info.repository.id,
-                                    ),
-                                    str(wrapper.script_info.repository.root),
-                                )
-
-                                these_commands.append(
-                                    Commands.Message(
-                                        textwrap.dedent(
-                                            """\
-                                            {color_on}{sep}
-                                            {header}
-                                            {sep}{color_off}
-                                            """,
-                                        ).format(
-                                            color_on="{}{}".format(colorama.Fore.WHITE, colorama.Style.BRIGHT),
-                                            color_off=colorama.Style.RESET_ALL,
-                                            header=header,
-                                            sep="=" * len(header),
-                                        ),
-                                    ),
-                                )
-
-                                prev_repo = wrapper.script_info.repository
-
-                            title_template = "  {left_color_on}{left:<68}{color_off} {right_color_on}{right:>78}{color_off}"
-
-                            content: List[str] = [
-                                title_template.format(
-                                    left=wrapper.name,
-                                    right=wrapper.display_location,
-                                    left_color_on="{}{}".format(colorama.Fore.GREEN, colorama.Style.BRIGHT),
-                                    right_color_on=colorama.Fore.GREEN,
-                                    color_off=colorama.Style.RESET_ALL,
+                            repos.setdefault(
+                                str(wrapper.script_info.repository.id),
+                                (
+                                    wrapper.script_info.repository.name,
+                                    wrapper.script_info.repository.root,
+                                    [],
                                 ),
-                            ]
-
-                            title_without_color = title_template.format(
-                                left=wrapper.name,
-                                right=wrapper.display_location,
-                                left_color_on="",
-                                right_color_on="",
-                                color_off="",
-                            ).lstrip()
-
-                            content.append("\n  {}\n".format("-" * len(title_without_color)))
-
-                            if wrapper.documentation is not None:
-                                content.append(
-                                    TextwrapEx.Indent(
-                                        "{}\n".format(wrapper.documentation.rstrip()),
-                                        4,
-                                    ),
-                                )
-
-                            these_commands.append(Commands.Message("".join(content)))
-
-                        # Write the file
-                        script_list_filename = script_dir / "{}{}".format(
-                            Constants.SCRIPT_LIST_NAME,
-                            CurrentShell.script_extensions[0],
-                        )
-
-                        with script_list_filename.open("w") as f:
-                            f.write(CurrentShell.GenerateCommands(these_commands))
-
-                        CurrentShell.MakeFileExecutable(script_list_filename)
-
-                        if CurrentShell.family_name == "Linux":
-                            commands.append(
-                                Commands.SymbolicLink(
-                                    script_list_filename.with_suffix(""),
-                                    script_list_filename,
-                                ),
+                            )[-1].append(
+                                {
+                                    "name": wrapper.name,
+                                    "documentation": wrapper.documentation,
+                                    "filename": str(wrapper.script_info.filename),
+                                },
                             )
+
+                        with (script_dir / Constants.SCRIPT_DATA_NAME).open("w") as f:
+                            JsonEx.Dump(repos, f)
 
                 # Wait until the verbose stream is done writing content before writing warnings
                 if rename_warnings:
@@ -501,12 +426,7 @@ class ScriptsActivateActivity(ActivateActivity):
                     )
 
                 if wrappers:
-                    assert script_list_filename is not None
-
                     # Write the final output
-                    color_on = "{}{}".format(colorama.Fore.WHITE, colorama.Style.BRIGHT)
-                    color_off = colorama.Style.RESET_ALL
-
                     with dm.YieldStream() as stream:
                         stream.write("\n")
 
@@ -518,17 +438,9 @@ class ScriptsActivateActivity(ActivateActivity):
                                         Shell wrappers have been created for all recognized scripts with the directory
                                         '{script_dir}' across all repositories. For a complete list of these wrappers, run:
                                         """,
-                                    ).format(
-                                        script_dir=self.name,
-                                        script_name=script_list_filename.name,
-                                        color_on=color_on,
-                                        color_off=color_off,
-                                    ),
+                                    ).format(script_dir=self.name),
                                     Align(
-                                        script_list_filename.name if dm.capabilities.is_headless else "[link=file://{}]{}[/]".format(
-                                            script_list_filename.parent.as_posix(), # Using the parent because systems will attempt to invoke the script with a link to the file itself
-                                            script_list_filename.name,
-                                        ),
+                                        Constants.SCRIPT_LIST_NAME + CurrentShell.script_extensions[0],
                                         "center",
                                         style="bold white",
                                     ),

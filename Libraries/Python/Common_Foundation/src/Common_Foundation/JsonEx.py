@@ -19,6 +19,7 @@ import json
 
 from pathlib import Path
 from typing import Any, Optional, TextIO
+from uuid import UUID
 
 
 # ----------------------------------------------------------------------
@@ -61,5 +62,8 @@ class _Encoder(json.JSONEncoder):
     def default(self, obj):
         if isinstance(obj, Path):
             return obj.as_posix()
+
+        if isinstance(obj, UUID):
+            return str(obj)
 
         return obj.__dict__
