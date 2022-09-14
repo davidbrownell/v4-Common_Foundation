@@ -33,7 +33,7 @@ class Change(object):
 class Date(object):
     """Change nearest to the date on the current branch"""
 
-    datetime: datetime
+    date: datetime
     greater_than: Optional[bool]            = field(default=None)
 
 
@@ -51,5 +51,5 @@ class BranchAndDate(object):
     """Change nearest to the date on the specified branch"""
 
     branch: str
-    datetime: datetime
+    date: datetime
     greater_than: Optional[bool]            = field(default=None)

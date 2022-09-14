@@ -608,7 +608,7 @@ class Repository(DistributedRepositoryBase):
             additional_filters.append(
                 "date('{}{}')".format(
                     GetDateOperator(source_merge_arg.greater_than),
-                    source_merge_arg.datetime.isoformat(timespec="seconds"),
+                    source_merge_arg.date.isoformat(timespec="seconds"),
                 ),
             )
 
@@ -620,7 +620,7 @@ class Repository(DistributedRepositoryBase):
             additional_filters.append(
                 "date('{}{}')".format(
                     GetDateOperator(source_merge_arg.greater_than),
-                    source_merge_arg.datetime.isoformat(timespec="seconds"),
+                    source_merge_arg.date.isoformat(timespec="seconds"),
                 ),
             )
 
@@ -1014,12 +1014,12 @@ class Repository(DistributedRepositoryBase):
             return " {}".format(result.output)
 
         if isinstance(update_arg, UpdateMergeArgs.Date):
-            return DateAndBranch(update_arg.datetime, None, update_arg.greater_than)
+            return DateAndBranch(update_arg.date, None, update_arg.greater_than)
 
         if isinstance(update_arg, UpdateMergeArgs.Branch):
             return DateAndBranch(datetime.now(), update_arg.branch, None)
 
         if isinstance(update_arg, UpdateMergeArgs.BranchAndDate):
-            return DateAndBranch(update_arg.datetime, update_arg.branch, update_arg.greater_than)
+            return DateAndBranch(update_arg.date, update_arg.branch, update_arg.greater_than)
 
         assert False, update_arg  # pragma: no cover

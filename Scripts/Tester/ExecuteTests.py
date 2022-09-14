@@ -15,7 +15,6 @@
 # ----------------------------------------------------------------------
 """Implements functionality to execute tests"""
 
-import datetime
 import multiprocessing
 import socket
 import textwrap
@@ -25,6 +24,7 @@ import traceback
 
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
+from datetime import datetime, timedelta
 from enum import auto, Enum
 from pathlib import Path
 from typing import Any, Callable, cast, Dict, Generator, List, Optional, Tuple, Union
@@ -509,10 +509,10 @@ class ExecuteTests(object):
 
                         task_data.context.build_result = BuildResult(
                             file_dm.result,
-                            datetime.timedelta(seconds=time.perf_counter() - total_start_time),
+                            timedelta(seconds=time.perf_counter() - total_start_time),
                             log_filename,
                             short_desc if self._skip_build else "{}: {}".format(self._compiler.name, short_desc) if short_desc else "",
-                            datetime.timedelta(),
+                            timedelta(),
                             task_data.context.output_dir,
                             binary_filename,
                         )
@@ -545,10 +545,10 @@ class ExecuteTests(object):
 
                         task_data.context.build_result = BuildResult(
                             result,
-                            datetime.timedelta(seconds=now_perf_counter - total_start_time),
+                            timedelta(seconds=now_perf_counter - total_start_time),
                             log_filename,
                             "{}: {}".format(self._compiler.name, short_desc) if short_desc else "",
-                            datetime.timedelta(seconds=now_perf_counter - build_start_time),
+                            timedelta(seconds=now_perf_counter - build_start_time),
                             task_data.context.output_dir,
                             binary_filename,
                         )
@@ -761,7 +761,7 @@ class ExecuteTests(object):
                             break
 
                     # Commit the test results
-                    total_test_execution_time = datetime.timedelta(seconds=time.perf_counter() - total_test_execution_start_time)
+                    total_test_execution_time = timedelta(seconds=time.perf_counter() - total_test_execution_start_time)
 
                     task_data.context.test_result = TestResult(
                         total_test_execution_time,
@@ -897,7 +897,7 @@ class ExecuteTests(object):
                 len_common_path_parts = 0
 
             hostname = socket.gethostname()
-            timestamp = datetime.datetime.now().isoformat()
+            timestamp = datetime.now().isoformat()
 
             root = ET.Element("testsuites")
 
@@ -1178,7 +1178,7 @@ class ExecuteTests(object):
                                     task_data,
                                     ErrorResult(
                                         self.__class__.CATASTROPHIC_TASK_FAILURE_RESULT,
-                                        datetime.timedelta(seconds=time.perf_counter() - start_time),
+                                        timedelta(seconds=time.perf_counter() - start_time),
                                         log_filename,
                                         "{} failed spectacularly".format(desc),
                                     ),
