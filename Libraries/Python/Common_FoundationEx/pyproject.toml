@@ -1,0 +1,8 @@
+[build-system]
+requires = ["setuptools>=63.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "Common_FoundationEx"
+version = "0.0.1"
+description = "Functionality used in the implementation of the Common_Foundation repository (has external dependencies outside of python)."

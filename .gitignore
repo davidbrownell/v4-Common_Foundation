@@ -1,0 +1,41 @@
+# ----------------------------------------------------------------------
+/Activate.cmd
+/Activate[.-]*.cmd
+/Activate.sh
+/Activate[.-]*.sh
+
+/Deactivate.cmd
+/Deactivate[.-]*.cmd
+/Deactivate.sh
+/Deactivate[.-]*.sh
+
+/Setup[.-]*.cmd
+/Setup[.-]*.sh
+
+# ----------------------------------------------------------------------
+Generated/**
+
+.pytest_cache/**
+__pycache__/**
+*.pyc
+*.pyo
+
+.coverage
+coverage.xml
+
+.vscode/*
+test_localsystem.txt
+
+# ----------------------------------------------------------------------
+Tools/7zip/v22.1/Linux/*/**
+Tools/7zip/v22.1/Windows/*/**
+
+Tools/libffi/v3.4.2/Linux/x64/*/**
+Tools/openssl/v1.1.1/Linux/x64/*/**
+Tools/sqlite/v3.39.3/Linux/x64/*/**
+
+Tools/Python/v3.10.6/Linux/x64/*/**
+Tools/Python/v3.10.6/Windows/x64/*/**
+
+Libraries/Python/Common_Foundation/src/Common_Foundation.egg-info/*
+Libraries/Python/Common_FoundationEx/src/Common_FoundationEx.egg-info/*
