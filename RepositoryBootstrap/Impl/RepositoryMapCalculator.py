@@ -250,15 +250,15 @@ class RepositoryMapCalculator(ABC):
             # ----------------------------------------------------------------------
             def ReferenceRepo(
                 repo_data: EncounteredRepoData,
-            ) -> bool:
+            ) -> None:
                 if repo_data.is_referenced:
-                    return True
+                    return
 
                 repo_data.SetReferenced()
 
                 # Only process the configuration for this repo if dependency information is required
                 if repo_data.id is not raw_root_repo_data.id and not recurse:
-                    return True
+                    return
 
                 for config_name, config_info in repo_data.configurations.items():
                     configuration_dependencies: List[DataTypes.ConfiguredRepoData] = []
@@ -330,7 +330,7 @@ class RepositoryMapCalculator(ABC):
 
                     repo_data.dependencies[config_name] = configuration_dependencies
 
-                return True
+                return
 
             # ----------------------------------------------------------------------
 
@@ -344,8 +344,7 @@ class RepositoryMapCalculator(ABC):
                     explicit_configurations,
                 )
 
-            if not ReferenceRepo(encountered_repos[raw_root_repo_data.id]):
-                return False
+            ReferenceRepo(encountered_repos[raw_root_repo_data.id])
 
             # Process any pending repositories
             if pending_repos:
@@ -600,8 +599,7 @@ class RepositoryMapCalculator(ABC):
                                         for k, v in potential_pending_data.dependents.items():
                                             encountered_data.dependents[k] = v
 
-                                        if not ReferenceRepo(encountered_data):
-                                            return False
+                                        ReferenceRepo(encountered_data)
 
                                         if not pending_repos:
                                             break
@@ -625,6 +623,7 @@ class RepositoryMapCalculator(ABC):
         self.encountered_repos              = encountered_repos
         self.pending_repos                  = pending_repos
 
+        self._recurse                       = recurse
         self.was_terminated                 = was_terminated
 
     # ----------------------------------------------------------------------
@@ -766,8 +765,12 @@ class RepositoryMapCalculator(ABC):
                         for dependency in config_data.dependencies:
                             potential_encountered = self.encountered_repos.get(dependency.repository_id, None)
                             if potential_encountered is None:
-                                with on_item(self.pending_repos[dependency.repository_id], is_being_used):
-                                    pass
+                                pending_repo = self.pending_repos.get(dependency.repository_id, None)
+                                if pending_repo is None:
+                                    assert self._recurse is False
+                                else:
+                                    with on_item(self.pending_repos[dependency.repository_id], is_being_used):
+                                        pass
                             else:
                                 Impl(
                                     potential_encountered,

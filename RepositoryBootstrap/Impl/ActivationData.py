@@ -155,7 +155,7 @@ class ActivationData(object):
         ):
             # Check the fingerprints
             calculated_fingerprints = Utilities.CalculateFingerprint(
-                [result.root, ] + [repo.root for repo in result.prioritized_repositories if not repo.is_mixin_repo],
+                [repo.root for repo in result.prioritized_repositories if not repo.is_mixin_repo],
             )
 
             original_fingerprints = result.fingerprints
@@ -163,8 +163,19 @@ class ActivationData(object):
             if calculated_fingerprints != original_fingerprints:
                 # Something has changed. Attempt to provide more context.
                 lines: List[str] = []
+                is_critical_error = True
 
                 if original_fingerprints is not None:
+                    # Anything added or removed will be reflected in a modification to a setup file,
+                    # so we can safely ignore those. In fact, we will often see mismatches between
+                    # the fingerprints calculated at setup time (which will only include the
+                    # repository and its direct dependencies) and the fingerprints calculated here,
+                    # which will include those dependencies and everything that they depend upon.
+
+                    # Assume that we aren't looking at a critical error until we find something that
+                    # is critical.
+                    is_critical_error = False
+
                     line_template = "{0:<80}  :  {1}"
 
                     for k, v in calculated_fingerprints.items():
@@ -172,6 +183,7 @@ class ActivationData(object):
                             lines.append(line_template.format(str(k), "Added"))
                         elif v != original_fingerprints[k]:
                             lines.append(line_template.format(str(k), "Modified"))
+                            is_critical_error = True
                         else:
                             lines.append(line_template.format(str(k), "Identical"))
 
@@ -179,28 +191,29 @@ class ActivationData(object):
                         if k not in calculated_fingerprints:
                             lines.append(line_template.format(str(k), "Removed"))
 
-                raise Exception(
-                    textwrap.dedent(
-                        """\
-                        ****************************************************************************************************
-                        {repo_root}
-                        ****************************************************************************************************
+                if is_critical_error:
+                    raise Exception(
+                        textwrap.dedent(
+                            """\
+                            ****************************************************************************************************
+                            {repo_root}
+                            ****************************************************************************************************
 
-                        It appears that one or more of the repositories that this repository depends on have changed.
+                            It appears that one or more of the repositories that this repository depends on have changed.
 
-                        Please run '{setup}' for this repository again.
+                            Please run '{setup}' for this repository again.
 
-                        {status}
+                            {status}
 
-                        ****************************************************************************************************
-                        ****************************************************************************************************
-                        """,
-                    ).format(
-                        repo_root=str(result.root),
-                        setup="{}{}".format(Constants.SETUP_ENVIRONMENT_NAME, CurrentShell.script_extensions[0]),
-                        status="\n".join("    - {}".format(line) for line in lines),
-                    ),
-                )
+                            ****************************************************************************************************
+                            ****************************************************************************************************
+                            """,
+                        ).format(
+                            repo_root=str(result.root),
+                            setup="{}{}".format(Constants.SETUP_ENVIRONMENT_NAME, CurrentShell.script_extensions[0]),
+                            status="\n".join("    - {}".format(line) for line in lines),
+                        ),
+                    )
 
         return result
 
