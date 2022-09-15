@@ -151,7 +151,7 @@ def GetCustomActions(
             pass
 
     # Check to see if git is installed and if its settings are set to the best defaults
-    if "usage: git" in SubprocessEx.Run("git").output:
+    if SubprocessEx.Run("git rev-parse --show-toplevel").returncode == 0:
         # core.autocrlf
         git_output = SubprocessEx.Run("git config --get core.autocrlf").output.strip()
         if git_output != "false":
