@@ -30,10 +30,11 @@ from rich.console import Group
 from rich.panel import Panel
 
 from Common_Foundation import JsonEx
-from Common_Foundation.Shell import Commands  # type: ignore
-from Common_Foundation.Shell.All import CurrentShell  # type: ignore
-from Common_Foundation.Streams.DoneManager import DoneManager  # type: ignore
-from Common_Foundation import TextwrapEx  # type: ignore
+from Common_Foundation.Shell import Commands                            # type: ignore
+from Common_Foundation.Shell.All import CurrentShell                    # type: ignore
+from Common_Foundation.Streams.DoneManager import DoneManager           # type: ignore
+from Common_Foundation.Streams.StreamDecorator import StreamDecorator   # type: ignore
+from Common_Foundation import TextwrapEx                                # type: ignore
 
 from .ActivateActivity import ActivateActivity
 
@@ -449,7 +450,7 @@ class ScriptsActivateActivity(ActivateActivity):
                                 padding=(1, 2),
                             ),
                             end="",
-                            file=stream,  # type: ignore
+                            file=StreamDecorator(stream, "  "),  # type: ignore
                         )
 
                         stream.write("\n")
