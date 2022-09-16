@@ -183,9 +183,13 @@ def Activate(
                 ]
 
             activities += [
-                _ActivateNames,
-                _ActivateTools,
+                _ActivateNameDisplay,
+
+                # Note that activating python will reset environment variables, so it must come early
+                # in the activation process.
                 _ActivatePython,
+
+                _ActivateTools,
                 _ActivateScripts,
                 _ActivateCustom,
                 _ActivatePrompt,
@@ -412,7 +416,7 @@ def _ActivateActivationData(
 
 
 # ----------------------------------------------------------------------
-def _ActivateNames(
+def _ActivateNameDisplay(
     activation_key: str,                    # pylint: disable=unused-argument
     dm: DoneManager,
     configuration: Optional[str],           # pylint: disable=unused-argument
