@@ -85,6 +85,7 @@ def Setup(
     max_num_searches: Optional[int]=typer.Option(None, min=1, help="Limit the number of directories searched when looking for dependencies; this value can be used to reduce the overall time it takes to search for dependencies that ultimately can't be found."),
     required_ancestor_dirs: Optional[List[Path]]=typer.Option(None, "--required-ancestor-dir", exists=True, file_okay=False, resolve_path=True, help="When searching for dependencies, limit the search to directories that are descendants of this ancestor."),
     no_hooks: bool=typer.Option(False, "--no-hooks", help="Do not setup SCM hooks."),
+    force: bool=typer.Option(False, "--force", help="Force the setup of environment data; if not specified."),
     verbose: bool=typer.Option(False, "--verbose", help= "Write verbose information to the terminal."),
     debug: bool=typer.Option(False, "--debug", help="Write additional debug information to the terminal."),
 ) -> None:
@@ -110,6 +111,7 @@ def Setup(
                     "customization_mod": customization_mod,
                     "repository_root": repository_root,
                     "configurations": configurations,
+                    "force": force,
                 }
 
                 activities: List[
@@ -182,6 +184,7 @@ def _SetupBootstrap(
     repository_root: Path,
     customization_mod: types.ModuleType,    # pylint: disable=unused-argument
     configurations: Optional[List[str]],
+    force: bool,                            # pylint: disable=unused-argument
     search_depth: int,
     max_num_searches: Optional[int],
     required_ancestor_dirs: List[Path],
@@ -750,8 +753,9 @@ def _SetupPython(
     customization_mod: types.ModuleType,    # pylint: disable=unused-argument
     repository_root: Path,                  # pylint: disable=unused-argument
     configurations: Optional[List[str]],    # pylint: disable=unused-argument
+    force: bool,
 ) -> Optional[List[Commands.Command]]:
-    return PythonSetupActivity().CreateCommands(dm)
+    return PythonSetupActivity().CreateCommands(dm, force=force)
 
 
 # ----------------------------------------------------------------------
@@ -761,6 +765,7 @@ def _SetupCustom(
     customization_mod: types.ModuleType,
     repository_root: Path,                  # pylint: disable=unused-argument
     configurations: Optional[List[str]],
+    force: bool,
 ) -> Optional[List[Commands.Command]]:
     custom_func = getattr(customization_mod, Constants.SETUP_ENVIRONMENT_ACTIONS_METHOD_NAME, None)
     if custom_func is None:
@@ -770,6 +775,7 @@ def _SetupCustom(
         {
             "dm": dm,
             "explicit_configurations": configurations,
+            "force": force,
         },
     )
 
@@ -780,6 +786,7 @@ def _SetupActivateScripts(
     customization_mod: types.ModuleType,    # pylint: disable=unused-argument
     repository_root: Path,
     configurations: Optional[List[str]],    # pylint: disable=unused-argument
+    force: bool,                            # pylint: disable=unused-argument
 ) -> None:
     environment_name = os.getenv(Constants.DE_ENVIRONMENT_NAME)
     assert environment_name is not None
@@ -854,6 +861,7 @@ def _SetupScmHooks(
     customization_mod: types.ModuleType,    # pylint: disable=unused-argument
     repository_root: Path,
     configurations: Optional[List[str]],    # pylint: disable=unused-argument
+    force: bool,                            # pylint: disable=unused-argument
 ) -> None:
     # ----------------------------------------------------------------------
     def Mercurial() -> None:

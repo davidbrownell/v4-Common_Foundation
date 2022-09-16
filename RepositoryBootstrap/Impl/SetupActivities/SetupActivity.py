@@ -46,12 +46,14 @@ class SetupActivity(ABC):
     def CreateCommands(
         self,
         dm: DoneManager,
+        *,
+        force: bool,
     ) -> List[Commands.Command]:
         with dm.Nested(
             "\nSetting up '{}'...".format(self.name),
             display_exceptions=False,
         ) as nested_dm:
-            return self._CreateCommandsImpl(nested_dm)
+            return self._CreateCommandsImpl(nested_dm, force=force)
 
     # ----------------------------------------------------------------------
     # |
@@ -62,6 +64,8 @@ class SetupActivity(ABC):
     @abstractmethod
     def _CreateCommandsImpl(
         dm: DoneManager,
+        *,
+        force: bool,
     ) -> List[Commands.Command]:
         """Returns commands that are invoked during setup"""
         raise Exception("Abstract method")  # pragma: no cover

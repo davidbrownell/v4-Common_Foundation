@@ -133,6 +133,8 @@ class PythonSetupActivity(SetupActivity):
     def _CreateCommandsImpl(
         self,
         dm: DoneManager,
+        *,
+        force: bool,  # pylint: disable=unused-argument
     ) -> List[Commands.Command]:
         stats: Dict[str, int] = {
             k.value: 0 for k in NormalizeScriptResult

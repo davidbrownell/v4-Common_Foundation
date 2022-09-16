@@ -27,6 +27,7 @@ set +v                                      # Disable output
 # |                                              multiple times on the command line). All available
 # |                                              configurations are setup if none are explicitly provided.
 # |
+# |          --force                           : Force setup.
 # |          --verbose                         : Verbose output.
 # |          --debug                           : Includes debug output (in addition to verbose output).
 # |

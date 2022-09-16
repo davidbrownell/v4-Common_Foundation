@@ -25,6 +25,7 @@
 @REM |                                             multiple times on the command line). All available
 @REM |                                             configurations are setup if none are explicitly provided.
 @REM |
+@REM |          --force                          : Force setup.
 @REM |          --verbose                        : Verbose output.
 @REM |          --debug                          : Includes debug output (in adddition to verbose output).
 @REM |
