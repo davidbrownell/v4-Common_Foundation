@@ -93,6 +93,17 @@ def Setup(
 
     configurations = Types.EnsurePopulatedList(configurations)
 
+    # Convert ["None"] -> None
+    if (
+        configurations
+        and len(configurations) == 1
+        and configurations[0] == "None"
+    ):
+        configurations = None
+
+    if any(config == "None" for config in (configurations or [])):
+        raise typer.BadParameter("'None' is not a valid configuration.")
+
     with RepositoryMapCalculator.GetCustomizationMod(repository_root) as customization_mod:
         # ----------------------------------------------------------------------
         def Execute() -> List[Commands.Command]:
