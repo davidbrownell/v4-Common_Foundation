@@ -16,6 +16,7 @@
 """Utilities to clean the local development environment."""
 
 import datetime
+import itertools
 import os
 import sys
 import textwrap
@@ -36,6 +37,7 @@ except ModuleNotFoundError:
 
 from Common_Foundation.ContextlibEx import ExitStack  # type: ignore
 from Common_Foundation.Shell.All import CurrentShell  # type: ignore
+from Common_Foundation.SourceControlManagers.All import ALL_SCMS
 from Common_Foundation.Streams.DoneManager import DoneManager, DoneManagerFlags  # type: ignore
 from Common_Foundation import TextwrapEx
 
@@ -70,7 +72,7 @@ DO_NOT_TRAVERSE_DEFAULT_DIRS: List[str]     = [
     RepositoryBootstrapConstants.GENERATED_DIRECTORY_NAME,  # type: ignore
     os.path.join("Tools", "openssl"),
     os.path.join("Tools", "Python"),
-]
+] + list(itertools.chain(*((scm.working_directories or []) for scm in ALL_SCMS)))
 
 
 # ----------------------------------------------------------------------
