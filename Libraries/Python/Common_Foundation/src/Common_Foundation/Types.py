@@ -59,10 +59,23 @@ DoesNotExist.instance                       = DoesNotExist()
 # |  Public Functions
 # |
 # ----------------------------------------------------------------------
-def extensionmethod(func):
+def extensionmethod(func):  # pylint: disable=invalid-name
     """\
     Decorator that indicates that the method is a method that is intended to be extended by derived
     classes to override functionality if necessary.
+
+    This decorator does not add any functionality, but serves as documentation that communicates
+    intentions behind how the class is intended to be used.
+    """
+
+    return func
+
+
+# ----------------------------------------------------------------------
+def overridemethod(func):  # pylint: disable=invalid-name
+    """\
+    Decorator that indicates that the method is a method that overrides an abstract- or extension-
+    method in a base class.
 
     This decorator does not add any functionality, but serves as documentation that communicates
     intentions behind how the class is intended to be used.

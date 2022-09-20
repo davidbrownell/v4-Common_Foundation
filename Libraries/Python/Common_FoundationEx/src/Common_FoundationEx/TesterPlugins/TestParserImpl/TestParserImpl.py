@@ -22,8 +22,8 @@ from typing import Any, Callable, Dict, Optional
 from Common_Foundation.Types import extensionmethod
 
 from Common_FoundationEx.CompilerImpl.CompilerImpl import CompilerImpl
-from Common_FoundationEx.CompilerImpl.InputProcessingMixins.AtomicInputProcessingMixin import AtomicInputProcessingMixin
-from Common_FoundationEx.CompilerImpl.InputProcessingMixins.IndividualInputProcessingMixin import IndividualInputProcessingMixin
+from Common_FoundationEx.CompilerImpl.Mixins.InputProcessorMixins.AtomicInputProcessorMixin import AtomicInputProcessorMixin
+from Common_FoundationEx.CompilerImpl.Mixins.InputProcessorMixins.IndividualInputProcessorMixin import IndividualInputProcessorMixin
 from Common_FoundationEx import TyperEx
 
 from .Results import TestResult
@@ -49,7 +49,7 @@ class TestParserImpl(ABC):
     # ----------------------------------------------------------------------
     @staticmethod
     @abstractmethod
-    def GetCustomArgs() -> TyperEx.TypeDefinitionsType:
+    def GetCustomCommandLineArgs() -> TyperEx.TypeDefinitionsType:
         """Return type annotations for any arguments that can be provided on the command line"""
         raise Exception("Abstract method")
 
@@ -98,11 +98,11 @@ class TestParserImpl(ABC):
     ) -> str:
         """Returns a command line used to invoke the test execution engine for the given context."""
 
-        single_input = context.get(IndividualInputProcessingMixin.ATTRIBUTE_NAME, None)
+        single_input = context.get(IndividualInputProcessorMixin.ATTRIBUTE_NAME, None)
         if single_input is not None:
             return str(single_input)
 
-        multiple_inputs = context.get(AtomicInputProcessingMixin.ATTRIBUTE_NAME, None)
+        multiple_inputs = context.get(AtomicInputProcessorMixin.ATTRIBUTE_NAME, None)
         if multiple_inputs is not None:
             assert isinstance(multiple_inputs, list)
             assert multiple_inputs

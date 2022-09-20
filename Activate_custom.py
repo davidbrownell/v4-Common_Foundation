@@ -38,11 +38,14 @@ def GetCustomActions(
 ) -> List[Commands.Command]:
     commands: List[Commands.Command] = []
 
-    scripts_dir = Path(__file__).parent / Constants.SCRIPTS_SUBDIR
+    this_dir = Path(__file__).parent
+    assert this_dir.is_dir(), this_dir
+
+    scripts_dir = this_dir / Constants.SCRIPTS_SUBDIR
     assert scripts_dir.is_dir(), scripts_dir
 
     with dm.VerboseNested(
-        "Activating dynamic plugins from '{}'...".format(Path(__file__).parent),
+        "Activating dynamic plugins from '{}'...".format(this_dir),
         suffix="\n" if dm.is_debug else "",
     ) as nested_dm:
         for env_name, subdir, name_suffixes in [

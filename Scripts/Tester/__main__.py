@@ -41,7 +41,7 @@ from Common_Foundation.Streams.StreamDecorator import StreamDecorator
 from Common_Foundation import TextwrapEx
 from Common_Foundation import Types
 
-from Common_FoundationEx.CompilerImpl import CompilerImpl, InputType
+from Common_FoundationEx.CompilerImpl.CompilerImpl import CompilerImpl, InputType
 from Common_FoundationEx.InflectEx import inflect
 from Common_FoundationEx.TesterPlugins.CodeCoverageValidatorImpl import CodeCoverageValidatorImpl
 from Common_FoundationEx.TesterPlugins.TestExecutorImpl import TestExecutorImpl
@@ -59,6 +59,10 @@ with ExitStack(lambda: sys.path.pop(0)):
     assert os.path.isdir(sys.path[0]), sys.path[0]
 
     from RepositoryBootstrap import DynamicPluginArchitecture  # pylint: disable=import-error
+
+
+# ----------------------------------------------------------------------
+IGNORE_FILENAME                             = "Tester-ignore"
 
 
 # ----------------------------------------------------------------------
@@ -440,6 +444,8 @@ _release_only_option                        = typer.Option(False, "--release-onl
 _build_only_option                          = typer.Option(False, "--build-only", help="Build the tests but do not run them.")
 _skip_build_option                          = typer.Option(False, "--skip-build", help="Do not build the tests before running them; this option can only be used with compilers that act as Verifiers.")
 
+_ignore_ignore_filenames_option             = typer.Option(None, "--ignore-ignore-filename", exists=True, dir_okay=False, resolve_path=True, help="Ignore filenames that would normally prevent execution, but should not prevent execution during this invocation. In other words, execute the build even though there is an ignore file present.")
+
 _quiet_option                               = typer.Option(False, "--quiet", help="Write less output to the terminal.")
 _verbose_option                             = typer.Option(False, "--verbose", help="Write verbose information to the terminal.")
 _debug_option                               = typer.Option(False, "--debug", help="Write additional debug information to the terminal.")
@@ -549,6 +555,7 @@ def TestItem(
             release_only=release_only,
             build_only=build_only,
             skip_build=skip_build,
+            ignore_ignore_filenames=None,
             quiet=quiet,
             code_coverage_validator_name=code_coverage_validator,
             compiler_flags=compiler_flags,
@@ -580,6 +587,8 @@ def TestType(
     build_only: bool=_build_only_option,
     skip_build: bool=_skip_build_option,
 
+    ignore_ignore_filenames: Optional[List[Path]]=_ignore_ignore_filenames_option,
+
     quiet: bool=_quiet_option,
     verbose: bool=_verbose_option,
     debug: bool=_debug_option,
@@ -597,6 +606,8 @@ def TestType(
 
     configuration = next((config for config in _CONFIGURATIONS if config.name == config_name.value), None)
     assert configuration is not None
+
+    ignore_ignore_filenames = Types.EnsurePopulatedList(ignore_ignore_filenames)
 
     with DoneManager.CreateCommandLine(
         output_flags=DoneManagerFlags.Create(
@@ -619,6 +630,7 @@ def TestType(
             release_only=release_only,
             build_only=build_only,
             skip_build=skip_build,
+            ignore_ignore_filenames=ignore_ignore_filenames,
             quiet=quiet,
             code_coverage_validator_name=code_coverage_validator,
             compiler_flags=compiler_flags,
@@ -649,6 +661,8 @@ def TestAll(
     build_only: bool=_build_only_option,
     skip_build: bool=_skip_build_option,
 
+    ignore_ignore_filenames: Optional[List[Path]]=_ignore_ignore_filenames_option,
+
     quiet: bool=_quiet_option,
     verbose: bool=_verbose_option,
     debug: bool=_debug_option,
@@ -663,6 +677,8 @@ def TestAll(
     junit_xml_output_filename: Optional[str]=_junit_xml_output_filename_option,
 ) -> None:
     """Runs all tests associated with the specified test classification across all configurations (e.g. run all unit tests)."""
+
+    ignore_ignore_filenames = Types.EnsurePopulatedList(ignore_ignore_filenames)
 
     with DoneManager.CreateCommandLine(
         output_flags=DoneManagerFlags.Create(
@@ -694,6 +710,7 @@ def TestAll(
                     release_only=release_only,
                     build_only=build_only,
                     skip_build=skip_build,
+                    ignore_ignore_filenames=ignore_ignore_filenames,
                     quiet=quiet,
                     code_coverage_validator_name=code_coverage_validator,
                     compiler_flags=compiler_flags,
@@ -777,6 +794,8 @@ def Execute(
     build_only: bool=_build_only_option,
     skip_build: bool=_skip_build_option,
 
+    ignore_ignore_filenames: Optional[List[Path]]=_ignore_ignore_filenames_option,
+
     quiet: bool=_quiet_option,
     verbose: bool=_verbose_option,
     debug: bool=_debug_option,
@@ -791,6 +810,8 @@ def Execute(
     validator. In most cases, it is simpler to invoke a `Test____` method rather than invoking
     this method directly.
     """
+
+    ignore_ignore_filenames = Types.EnsurePopulatedList(ignore_ignore_filenames)
 
     with DoneManager.CreateCommandLine(
         output_flags=DoneManagerFlags.Create(
@@ -834,6 +855,7 @@ def Execute(
             release_only=release_only,
             build_only=build_only,
             skip_build=skip_build,
+            ignore_ignore_filenames=ignore_ignore_filenames,
             quiet=quiet,
             code_coverage_validator_name=code_coverage_validator if is_valid_code_coverage_validator else None,
             compiler_flags=compiler_flags,
@@ -868,6 +890,8 @@ def ExecuteTree(
     build_only: bool=_build_only_option,
     skip_build: bool=_skip_build_option,
 
+    ignore_ignore_filenames: Optional[List[Path]]=_ignore_ignore_filenames_option,
+
     quiet: bool=_quiet_option,
     verbose: bool=_verbose_option,
     debug: bool=_debug_option,
@@ -884,6 +908,8 @@ def ExecuteTree(
     and code coverage validator. In most cases, it is simpler to invoke a `Test____` method rather
     than invoking this method directly.
     """
+
+    ignore_ignore_filenames = Types.EnsurePopulatedList(ignore_ignore_filenames)
 
     with DoneManager.CreateCommandLine(
         output_flags=DoneManagerFlags.Create(
@@ -927,6 +953,7 @@ def ExecuteTree(
             release_only=release_only,
             build_only=build_only,
             skip_build=skip_build,
+            ignore_ignore_filenames=ignore_ignore_filenames,
             quiet=quiet,
             code_coverage_validator_name=code_coverage_validator if is_valid_code_coverage_validator else None,
             compiler_flags=compiler_flags,
@@ -959,6 +986,8 @@ def _TestImpl(
     release_only: bool,
     build_only: bool,
     skip_build: bool,
+
+    ignore_ignore_filenames: Optional[List[Path]],
 
     quiet: bool,
 
@@ -1066,6 +1095,7 @@ def _TestImpl(
         test_type,
         configuration.compiler,
         configuration.test_parser,
+        ignore_ignore_filenames=ignore_ignore_filenames,
     )
 
     if not test_items:
@@ -1107,21 +1137,30 @@ def _FindTests(
     test_type: str,
     compiler: CompilerImpl,
     test_parser: Optional[TestParserImpl],
+    ignore_ignore_filenames: Optional[List[Path]],
 ) -> List[Path]:
     assert directory.is_dir(), directory
 
+    ignore_ignore_filenames = ignore_ignore_filenames or []
+
     if test_parser:
-        is_supported_test_item_func = lambda path: test_parser.IsSupportedTestItem(path)
+        is_supported_test_item_func = lambda path: test_parser.IsSupportedTestItem(path)  # pylint: disable=unnecessary-lambda
         test_parser_name = test_parser.name
     else:
         is_supported_test_item_func = lambda _: True
         test_parser_name = "ignored"
 
     test_items: List[Path] = []
+    ignored_count = 0
+    ignore_override_count = 0
 
     with dm.Nested(
-        "Finding tests in '{}'...".format(directory),
-        lambda: "{} found".format(inflect.no("test item", len(test_items))),
+        "Searching for tests in '{}'...".format(directory),
+        [
+            lambda: "{} found".format(inflect.no("test item", len(test_items))),
+            lambda: "{} ignored".format(inflect.no("test item", ignored_count)),
+            lambda: "{} overridden".format(inflect.no("ignore file", ignore_override_count)),
+        ],
         suffix="\n",
     ) as search_dm:
         if compiler.input_type == InputType.Files:
@@ -1131,6 +1170,9 @@ def _FindTests(
                 directories: List[str],  # pylint: disable=unused-argument
                 filenames: List[str],
             ) -> None:
+                nonlocal ignored_count
+                nonlocal ignore_override_count
+
                 for filename in filenames:
                     fullpath = root / filename
 
@@ -1153,6 +1195,27 @@ def _FindTests(
 
                         continue
 
+                    potential_ignore_filename = fullpath.parent / "{}-ignore".format(fullpath.name)
+                    if potential_ignore_filename.exists():
+                        if potential_ignore_filename in ignore_ignore_filenames:
+                            search_dm.WriteVerbose(
+                                "The ignore filename '{}' was explicitly overridden.\n".format(potential_ignore_filename),
+                            )
+
+                            ignore_override_count += 1
+
+                        else:
+                            search_dm.WriteVerbose(
+                                "'{}' has been excluded due to the ignore item '{}'.\n".format(
+                                    fullpath,
+                                    potential_ignore_filename.name,
+                                ),
+                            )
+
+                            ignored_count += 1
+
+                            continue
+
                     test_items.append(fullpath)
 
             # ----------------------------------------------------------------------
@@ -1166,6 +1229,9 @@ def _FindTests(
                 directories: List[str],
                 filename: List[str],        # pylint: disable=unused-argument
             ) -> None:
+                nonlocal ignored_count
+                nonlocal ignore_override_count
+
                 if not compiler.IsSupported(root) or not compiler.IsSupportedTestItem(root):
                     search_dm.WriteVerbose(
                         "'{}' is not supported by the compiler '{}'.\n".format(
@@ -1186,6 +1252,27 @@ def _FindTests(
 
                     return
 
+                potential_ignore_filename = root / IGNORE_FILENAME
+                if potential_ignore_filename.exists():
+                    if potential_ignore_filename in ignore_ignore_filenames:
+                        search_dm.WriteVerbose(
+                            "The ignore filename '{}' was explicitly overridden.\n".format(potential_ignore_filename),
+                        )
+
+                        ignore_override_count += 1
+
+                    else:
+                        search_dm.WriteVerbose(
+                            "'{}' has been excluded due to the ignore item '{}'.\n".format(
+                                root,
+                                potential_ignore_filename.name,
+                            ),
+                        )
+
+                        ignored_count += 1
+
+                        return
+
                 directories[:] = []
 
                 test_items.append(root)
@@ -1198,7 +1285,7 @@ def _FindTests(
             assert False, compiler.input_type  # pragma: no cover
 
         for root, directories, filenames in EnumSource.EnumSource(directory):
-            if root.name == test_type:
+            if root.name.endswith(test_type):
                 process_func(root, directories, filenames)
 
     return test_items
@@ -1228,7 +1315,7 @@ def _MatchTestsImpl(
                     source_items.append(fullpath)
                     search_dm.WriteVerbose(str(fullpath))
 
-    test_items: List[Path] = _FindTests(dm, input_dir, test_type, compiler, None)
+    test_items: List[Path] = _FindTests(dm, input_dir, test_type, compiler, None, None)
 
     len_test_items = len(test_items)
 
@@ -1375,7 +1462,7 @@ def _ResolveFlags(
 
         return {}
 
-    return TyperEx.ProcessArguments(plugin.GetCustomArgs(), resolved_flags.items())
+    return TyperEx.ProcessArguments(plugin.GetCustomCommandLineArgs(), resolved_flags.items())
 
 
 # ----------------------------------------------------------------------

@@ -62,7 +62,7 @@ class CodeCoverageValidator(CodeCoverageValidatorImpl):
 
     # ----------------------------------------------------------------------
     @classmethod
-    def GetCustomArgs(cls) -> TyperEx.TypeDefinitionsType:
+    def GetCustomCommandLineArgs(cls) -> TyperEx.TypeDefinitionsType:
         return {
             cls.PASSING_PERCENTAGE_ATTRIBUTE_NAME: (Optional[float], dict(min=0.0, max=1.0)),
         }

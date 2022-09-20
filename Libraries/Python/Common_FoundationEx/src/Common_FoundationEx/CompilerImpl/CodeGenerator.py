@@ -1,9 +1,9 @@
 # ----------------------------------------------------------------------
 # |
-# |  CodeGeneratorBase.py
+# |  CodeGenerator.py
 # |
 # |  David Brownell <db@DavidBrownell.com>
-# |      2022-08-30 10:17:12
+# |      2022-09-19 13:54:55
 # |
 # ----------------------------------------------------------------------
 # |
@@ -13,16 +13,18 @@
 # |  http://www.boost.org/LICENSE_1_0.txt.
 # |
 # ----------------------------------------------------------------------
-"""Contains the CodeGeneratorBase object"""
+"""Contains the CodeGenerator object"""
 
 from typing import Any, Callable, Dict, TextIO, Tuple, Union
 
+from . import CommandLine
 from .CompilerImpl import CompilerImpl
-from .InvocationQueryMixins.ConditionalInvocationQueryMixin import ConditionalInvocationQueryMixin
+
+from .Mixins.InvocationQueryMixins.ConditionalInvocationQueryMixin import ConditionalInvocationQueryMixin
 
 
 # ----------------------------------------------------------------------
-class CodeGeneratorBase(  # pylint: disable=too-many-ancestors
+class CodeGenerator(
     CompilerImpl,
     ConditionalInvocationQueryMixin,
 ):
@@ -30,14 +32,24 @@ class CodeGeneratorBase(  # pylint: disable=too-many-ancestors
 
     # ----------------------------------------------------------------------
     def __init__(self, *args, **kwargs):
-        super(CodeGeneratorBase, self).__init__("Generate", "Generating", *args, **kwargs)
+        super(CodeGenerator, self).__init__(
+            "Generate",
+            "Generating",
+            *args,
+            **{
+                **kwargs,
+                **{
+                    "requires_output_dir": True,
+                },
+            },
+        )
 
     # ----------------------------------------------------------------------
     def Generate(
         self,
         context: Dict[str, Any],
         output_stream: TextIO,              # Log output
-        on_progress: Callable[
+        on_progress_func: Callable[
             [
                 int,                        # Step (0-based)
                 str,                        # Status
@@ -45,9 +57,17 @@ class CodeGeneratorBase(  # pylint: disable=too-many-ancestors
             bool,                           # True to continue, False to terminate
         ],
         *,
-        verbose: bool=False,
+        verbose: bool,
     ) -> Union[
-        int,                                # Error code
-        Tuple[int, str],                    # Error code and short text that provides info about the result
+        int,                                # Return code
+        Tuple[
+            int,                            # Return code
+            str,                            # Short description that provides contextual information about the return code
+        ],
     ]:
-        return self._Invoke(context, output_stream, on_progress, verbose=verbose)
+        return self._Invoke(context, output_stream, on_progress_func, verbose=verbose)
+
+
+# ----------------------------------------------------------------------
+CreateGenerateCommandLineFunc               = CommandLine.CreateInvokeCommandLineFunc
+CreateCleanCommandLineFunc                  = CommandLine.CreateCleanCommandLineFunc

@@ -1,9 +1,9 @@
 # ----------------------------------------------------------------------
 # |
-# |  ICompilerImpl.py
+# |  ICompilerIntrinsics.py
 # |
 # |  David Brownell <db@DavidBrownell.com>
-# |      2022-08-30 08:34:37
+# |      2022-09-17 16:43:45
 # |
 # ----------------------------------------------------------------------
 # |
@@ -13,64 +13,47 @@
 # |  http://www.boost.org/LICENSE_1_0.txt.
 # |
 # ----------------------------------------------------------------------
-"""Contains the ICompilerImpl object"""
+"""Contains the ICompilerIntrinsics interface"""
 
-from abc import abstractmethod
-from pathlib import Path
+from abc import ABC, abstractmethod
 from typing import Any, Dict, Generator, List, Tuple
 
 from Common_Foundation.Streams.DoneManager import DoneManager
 
-from .InputProcessingMixins.IInputProcessing import IInputProcessing
-from .InvocationQueryMixins.IInvocationQuery import IInvocationQuery
-from .InvocationMixins.IInvocation import IInvocation
-from .OutputMixins.IOutput import IOutput
-
-# Convenience imports
-from .InvocationQueryMixins.IInvocationQuery import InvokeReason  # pylint: disable=unused-import
-
 
 # ----------------------------------------------------------------------
-class ICompilerImpl(
-    IInputProcessing,
-    IInvocationQuery,
-    IInvocation,
-    IOutput,
-):
-    """Interface for CompilerImpl objects; this class exists to serve as a base for all mixins"""
+class ICompilerIntrinsics(ABC):
+    """Interface for a compiler and mixins"""
 
     # ----------------------------------------------------------------------
     # |
     # |  Protected Methods
     # |
     # ----------------------------------------------------------------------
-    @staticmethod
     @abstractmethod
-    def _EnumerateOptionalMetadata() -> Generator[Tuple[str, Any], None, None]:
+    def _EnumerateOptionalMetadata(self) -> Generator[Tuple[str, Any], None, None]:
         """\
         Metadata that should be applied to generated context items if it doesn't already exist.
         """
         raise Exception("Abstract method")
 
     # ----------------------------------------------------------------------
-    @staticmethod
     @abstractmethod
-    def _GetRequiredMetadataNames() -> List[str]:
+    def _GetRequiredMetadataNames(self) -> List[str]:
         """Names that must be a part of generated metadata."""
         raise Exception("Abstract method")
 
     # ----------------------------------------------------------------------
-    @staticmethod
     @abstractmethod
-    def _GetRequiredContextNames() -> List[str]:
+    def _GetRequiredContextNames(self) -> List[str]:
         """Names that must be a part of generated context."""
         raise Exception("Abstract method")
 
     # ----------------------------------------------------------------------
-    @staticmethod
     @abstractmethod
     def _CreateContext(
-        dm: DoneManager,  # pylint: disable=unused-argument
+        self,
+        dm: DoneManager,
         metadata: Dict[str, Any],
     ) -> Dict[str, Any]:
         """Returns a context object tuned specifically for the metadata provided."""

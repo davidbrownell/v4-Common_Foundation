@@ -28,9 +28,9 @@ from Common_Foundation.Shell import Commands  # type: ignore
 from Common_Foundation.Shell.All import ALL_SHELLS, CurrentShell  # type: ignore
 from Common_Foundation.Streams.DoneManager import DoneManager  # type: ignore
 
-from ...Configuration import VersionInfo, VersionSpecs
-from ... import Constants
-from ... import DataTypes
+from .Configuration import VersionInfo, VersionSpecs
+from . import Constants
+from . import DataTypes
 
 
 # ----------------------------------------------------------------------

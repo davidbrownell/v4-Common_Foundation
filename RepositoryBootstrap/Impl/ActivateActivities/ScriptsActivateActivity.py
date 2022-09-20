@@ -36,8 +36,7 @@ from Common_Foundation.Streams.DoneManager import DoneManager           # type: 
 from Common_Foundation.Streams.StreamDecorator import StreamDecorator   # type: ignore
 from Common_Foundation import TextwrapEx                                # type: ignore
 
-from .ActivateActivity import ActivateActivity
-
+from ...ActivateActivity import ActivateActivity
 from ...Configuration import VersionSpecs
 from ... import Constants
 from ... import DataTypes

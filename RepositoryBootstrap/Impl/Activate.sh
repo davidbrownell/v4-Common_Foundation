@@ -128,7 +128,7 @@ then
         popd > /dev/null
     fi
 
-    export PYTHONPATH=${DEVELOPMENT_ENVIRONMENT_FOUNDATION}:${DEVELOPMENT_ENVIRONMENT_FOUNDATION}/Libraries/Python/Common_Foundation/src
+    export PYTHONPATH=${DEVELOPMENT_ENVIRONMENT_FOUNDATION}:${DEVELOPMENT_ENVIRONMENT_FOUNDATION}/Libraries/Python/Common_Foundation/src:${DEVELOPMENT_ENVIRONMENT_FOUNDATION}/Libraries/Python/Common_FoundationEx/src
 
     # ----------------------------------------------------------------------
     # |  List configurations if requested

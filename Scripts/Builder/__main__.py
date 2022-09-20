@@ -74,7 +74,7 @@ _root_dir_argument                          = typer.Argument(..., exists=True, f
 
 _build_filename_option                      = typer.Option("Build.py", "--build-filename", help="Name of build files.")
 _build_filename_ignore_option               = typer.Option("Build.py-ignore", "--build-filename-ignore", help="Name of files placed in the same directory as a corresponding build file to indicate that it should not be processed by this tool.")
-_ignore_ignore_filenames_option             = typer.Option(None, "--ignore-ignore-filename", exists=True, dir_okay=False, resolve_path=True, help="Ignore filenames that should be ignored. In other words, execute the build even though there is an ignore file present.")
+_ignore_ignore_filenames_option             = typer.Option(None, "--ignore-ignore-filename", exists=True, dir_okay=False, resolve_path=True, help="Ignore filenames that would normally prevent execution, but should not prevent execution during this invocation. In other words, execute the build even though there is an ignore file present.")
 
 _verbose_option                             = typer.Option(False, "--verbose", help="Write verbose information to the terminal.")
 _debug_option                               = typer.Option(False, "--debug", help="Write additional debug information to the terminal.")

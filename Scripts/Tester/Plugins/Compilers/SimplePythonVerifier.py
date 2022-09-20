@@ -18,13 +18,16 @@
 from pathlib import Path
 from typing import Optional
 
-from Common_FoundationEx.CompilerImpl.VerifierBase import InputType, VerifierBase
-from Common_FoundationEx.CompilerImpl.InvocationMixins.IInvocation import IInvocation
+from Common_Foundation.Types import overridemethod
+
+from Common_FoundationEx.CompilerImpl.Verifier import InputType, Verifier as VerifierBase
+from Common_FoundationEx.CompilerImpl.Interfaces.IInvoker import IInvoker
+from Common_FoundationEx.InflectEx import inflect
 from Common_FoundationEx import TyperEx
 
 
 # ----------------------------------------------------------------------
-class Verifier(VerifierBase, IInvocation):
+class Verifier(VerifierBase, IInvoker):
     """\
     Verifier that runs python files.
 
@@ -39,33 +42,50 @@ class Verifier(VerifierBase, IInvocation):
             "SimplePython",
             "Sample Verifier intended to demonstrate the capabilities of Tester; DO NOT USE with real workloads.",
             InputType.Files,
-            execute_in_parallel=True,
-        )
-
-    # ----------------------------------------------------------------------
-    def IsSupported(  # pylint: disable=arguments-renamed
-        self,
-        filename: Path,
-    ) -> bool:
-        return (
-            filename.suffix == ".py"
-            and super(Verifier, self).IsSupported(filename)
+            can_execute_in_parallel=True,
         )
 
     # ----------------------------------------------------------------------
     @staticmethod
-    def GetCustomArgs() -> TyperEx.TypeDefinitionsType:
+    @overridemethod
+    def IsSupported(  # pylint: disable=arguments-renamed
+        filename: Path,
+    ) -> bool:
+        return filename.suffix == ".py"
+
+    # ----------------------------------------------------------------------
+    @overridemethod
+    def ItemToTestName(
+        self,
+        item: Path,
+        test_type_name: str,
+    ) -> Optional[Path]:
+        if self.IsSupportedTestItem(item):
+            return item
+
+        return item.parent / "{}_{}{}".format(
+            item.stem,
+            inflect.singular_noun(test_type_name) or test_type_name,
+            item.suffix,
+        )
+
+    # ----------------------------------------------------------------------
+    @staticmethod
+    @overridemethod
+    def GetCustomCommandLineArgs() -> TyperEx.TypeDefinitionsType:
         return {}
 
     # ----------------------------------------------------------------------
     # ----------------------------------------------------------------------
     # ----------------------------------------------------------------------
     @staticmethod
+    @overridemethod
     def _GetNumStepsImpl(*args, **kwargs) -> int:  # pylint: disable=unused-argument
         return 1
 
     # ----------------------------------------------------------------------
     @staticmethod
+    @overridemethod
     def _InvokeImpl(*args, **kwargs) -> Optional[str]:  # pylint: disable=unused-argument
         # Nothing to do here
         return None

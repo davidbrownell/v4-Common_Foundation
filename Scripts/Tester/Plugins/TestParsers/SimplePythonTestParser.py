@@ -24,7 +24,7 @@ from typing import Any, Dict
 
 from Common_Foundation.ContextlibEx import ExitStack
 
-from Common_FoundationEx.CompilerImpl import CompilerImpl
+from Common_FoundationEx.CompilerImpl.CompilerImpl import CompilerImpl
 from Common_FoundationEx.TesterPlugins.TestParserImpl import TestParserImpl, TestResult
 from Common_FoundationEx import TyperEx
 
@@ -56,7 +56,7 @@ class TestParser(TestParserImpl):
 
     # ----------------------------------------------------------------------
     @staticmethod
-    def GetCustomArgs() -> TyperEx.TypeDefinitionsType:
+    def GetCustomCommandLineArgs() -> TyperEx.TypeDefinitionsType:
         return {}
 
     # ----------------------------------------------------------------------

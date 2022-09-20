@@ -1,9 +1,9 @@
 # ----------------------------------------------------------------------
 # |
-# |  VerifierBase.py
+# |  Verifier.py
 # |
 # |  David Brownell <db@DavidBrownell.com>
-# |      2022-08-30 10:26:36
+# |      2022-09-19 14:04:42
 # |
 # ----------------------------------------------------------------------
 # |
@@ -13,43 +13,50 @@
 # |  http://www.boost.org/LICENSE_1_0.txt.
 # |
 # ----------------------------------------------------------------------
-"""Contains the VerifierBase object"""
+"""Contains the Verifier object"""
 
 from typing import Any, Callable, Dict, TextIO, Tuple, Union
 
-from .CommandLineImpl import CreateInvokeCommandLineFunc
+from . import CommandLine
 from .CompilerImpl import CompilerImpl
-from .InputProcessingMixins.IndividualInputProcessingMixin import IndividualInputProcessingMixin
-from .InvocationQueryMixins.AlwaysInvocationQueryMixin import AlwaysInvocationQueryMixin
-from .OutputMixins.NoOutputMixin import NoOutputMixin
+
+from .Mixins.InputProcessorMixins.IndividualInputProcessorMixin import IndividualInputProcessorMixin
+from .Mixins.InvocationQueryMixins.AlwaysInvocationQueryMixin import AlwaysInvocationQueryMixin
+from .Mixins.OutputProcessorMixins.NoOutputProcessorMixin import NoOutputProcessorMixin
 
 # Convenience imports
 from .CompilerImpl import InputType, InvokeReason  # pylint: disable=unused-import
 
 
 # ----------------------------------------------------------------------
-# |
-# |  Public Types
-# |
-# ----------------------------------------------------------------------
-class VerifierBase(  # pylint: disable=too-many-ancestors
+class Verifier(
     CompilerImpl,
-    IndividualInputProcessingMixin,
+    IndividualInputProcessorMixin,
     AlwaysInvocationQueryMixin,
-    NoOutputMixin,
+    NoOutputProcessorMixin,
 ):
     """Pre-configured object for a compiler that verifies code"""
 
     # ----------------------------------------------------------------------
     def __init__(self, *args, **kwargs):
-        super(VerifierBase, self).__init__("Verify", "Verifying", *args, **kwargs)
+        super(Verifier, self).__init__(
+            "Verify",
+            "Verifying",
+            *args,
+            **{
+                **kwargs,
+                **{
+                    "requires_output_dir": False,
+                },
+            },
+        )
 
     # ----------------------------------------------------------------------
     def Verify(
         self,
         context: Dict[str, Any],
         output_stream: TextIO,              # Log output
-        on_progress: Callable[
+        on_progress_func: Callable[
             [
                 int,                        # Step (0-based)
                 str,                        # Status
@@ -57,17 +64,17 @@ class VerifierBase(  # pylint: disable=too-many-ancestors
             bool,                           # True to continue, False to terminate
         ],
         *,
-        verbose: bool=False,
+        verbose: bool,
     ) -> Union[
-        int,                                # Error code
-        Tuple[int, str],                    # Error code and short text that provides info about the result
+        int,                                # Return code
+        Tuple[
+            int,                            # Return code
+            str,                            # Short description that provides contextual information about the return code
+        ],
     ]:
-        return self._Invoke(context, output_stream, on_progress, verbose=verbose)
+        return self._Invoke(context, output_stream, on_progress_func, verbose=verbose)
 
 
 # ----------------------------------------------------------------------
-# |
-# |  Public Functions
-# |
-# ----------------------------------------------------------------------
-CreateVerifyCommandLineFunc                 = CreateInvokeCommandLineFunc
+CreateVerifyCommandLineFunc                 = CommandLine.CreateInvokeCommandLineFunc
+CreateListCommandLineFunc                   = CommandLine.CreateListCommandLineFunc

@@ -1,9 +1,9 @@
 # ----------------------------------------------------------------------
 # |
-# |  AtomicInputProcessingMixin.py
+# |  IInputProcessor.py
 # |
 # |  David Brownell <db@DavidBrownell.com>
-# |      2022-08-30 09:22:57
+# |      2022-09-17 16:48:05
 # |
 # ----------------------------------------------------------------------
 # |
@@ -13,61 +13,45 @@
 # |  http://www.boost.org/LICENSE_1_0.txt.
 # |
 # ----------------------------------------------------------------------
-"""Contains the AtomicInputProcessingMixin object"""
+"""Contains the IInputProcessor interface"""
 
-import copy
-
+from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Any, Dict, Generator, List, Optional
 
-from Common_Foundation import PathEx
-from Common_FoundationEx.InflectEx import inflect
-
-from .IInputProcessing import IInputProcessing
-
 
 # ----------------------------------------------------------------------
-class AtomicInputProcessingMixin(IInputProcessing):
-    """All inputs are grouped together as a single group"""
-
-    # Generated
-    ATTRIBUTE_NAME                          = "inputs"
+class IInputProcessor(ABC):
+    """Interface for mixins that process input"""
 
     # ----------------------------------------------------------------------
-    @classmethod
+    @abstractmethod
     def GetInputItems(
-        cls,
+        self,
         metadata_or_context: Dict[str, Any],
     ) -> List[Path]:
-        return metadata_or_context[cls.ATTRIBUTE_NAME]
+        """Returns all input items associated with the provided context"""
+        raise Exception("Abstract method")
 
     # ----------------------------------------------------------------------
-    @classmethod
+    @abstractmethod
     def GetDisplayName(
-        cls,
+        self,
         metadata_or_context: Dict[str, Any],
     ) -> Optional[str]:
-        inputs = metadata_or_context[cls.ATTRIBUTE_NAME]
-
-        common_path = PathEx.GetCommonPath(*inputs)
-        if common_path is None:
-            return None
-
-        return "{} under '{}'".format(inflect.no("item", len(inputs)), common_path)
+        """Returns a name suitable for display given the provided context"""
+        raise Exception("Abstract method")
 
     # ----------------------------------------------------------------------
+    # |
+    # |  Private Methods
+    # |
     # ----------------------------------------------------------------------
-    # ----------------------------------------------------------------------
-    @classmethod
+    @abstractmethod
     def _GenerateMetadataItems(
-        cls,
+        self,
         input_items: List[Path],
         user_provided_metadata: Dict[str, Any],
     ) -> Generator[Dict[str, Any], None, None]:
-        if cls.ATTRIBUTE_NAME in user_provided_metadata:
-            raise Exception("'{}' is a reserved keyword.".format(cls.ATTRIBUTE_NAME))
-
-        metadata = copy.deepcopy(user_provided_metadata)
-
-        metadata[cls.ATTRIBUTE_NAME] = input_items
-        yield metadata
+        """Generates metadata items associated with the input items and user-provided content"""
+        raise Exception("Abstract method")

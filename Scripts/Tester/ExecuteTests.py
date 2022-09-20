@@ -39,9 +39,9 @@ from Common_Foundation.Shell.All import CurrentShell
 from Common_Foundation.Streams.DoneManager import DoneManager, DoneManagerFlags
 from Common_Foundation import TextwrapEx
 
-from Common_FoundationEx.CompilerImpl import CompilerImpl
-from Common_FoundationEx.CompilerImpl.CompilerBase import CompilerBase
-from Common_FoundationEx.CompilerImpl.VerifierBase import VerifierBase
+from Common_FoundationEx.CompilerImpl.CompilerImpl import CompilerImpl
+from Common_FoundationEx.CompilerImpl.Compiler import Compiler
+from Common_FoundationEx.CompilerImpl.Verifier import Verifier
 from Common_FoundationEx.InflectEx import inflect
 from Common_FoundationEx.TesterPlugins.CodeCoverageValidatorImpl import CodeCoverageValidatorImpl
 from Common_FoundationEx.TesterPlugins.TestExecutorImpl import TestExecutorImpl
@@ -111,7 +111,7 @@ class ExecuteTests(object):
         if not test_executor.IsSupportedCompiler(compiler):
             raise Exception("The test executor '{}' does not support the compiler '{}'.".format(test_executor.name, compiler.name))
 
-        if skip_build and not isinstance(compiler, VerifierBase):
+        if skip_build and not isinstance(compiler, Verifier):
             raise Exception("The build can only be skipped for compilers that act as verifiers.")
 
         if debug_only and release_only:
@@ -121,7 +121,7 @@ class ExecuteTests(object):
         if code_coverage_validator is not None:
             parallel_tests = False
 
-            if isinstance(compiler, CompilerBase):
+            if isinstance(compiler, Compiler):
                 debug_only = True
                 release_only = False
 
@@ -146,10 +146,6 @@ class ExecuteTests(object):
                     prep_dm.WriteVerbose("'{}' is not supported by the compiler '{}'.\n".format(test_item, compiler.name))
                     continue
 
-                if not compiler.IsSupportedContent(test_item):
-                    prep_dm.WriteVerbose("The content in '{}' is not supported by the compiler '{}'.\n".format(test_item, compiler.name))
-                    continue
-
                 if not compiler.IsSupportedTestItem(test_item):
                     prep_dm.WriteVerbose("'{}' is not a supported test item for the compiler '{}'.\n".format(test_item, compiler.name))
                     continue
@@ -171,7 +167,7 @@ class ExecuteTests(object):
                 debug_context: Optional[ExecuteTests._WorkingDataContext] = None
                 release_context: Optional[ExecuteTests._WorkingDataContext] = None
 
-                if not isinstance(compiler, CompilerBase):
+                if not isinstance(compiler, Compiler):
                     if release_only:
                         prep_dm.WriteVerbose(
                             "The Debug configuration for '{}' will not be processed due to command line options.\n".format(
@@ -184,7 +180,7 @@ class ExecuteTests(object):
                             this_output_dir / "Debug",
                         )
 
-                if isinstance(compiler, CompilerBase):
+                else:
                     if debug_only:
                         prep_dm.WriteVerbose(
                             "The Release configuration for '{}' will not be processed due to command line options.\n".format(
@@ -444,7 +440,7 @@ class ExecuteTests(object):
             # Create the name of the binary file that may be generated; some
             # plugins use this information to calculate outputs (even if the
             # file itself doesn't exist).
-            if isinstance(self._compiler, VerifierBase):
+            if isinstance(self._compiler, Verifier):
                 binary_filename = task_data.working_data.input_item
             else:
                 binary_filename = task_data.context.output_dir / "test_artifact"
@@ -470,8 +466,8 @@ class ExecuteTests(object):
                     metadata: Dict[str, Any] = {
                         **self._compiler_metadata,
                         **{
-                            "is_debug": task_data.is_debug_configuration,
-                            "is_profile": bool(self._code_coverage_validator),
+                            "debug_build": task_data.is_debug_configuration,
+                            "profile_build": bool(self._code_coverage_validator),
                             "output_filename": binary_filename,
                             "output_dir": task_data.context.output_dir,
                             "force": True,
@@ -482,7 +478,7 @@ class ExecuteTests(object):
                     object.__setattr__(
                         task_data.context,
                         "compiler_context",
-                        self._compiler.GetContextItem(
+                        self._compiler.GetSingleContextItem(
                             file_dm,
                             task_data.working_data.input_item,
                             metadata,
@@ -540,6 +536,9 @@ class ExecuteTests(object):
                             else:
                                 result = return_value
                                 short_desc = None
+
+                        # Remove temporary artifacts
+                        self._compiler.RemoveTemporaryArtifacts(task_data.context.compiler_context)
 
                         now_perf_counter = time.perf_counter()
 

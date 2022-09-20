@@ -3,7 +3,7 @@
 # |  IInvocationQuery.py
 # |
 # |  David Brownell <db@DavidBrownell.com>
-# |      2022-08-30 08:51:57
+# |      2022-09-17 16:58:10
 # |
 # ----------------------------------------------------------------------
 # |
@@ -15,7 +15,7 @@
 # ----------------------------------------------------------------------
 """Contains the IInvocationQuery object"""
 
-from abc import abstractmethod, ABC
+from abc import ABC, abstractmethod
 from enum import auto, Enum
 from typing import Any, Dict, Optional
 
@@ -40,23 +40,27 @@ class InvokeReason(Enum):
 
 # ----------------------------------------------------------------------
 class IInvocationQuery(ABC):
-    """Interface for InvocationQuery mixin objects"""
+    """Interface for mixins that look at criteria to determine if compilation is necessary"""
 
     # ----------------------------------------------------------------------
-    @staticmethod
+    # |
+    # |  Private Methods
+    # |
+    # ----------------------------------------------------------------------
     @abstractmethod
     def _GetInvokeReason(
+        self,
         dm: DoneManager,
         context: Dict[str, Any],
     ) -> Optional[InvokeReason]:
-        """Implemented by an InvocationQueryMixin"""
+        """Returns why compilation is necessary or None if it is not"""
         raise Exception("Abstract method")
 
     # ----------------------------------------------------------------------
-    @staticmethod
     @abstractmethod
     def _PersistContext(
+        self,
         context: Dict[str, Any],
     ) -> None:
-        """Implemented by an InvocationQueryMixin"""
+        """Persist context information that can be used in the future to determine if compilation is necessary"""
         raise Exception("Abstract method")

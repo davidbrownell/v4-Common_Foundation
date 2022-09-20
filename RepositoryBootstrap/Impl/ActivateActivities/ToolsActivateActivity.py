@@ -27,8 +27,7 @@ from Common_Foundation.Shell import Commands  # type: ignore
 from Common_Foundation.Shell.All import CurrentShell  # type: ignore
 from Common_Foundation.Streams.DoneManager import DoneManager  # type: ignore
 
-from .ActivateActivity import ActivateActivity
-
+from ...ActivateActivity import ActivateActivity
 from ...Configuration import VersionSpecs
 from ... import Constants
 from ... import DataTypes

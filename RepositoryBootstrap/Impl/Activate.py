@@ -40,11 +40,11 @@ from .ActivationData import ActivationData
 from .EnvironmentBootstrap import EnvironmentBootstrap
 from .GenerateCommands import GenerateCommands
 
-from .ActivateActivities.ActivateActivity import ActivateActivity
 from .ActivateActivities.PythonActivateActivity import PythonActivateActivity
 from .ActivateActivities.ScriptsActivateActivity import ScriptsActivateActivity
 from .ActivateActivities.ToolsActivateActivity import ToolsActivateActivity
 
+from ..ActivateActivity import ActivateActivity
 from ..Configuration import VersionSpecs
 from .. import Constants
 

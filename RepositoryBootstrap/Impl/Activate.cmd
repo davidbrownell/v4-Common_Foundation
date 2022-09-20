@@ -45,7 +45,7 @@ for /f "tokens=1,2 delims==" %%a in (%CD%\Generated\Windows\%DEVELOPMENT_ENVIRON
 set DEVELOPMENT_ENVIRONMENT_ORIGINAL_PATH=%PATH%
 
 set PATH=%DEVELOPMENT_ENVIRONMENT_FOUNDATION%\Tools\Python\v3.10.6\Windows\x64\%DEVELOPMENT_ENVIRONMENT_ENVIRONMENT_NAME%;%PATH%
-set PYTHONPATH=%DEVELOPMENT_ENVIRONMENT_FOUNDATION%;%DEVELOPMENT_ENVIRONMENT_FOUNDATION%\Libraries\Python\Common_Foundation\src
+set PYTHONPATH=%DEVELOPMENT_ENVIRONMENT_FOUNDATION%;%DEVELOPMENT_ENVIRONMENT_FOUNDATION%\Libraries\Python\Common_Foundation\src;%DEVELOPMENT_ENVIRONMENT_FOUNDATION%\Libraries\Python\Common_FoundationEx\src
 
 @REM ----------------------------------------------------------------------
 @REM |  List configurations if requested

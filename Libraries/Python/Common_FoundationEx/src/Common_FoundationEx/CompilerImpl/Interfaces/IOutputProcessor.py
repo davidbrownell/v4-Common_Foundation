@@ -1,9 +1,9 @@
 # ----------------------------------------------------------------------
 # |
-# |  IOutput.py
+# |  IOutputProcessor.py
 # |
 # |  David Brownell <db@DavidBrownell.com>
-# |      2022-08-30 09:03:36
+# |      2022-09-17 17:03:38
 # |
 # ----------------------------------------------------------------------
 # |
@@ -13,9 +13,9 @@
 # |  http://www.boost.org/LICENSE_1_0.txt.
 # |
 # ----------------------------------------------------------------------
-"""Contains the IOutput object"""
+"""Contains the IOutputProcessor object"""
 
-from abc import abstractmethod, ABC
+from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Any, Dict, List, TextIO
 
@@ -23,25 +23,25 @@ from Common_Foundation.Streams.DoneManager import DoneManager
 
 
 # ----------------------------------------------------------------------
-class IOutput(ABC):
-    """Interface for output mixin objects"""
+class IOutputProcessor(ABC):
+    """Interface for mixins that have knowledge about output files generated during compilation"""
 
     # ----------------------------------------------------------------------
-    @staticmethod
     @abstractmethod
     def GetOutputItems(
+        self,
         metadata_or_context: Dict[str, Any],
     ) -> List[Path]:
         """Returns output items associated with the provided metadata/context"""
         raise Exception("Abstract method")
 
     # ----------------------------------------------------------------------
-    @staticmethod
     @abstractmethod
     def Clean(
-        dm: DoneManager,                    # Status information while the program is running
+        self,
+        dm: DoneManager,                    # Status information generated with the process is running
         output_stream: TextIO,              # Log output
         context: Dict[str, Any],
     ) -> None:
-        """Handles the specific of cleaning previously generated output"""
+        """Handles the specifics of cleaning previously generated content"""
         raise Exception("Abstract method")

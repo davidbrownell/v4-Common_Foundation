@@ -71,7 +71,7 @@ class TestExecutorImpl(ABC):
     # ----------------------------------------------------------------------
     @staticmethod
     @abstractmethod
-    def GetCustomArgs() -> TyperEx.TypeDefinitionsType:
+    def GetCustomCommandLineArgs() -> TyperEx.TypeDefinitionsType:
         """Return type annotations for any arguments that can be provided on the command line"""
         raise Exception("Abstract method")
 
