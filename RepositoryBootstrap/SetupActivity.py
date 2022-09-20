@@ -60,9 +60,9 @@ class SetupActivity(ABC):
     # |  Private Methods
     # |
     # ----------------------------------------------------------------------
-    @staticmethod
     @abstractmethod
     def _CreateCommandsImpl(
+        self,
         dm: DoneManager,
         *,
         force: bool,

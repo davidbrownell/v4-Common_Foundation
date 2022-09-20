@@ -46,161 +46,161 @@ from .Commands import (
 # ----------------------------------------------------------------------
 class CommandVisitor(ABC):
     # ----------------------------------------------------------------------
-    @staticmethod
     @abstractmethod
     def OnAugment(
+        self,
         command: Augment,
     ) -> Optional[str]:
         raise Exception("Abstract method")  # pragma: no cover
 
     # ----------------------------------------------------------------------
-    @staticmethod
     @abstractmethod
     def OnAugmentPath(
+        self,
         command: AugmentPath,
     ) -> Optional[str]:
         raise Exception("Abstract method")  # pragma: no cover
 
     # ----------------------------------------------------------------------
-    @staticmethod
     @abstractmethod
     def OnCall(
+        self,
         command: Call,
     ) -> Optional[str]:
         raise Exception("Abstract method")  # pragma: no cover
 
     # ----------------------------------------------------------------------
-    @staticmethod
     @abstractmethod
     def OnCommandPrompt(
+        self,
         command: CommandPrompt,
     ) -> Optional[str]:
         raise Exception("Abstract method")  # pragma: no cover
 
     # ----------------------------------------------------------------------
-    @staticmethod
     @abstractmethod
     def OnComment(
+        self,
         command: Comment,
     ) -> Optional[str]:
         raise Exception("Abstract method")  # pragma: no cover
 
     # ----------------------------------------------------------------------
-    @staticmethod
     @abstractmethod
     def OnCopy(
+        self,
         command: Copy,
     ) -> Optional[str]:
         raise Exception("Abstract method")  # pragma: no cover
 
     # ----------------------------------------------------------------------
-    @staticmethod
     @abstractmethod
     def OnDelete(
+        self,
         command: Delete,
     ) -> Optional[str]:
         raise Exception("Abstract method")  # pragma: no cover
 
     # ----------------------------------------------------------------------
-    @staticmethod
     @abstractmethod
     def OnEchoOff(
+        self,
         command: EchoOff,
     ) -> Optional[str]:
         raise Exception("Abstract method")  # pragma: no cover
 
     # ----------------------------------------------------------------------
-    @staticmethod
     @abstractmethod
     def OnExecute(
+        self,
         command: Execute,
     ) -> Optional[str]:
         raise Exception("Abstract method")  # pragma: no cover
 
     # ----------------------------------------------------------------------
-    @staticmethod
     @abstractmethod
     def OnExit(
+        self,
         command: Exit,
     ) -> Optional[str]:
         raise Exception("Abstract method")  # pragma: no cover
 
     # ----------------------------------------------------------------------
-    @staticmethod
     @abstractmethod
     def OnExitOnError(
+        self,
         command: ExitOnError,
     ) -> Optional[str]:
         raise Exception("Abstract method")  # pragma: no cover
 
     # ----------------------------------------------------------------------
-    @staticmethod
     @abstractmethod
     def OnMessage(
+        self,
         command: Message,
     ) -> Optional[str]:
         raise Exception("Abstract method")  # pragma: no cover
 
     # ----------------------------------------------------------------------
-    @staticmethod
     @abstractmethod
     def OnMove(
+        self,
         command: Move,
     ) -> Optional[str]:
         raise Exception("Abstract method")  # pragma: no cover
 
     # ----------------------------------------------------------------------
-    @staticmethod
     @abstractmethod
     def OnPersistError(
+        self,
         command: PersistError,
     ) -> Optional[str]:
         raise Exception("Abstract method")  # pragma: no cover
 
     # ----------------------------------------------------------------------
-    @staticmethod
     @abstractmethod
     def OnPopDirectory(
+        self,
         command: PopDirectory,
     ) -> Optional[str]:
         raise Exception("Abstract method")  # pragma: no cover
 
     # ----------------------------------------------------------------------
-    @staticmethod
     @abstractmethod
     def OnPushDirectory(
+        self,
         command: PushDirectory,
     ) -> Optional[str]:
         raise Exception("Abstract method")  # pragma: no cover
 
     # ----------------------------------------------------------------------
-    @staticmethod
     @abstractmethod
     def OnRaw(
+        self,
         command: Raw,
     ) -> Optional[str]:
         raise Exception("Abstract method")  # pragma: no cover
 
     # ----------------------------------------------------------------------
-    @staticmethod
     @abstractmethod
     def OnSet(
+        self,
         command: Set,
     ) -> Optional[str]:
         raise Exception("Abstract method")  # pragma: no cover
 
     # ----------------------------------------------------------------------
-    @staticmethod
     @abstractmethod
     def OnSetPath(
+        self,
         command: SetPath,
     ) -> Optional[str]:
         raise Exception("Abstract method")  # pragma: no cover
 
     # ----------------------------------------------------------------------
-    @staticmethod
     @abstractmethod
     def OnSymbolicLink(
+        self,
         command: SymbolicLink,
     ) -> Optional[str]:
         raise Exception("Abstract method")  # pragma: no cover
@@ -208,32 +208,31 @@ class CommandVisitor(ABC):
     # ----------------------------------------------------------------------
     # ----------------------------------------------------------------------
     # ----------------------------------------------------------------------
-    @classmethod
     def Accept(
-        cls,
+        self,
         command: Command,
     ) -> Optional[str]:
         lookup_map = {
-            Augment: cls.OnAugment,
-            AugmentPath: cls.OnAugmentPath,
-            Call: cls.OnCall,
-            CommandPrompt: cls.OnCommandPrompt,
-            Comment: cls.OnComment,
-            Copy: cls.OnCopy,
-            Delete: cls.OnDelete,
-            EchoOff: cls.OnEchoOff,
-            Execute: cls.OnExecute,
-            Exit: cls.OnExit,
-            ExitOnError: cls.OnExitOnError,
-            Message: cls.OnMessage,
-            Move: cls.OnMove,
-            PersistError: cls.OnPersistError,
-            PopDirectory: cls.OnPopDirectory,
-            PushDirectory: cls.OnPushDirectory,
-            Raw: cls.OnRaw,
-            Set: cls.OnSet,
-            SetPath: cls.OnSetPath,
-            SymbolicLink: cls.OnSymbolicLink,
+            Augment: self.OnAugment,
+            AugmentPath: self.OnAugmentPath,
+            Call: self.OnCall,
+            CommandPrompt: self.OnCommandPrompt,
+            Comment: self.OnComment,
+            Copy: self.OnCopy,
+            Delete: self.OnDelete,
+            EchoOff: self.OnEchoOff,
+            Execute: self.OnExecute,
+            Exit: self.OnExit,
+            ExitOnError: self.OnExitOnError,
+            Message: self.OnMessage,
+            Move: self.OnMove,
+            PersistError: self.OnPersistError,
+            PopDirectory: self.OnPopDirectory,
+            PushDirectory: self.OnPushDirectory,
+            Raw: self.OnRaw,
+            Set: self.OnSet,
+            SetPath: self.OnSetPath,
+            SymbolicLink: self.OnSymbolicLink,
         }
 
         func = lookup_map.get(type(command), None)  # type: ignore

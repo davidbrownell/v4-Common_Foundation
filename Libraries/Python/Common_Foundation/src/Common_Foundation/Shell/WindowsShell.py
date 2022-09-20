@@ -49,6 +49,8 @@ from .Commands import (
 from .CommandVisitor import CommandVisitor
 from .Shell import Shell
 
+from ..Types import overridemethod
+
 
 # ----------------------------------------------------------------------
 class WindowsShell(Shell):
@@ -140,8 +142,9 @@ class WindowsShell(Shell):
         self._is_nanoserver                 = is_nanoserver
 
     # ----------------------------------------------------------------------
-    @staticmethod
+    @overridemethod
     def IsActive(
+        self,
         platform_names: SetType[str],
     ) -> bool:
         if "nt" in platform_names:
@@ -150,27 +153,31 @@ class WindowsShell(Shell):
         return any("windows" in platform_name for platform_name in platform_names)
 
     # ----------------------------------------------------------------------
+    @overridemethod
     def IsContainerEnvironment(self) -> bool:
         return self._is_nanoserver
 
     # ----------------------------------------------------------------------
-    @staticmethod
+    @overridemethod
     def RemoveDir(
+        self,
         path: Path,
     ) -> None:
         if path.is_dir():
             os.system('rmdir /S /Q "{}"'.format(str(path)))
 
     # ----------------------------------------------------------------------
-    @staticmethod
+    @overridemethod
     def DecorateEnvironmentVariable(
+        self,
         var_name: str,
     ) -> str:
         return "%{}%".format(var_name)
 
     # ----------------------------------------------------------------------
-    @staticmethod
+    @overridemethod
     def UpdateOwnership(
+        self,
         file_or_directory: Path,  # pylint: disable=unused-argument
         *,
         recurse=False,  # pylint: disable=unused-argument
@@ -179,6 +186,7 @@ class WindowsShell(Shell):
         pass
 
     # ----------------------------------------------------------------------
+    @overridemethod
     def CreateTempFilename(
         self,
         suffix: Optional[str]=None,
@@ -194,8 +202,9 @@ class WindowsShell(Shell):
 # ----------------------------------------------------------------------
 class WindowsCommandVisitor(CommandVisitor):
     # ----------------------------------------------------------------------
-    @staticmethod
+    @overridemethod
     def OnAugment(
+        self,
         command: Augment,
     ) -> Optional[str]:
         statements: List[str] = []
@@ -245,42 +254,45 @@ class WindowsCommandVisitor(CommandVisitor):
         return "\n".join(statements)
 
     # ----------------------------------------------------------------------
-    @classmethod
+    @overridemethod
     def OnAugmentPath(
-        cls,
+        self,
         command: AugmentPath,
     ) -> Optional[str]:
-        return cls.OnAugment(command)
+        return self.OnAugment(command)
 
     # ----------------------------------------------------------------------
-    @classmethod
+    @overridemethod
     def OnCall(
-        cls,
+        self,
         command: Call,
     ) -> Optional[str]:
         result = "call {}".format(command.command_line)
         if command.exit_on_error:
-            result += "\n{}\n".format(cls.Accept(ExitOnError()))
+            result += "\n{}\n".format(self.Accept(ExitOnError()))
 
         return result
 
     # ----------------------------------------------------------------------
-    @staticmethod
+    @overridemethod
     def OnCommandPrompt(
+        self,
         command: CommandPrompt,
     ) -> Optional[str]:
         return "set PROMPT=({}) $P$G".format(command.prompt)
 
     # ----------------------------------------------------------------------
-    @staticmethod
+    @overridemethod
     def OnComment(
+        self,
         command: Comment,
     ) -> Optional[str]:
         return "REM {}".format(command.value)
 
     # ----------------------------------------------------------------------
-    @staticmethod
+    @overridemethod
     def OnCopy(
+        self,
         command: Copy,
     ) -> Optional[str]:
         return 'copy /T "{source}" "{dest}"'.format(
@@ -289,8 +301,9 @@ class WindowsCommandVisitor(CommandVisitor):
         )
 
     # ----------------------------------------------------------------------
-    @staticmethod
+    @overridemethod
     def OnDelete(
+        self,
         command: Delete,
     ) -> Optional[str]:
         if command.is_dir:
@@ -299,16 +312,17 @@ class WindowsCommandVisitor(CommandVisitor):
         return 'del "{}"'.format(command.path)
 
     # ----------------------------------------------------------------------
-    @staticmethod
+    @overridemethod
     def OnEchoOff(
+        self,
         command: EchoOff,
     ) -> Optional[str]:
         return "@echo off"
 
     # ----------------------------------------------------------------------
-    @classmethod
+    @overridemethod
     def OnExecute(
-        cls,
+        self,
         command: Execute,
     ) -> Optional[str]:
         # Execute the command line with a special prefix if the command line invokes a .bat or .cmd file
@@ -320,13 +334,14 @@ class WindowsCommandVisitor(CommandVisitor):
             result = command.command_line
 
         if command.exit_on_error:
-            result += "\n{}\n".format(cls.Accept(ExitOnError()))
+            result += "\n{}\n".format(self.Accept(ExitOnError()))
 
         return result
 
     # ----------------------------------------------------------------------
-    @staticmethod
+    @overridemethod
     def OnExit(
+        self,
         command: Exit,
     ) -> Optional[str]:
         return textwrap.dedent(
@@ -342,8 +357,9 @@ class WindowsCommandVisitor(CommandVisitor):
         )
 
     # ----------------------------------------------------------------------
-    @staticmethod
+    @overridemethod
     def OnExitOnError(
+        self,
         command: ExitOnError,
     ) -> Optional[str]:
         variable_name = command.variable_name or "ERRORLEVEL"
@@ -354,8 +370,9 @@ class WindowsCommandVisitor(CommandVisitor):
         )
 
     # ----------------------------------------------------------------------
-    @staticmethod
+    @overridemethod
     def OnMessage(
+        self,
         command: Message,
     ) -> Optional[str]:
         substitution_lookup = {
@@ -391,8 +408,9 @@ class WindowsCommandVisitor(CommandVisitor):
         return " && ".join(output)
 
     # ----------------------------------------------------------------------
-    @staticmethod
+    @overridemethod
     def OnMove(
+        self,
         command: Move,
     ) -> Optional[str]:
         return 'move /Y "{source}" "{dest}"'.format(
@@ -401,37 +419,42 @@ class WindowsCommandVisitor(CommandVisitor):
         )
 
     # ----------------------------------------------------------------------
-    @staticmethod
+    @overridemethod
     def OnPersistError(
+        self,
         command: PersistError,
     ) -> Optional[str]:
         return "set {}=%ERRORLEVEL%".format(command.variable_name)
 
     # ----------------------------------------------------------------------
-    @staticmethod
+    @overridemethod
     def OnPopDirectory(
-        command: PopDirectory,
+        self,
+        command: PopDirectory,  # pylint: disable=unused-argument
     ) -> Optional[str]:
         return "popd"
 
     # ----------------------------------------------------------------------
-    @staticmethod
+    @overridemethod
     def OnPushDirectory(
+        self,
         command: PushDirectory,
     ) -> Optional[str]:
         directory = command.value or "%~dp0"
         return 'pushd "{}"'.format(directory)
 
     # ----------------------------------------------------------------------
-    @staticmethod
+    @overridemethod
     def OnRaw(
+        self,
         command: Raw,
     ) -> Optional[str]:
         return command.value
 
     # ----------------------------------------------------------------------
-    @staticmethod
+    @overridemethod
     def OnSet(
+        self,
         command: Set,
     ) -> Optional[str]:
         if command.value_or_values is None:
@@ -440,16 +463,17 @@ class WindowsCommandVisitor(CommandVisitor):
         return "SET {}={}".format(command.name, os.pathsep.join(command.EnumValues()))
 
     # ----------------------------------------------------------------------
-    @classmethod
+    @overridemethod
     def OnSetPath(
-        cls,
+        self,
         command: SetPath,
     ) -> Optional[str]:
-        return cls.OnSet(command)
+        return self.OnSet(command)
 
     # ----------------------------------------------------------------------
-    @staticmethod
+    @overridemethod
     def OnSymbolicLink(
+        self,
         command: SymbolicLink,
     ) -> Optional[str]:
         d = {

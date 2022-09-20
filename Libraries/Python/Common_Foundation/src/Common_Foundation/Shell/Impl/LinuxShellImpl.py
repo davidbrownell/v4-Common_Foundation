@@ -46,6 +46,7 @@ from ..Commands import (
 
 from ..CommandVisitor import CommandVisitor
 from ..Shell import Shell
+from ...Types import overridemethod
 
 
 # ----------------------------------------------------------------------
@@ -114,6 +115,7 @@ class LinuxShellImpl(Shell):
         self._command_visitor               = LinuxCommandVisitor()
 
     # ----------------------------------------------------------------------
+    @overridemethod
     def IsActive(
         self,
         platform_names: SetType[str],
@@ -121,29 +123,32 @@ class LinuxShellImpl(Shell):
         return self.name.lower() in platform_names
 
     # ----------------------------------------------------------------------
-    @staticmethod
-    def IsContainerEnvironment() -> bool:
+    @overridemethod
+    def IsContainerEnvironment(self) -> bool:
         # Hard-coded for docker
         return Path("/.dockerenv").is_file()
 
     # ----------------------------------------------------------------------
-    @staticmethod
+    @overridemethod
     def RemoveDir(
+        self,
         path: Path,
     ) -> None:
         if path.is_dir():
             os.system('rm -Rfd "{}"'.format(str(path)))
 
     # ----------------------------------------------------------------------
-    @staticmethod
+    @overridemethod
     def DecorateEnvironmentVariable(
+        self,
         var_name: str,
     ) -> str:
         return "${}".format(var_name)
 
     # ----------------------------------------------------------------------
-    @staticmethod
+    @overridemethod
     def UpdateOwnership(
+        self,
         file_or_directory: Path,  # pylint: disable=unused-argument
         *,
         recurse: bool=False,
@@ -168,21 +173,22 @@ class LinuxShellImpl(Shell):
     # |  Private Methods
     # |
     # ----------------------------------------------------------------------
-    @staticmethod
-    def _GeneratePrefixContent() -> Optional[str]:
+    @overridemethod
+    def _GeneratePrefixContent(self) -> Optional[str]:
         return "#!/bin/bash"
 
     # ----------------------------------------------------------------------
-    @staticmethod
-    def _GenerateSuffixContent() -> Optional[str]:
+    @overridemethod
+    def _GenerateSuffixContent(self) -> Optional[str]:
         return None
 
 
 # ----------------------------------------------------------------------
 class LinuxCommandVisitor(CommandVisitor):
     # ----------------------------------------------------------------------
-    @staticmethod
+    @overridemethod
     def OnAugment(
+        self,
         command: Augment,
     ) -> Optional[str]:
         statements: List[str] = []
@@ -218,24 +224,24 @@ class LinuxCommandVisitor(CommandVisitor):
         return "\n".join(statements)
 
     # ----------------------------------------------------------------------
-    @classmethod
+    @overridemethod
     def OnAugmentPath(
-        cls,
+        self,
         command: AugmentPath,
     ) -> Optional[str]:
-        return cls.OnAugment(command)
+        return self.OnAugment(command)
 
     # ----------------------------------------------------------------------
-    @classmethod
+    @overridemethod
     def OnCall(
-        cls,
+        self,
         command: Call,
     ) -> Optional[str]:
         result = "source {}".format(command.command_line)
 
         if command.exit_on_error:
             result += "\n{}\n".format(
-                cls.Accept(
+                self.Accept(
                     ExitOnError(
                         use_return_statement=command.exit_via_return_statement,
                     ),
@@ -245,8 +251,9 @@ class LinuxCommandVisitor(CommandVisitor):
         return result
 
     # ----------------------------------------------------------------------
-    @staticmethod
+    @overridemethod
     def OnCommandPrompt(
+        self,
         command: CommandPrompt,
     ) -> Optional[str]:
         if command.is_prefix:
@@ -259,15 +266,17 @@ class LinuxCommandVisitor(CommandVisitor):
         )
 
     # ----------------------------------------------------------------------
-    @staticmethod
+    @overridemethod
     def OnComment(
+        self,
         command: Comment,
     ) -> Optional[str]:
         return "# {}".format(command.value)
 
     # ----------------------------------------------------------------------
-    @staticmethod
+    @overridemethod
     def OnCopy(
+        self,
         command: Copy,
     ) -> Optional[str]:
         return 'cp "{source}" "{dest}"'.format(
@@ -276,8 +285,9 @@ class LinuxCommandVisitor(CommandVisitor):
         )
 
     # ----------------------------------------------------------------------
-    @staticmethod
+    @overridemethod
     def OnDelete(
+        self,
         command: Delete,
     ) -> Optional[str]:
         if command.is_dir:
@@ -286,22 +296,23 @@ class LinuxCommandVisitor(CommandVisitor):
         return 'rm -f "{}"'.format(str(command.path))
 
     # ----------------------------------------------------------------------
-    @staticmethod
+    @overridemethod
     def OnEchoOff(
-        command: EchoOff,
+        self,
+        command: EchoOff,  # pylint: disable=unused-argument
     ) -> Optional[str]:
         return "set +x"
 
     # ----------------------------------------------------------------------
-    @classmethod
+    @overridemethod
     def OnExecute(
-        cls,
+        self,
         command: Execute,
     ) -> Optional[str]:
         result = command.command_line
         if command.exit_on_error:
             result += "\n{}\n".format(
-                cls.Accept(
+                self.Accept(
                     ExitOnError(
                         use_return_statement=command.exit_via_return_statement,
                     ),
@@ -311,8 +322,9 @@ class LinuxCommandVisitor(CommandVisitor):
         return result
 
     # ----------------------------------------------------------------------
-    @staticmethod
+    @overridemethod
     def OnExit(
+        self,
         command: Exit,
     ) -> Optional[str]:
         return textwrap.dedent(
@@ -342,8 +354,9 @@ class LinuxCommandVisitor(CommandVisitor):
         )
 
     # ----------------------------------------------------------------------
-    @staticmethod
+    @overridemethod
     def OnExitOnError(
+        self,
         command: ExitOnError,
     ) -> Optional[str]:
         variable_name = "${}".format(command.variable_name) if command.variable_name else "$?"
@@ -363,8 +376,9 @@ class LinuxCommandVisitor(CommandVisitor):
         )
 
     # ----------------------------------------------------------------------
-    @staticmethod
+    @overridemethod
     def OnMessage(
+        self,
         command: Message,
     ) -> Optional[str]:
         substitution_lookup = {
@@ -388,8 +402,9 @@ class LinuxCommandVisitor(CommandVisitor):
         return " && ".join(output)
 
     # ----------------------------------------------------------------------
-    @staticmethod
+    @overridemethod
     def OnMove(
+        self,
         command: Move,
     ) -> Optional[str]:
         return 'mv "{source}" "{dest}"'.format(
@@ -398,22 +413,25 @@ class LinuxCommandVisitor(CommandVisitor):
         )
 
     # ----------------------------------------------------------------------
-    @staticmethod
+    @overridemethod
     def OnPersistError(
+        self,
         command: PersistError,
     ) -> Optional[str]:
         return "{}=$?".format(command.variable_name)
 
     # ----------------------------------------------------------------------
-    @staticmethod
+    @overridemethod
     def OnPopDirectory(
-        command: PopDirectory,
+        self,
+        command: PopDirectory,  # pylint: disable=unused-argument
     ) -> Optional[str]:
         return "popd > /dev/null"
 
     # ----------------------------------------------------------------------
-    @staticmethod
+    @overridemethod
     def OnPushDirectory(
+        self,
         command: PushDirectory,
     ) -> Optional[str]:
         directory = command.value
@@ -426,15 +444,17 @@ class LinuxCommandVisitor(CommandVisitor):
         return 'pushd "{}" > /dev/null'.format(directory)
 
     # ----------------------------------------------------------------------
-    @staticmethod
+    @overridemethod
     def OnRaw(
+        self,
         command: Raw,
     ) -> Optional[str]:
         return command.value
 
     # ----------------------------------------------------------------------
-    @staticmethod
+    @overridemethod
     def OnSet(
+        self,
         command: Set,
     ) -> Optional[str]:
         if command.value_or_values is None:
@@ -449,16 +469,17 @@ class LinuxCommandVisitor(CommandVisitor):
         return 'export {}="{}"'.format(command.name, values)
 
     # ----------------------------------------------------------------------
-    @classmethod
+    @overridemethod
     def OnSetPath(
-        cls,
+        self,
         command: SetPath,
     ) -> Optional[str]:
-        return cls.OnSet(command)
+        return self.OnSet(command)
 
     # ----------------------------------------------------------------------
-    @staticmethod
+    @overridemethod
     def OnSymbolicLink(
+        self,
         command: SymbolicLink,
     ) -> Optional[str]:
         return textwrap.dedent(

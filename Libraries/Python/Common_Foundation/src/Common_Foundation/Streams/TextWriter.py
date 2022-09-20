@@ -26,27 +26,24 @@ class TextWriter(ABC):
     """
 
     # ----------------------------------------------------------------------
-    @staticmethod
     @abstractmethod
-    def isatty() -> bool:
+    def isatty(self) -> bool:
         raise Exception("Abstract method")  # pragma: no cover
 
     # ----------------------------------------------------------------------
-    @staticmethod
     @abstractmethod
     def write(
+        self,
         content: str,
     ) -> int:
         raise Exception("Abstract method")  # pragma: no cover
 
     # ----------------------------------------------------------------------
-    @staticmethod
     @abstractmethod
-    def flush() -> None:
+    def flush(self) -> None:
         raise Exception("Abstract method")  # pragma: no cover
 
     # ----------------------------------------------------------------------
-    @staticmethod
     @abstractmethod
-    def close() -> None:
+    def close(self) -> None:
         raise Exception("Abstract method")  # pragma: no cover

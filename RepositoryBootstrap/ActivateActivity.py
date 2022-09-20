@@ -355,9 +355,9 @@ class ActivateActivity(ABC):
     # |  Private Methods
     # |
     # ----------------------------------------------------------------------
-    @staticmethod
     @abstractmethod
     def _CreateCommandsImpl(
+        self,
         dm: DoneManager,
         configuration: Optional[str],
         repositories: List[DataTypes.ConfiguredRepoDataWithPath],

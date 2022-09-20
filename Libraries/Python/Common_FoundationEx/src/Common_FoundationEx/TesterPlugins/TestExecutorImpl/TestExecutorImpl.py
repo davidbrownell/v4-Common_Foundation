@@ -51,9 +51,8 @@ class TestExecutorImpl(ABC):
         self.is_code_coverage_executor      = is_code_coverage_executor
 
     # ----------------------------------------------------------------------
-    @staticmethod
     @extensionmethod
-    def ValidateEnvironment() -> Optional[str]:
+    def ValidateEnvironment(self) -> Optional[str]:
         """\
         Opportunity to validate that a test executor can be run in the current environment.
 
@@ -69,25 +68,24 @@ class TestExecutorImpl(ABC):
         return None
 
     # ----------------------------------------------------------------------
-    @staticmethod
     @abstractmethod
-    def GetCustomCommandLineArgs() -> TyperEx.TypeDefinitionsType:
+    def GetCustomCommandLineArgs(self) -> TyperEx.TypeDefinitionsType:
         """Return type annotations for any arguments that can be provided on the command line"""
         raise Exception("Abstract method")
 
     # ----------------------------------------------------------------------
-    @staticmethod
     @abstractmethod
     def IsSupportedCompiler(
+        self,
         compiler: CompilerImpl,
     ) -> bool:
         """Returns True if the compiler produces results that can be consumed by this test parser."""
         raise Exception("Abstract method")
 
     # ----------------------------------------------------------------------
-    @staticmethod
     @extensionmethod
     def GetNumSteps(
+        self,
         compiler: CompilerImpl,             # pylint: disable=unused-argument
         compiler_context: Dict[str, Any],   # pylint: disable=unused-argument
     ) -> Optional[int]:
@@ -100,9 +98,9 @@ class TestExecutorImpl(ABC):
         return None
 
     # ----------------------------------------------------------------------
-    @staticmethod
     @abstractmethod
     def Execute(
+        self,
         dm: DoneManager,
         compiler: CompilerImpl,
         context: Dict[str, Any],

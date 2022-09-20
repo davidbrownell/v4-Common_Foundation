@@ -30,6 +30,7 @@ from .CommandVisitor import CommandVisitor
 
 from ..ContextlibEx import ExitStack
 from .. import SubprocessEx
+from ..Types import extensionmethod
 
 
 # ----------------------------------------------------------------------
@@ -134,42 +135,41 @@ class Shell(ABC):
     # |  Methods
     # |
     # ----------------------------------------------------------------------
-    @staticmethod
     @abstractmethod
     def IsActive(
+        self,
         platform_names: Set[str],
     ) -> bool:
         raise Exception("Abstract method")  # pragma: no cover
 
     # ----------------------------------------------------------------------
-    @staticmethod
     @abstractmethod
-    def IsContainerEnvironment() -> bool:
+    def IsContainerEnvironment(self) -> bool:
         """Return True if we are running within a container"""
         raise Exception("Abstract method")  # pragma: no cover
 
     # ----------------------------------------------------------------------
-    @staticmethod
     @abstractmethod
     def RemoveDir(
+        self,
         path: Path
     ) -> None:
         """Removes a directory in the most efficient way possible"""
         raise Exception("Abstract method")  # pragma: no cover
 
     # ----------------------------------------------------------------------
-    @staticmethod
     @abstractmethod
     def DecorateEnvironmentVariable(
+        self,
         var_name: str,
     ) -> str:
         """Returns a var name that is decorated so that it can be used in a script"""
         raise Exception("Abstract method")  # pragma: no cover
 
     # ----------------------------------------------------------------------
-    @staticmethod
     @abstractmethod
     def UpdateOwnership(
+        self,
         file_or_directory: Path,
         *,
         recurse=False,
@@ -306,11 +306,11 @@ class Shell(ABC):
     # ----------------------------------------------------------------------
     # ----------------------------------------------------------------------
     # ----------------------------------------------------------------------
-    # @extensionmethod
+    @extensionmethod
     def _GeneratePrefixContent(self) -> Optional[str]:
         return None
 
     # ----------------------------------------------------------------------
-    # @extensionmethod
+    @extensionmethod
     def _GenerateSuffixContent(self) -> Optional[str]:
         return None

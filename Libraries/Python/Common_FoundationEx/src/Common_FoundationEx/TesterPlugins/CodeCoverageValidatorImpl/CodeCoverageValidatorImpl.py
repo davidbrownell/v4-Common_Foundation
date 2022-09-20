@@ -38,16 +38,15 @@ class CodeCoverageValidatorImpl(ABC):
         self.description                    = description
 
     # ----------------------------------------------------------------------
-    @staticmethod
     @abstractmethod
-    def GetCustomCommandLineArgs() -> TyperEx.TypeDefinitionsType:
+    def GetCustomCommandLineArgs(self) -> TyperEx.TypeDefinitionsType:
         """Return type annotations for any arguments that can be provided on the command line"""
         raise Exception("Abstract method")
 
     # ----------------------------------------------------------------------
-    @staticmethod
     @abstractmethod
     def Validate(
+        self,
         dm: DoneManager,
         filename: Path, # This can be used to find filename that indicate the min passing percentage
         measured_coverage: float,

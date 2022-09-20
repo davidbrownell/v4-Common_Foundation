@@ -22,6 +22,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from Common_Foundation.Streams.DoneManager import DoneManager
 from Common_Foundation import SubprocessEx
+from Common_Foundation.Types import overridemethod
 
 from Common_FoundationEx.CompilerImpl.CompilerImpl import CompilerImpl
 from Common_FoundationEx.TesterPlugins.TestExecutorImpl import ExecuteResult, TestExecutorImpl
@@ -41,20 +42,22 @@ class TestExecutor(TestExecutorImpl):
         )
 
     # ----------------------------------------------------------------------
-    @staticmethod
-    def GetCustomCommandLineArgs() -> TyperEx.TypeDefinitionsType:
+    @overridemethod
+    def GetCustomCommandLineArgs(self) -> TyperEx.TypeDefinitionsType:
         return {}
 
     # ----------------------------------------------------------------------
-    @staticmethod
+    @overridemethod
     def IsSupportedCompiler(
+        self,
         compiler: CompilerImpl,
     ) -> bool:
         return True
 
     # ----------------------------------------------------------------------
-    @staticmethod
+    @overridemethod
     def Execute(
+        self,
         dm: DoneManager,                                # pylint: disable=unused-argument
         compiler: CompilerImpl,                         # pylint: disable=unused-argument
         context: Dict[str, Any],                        # pylint: disable=unused-argument

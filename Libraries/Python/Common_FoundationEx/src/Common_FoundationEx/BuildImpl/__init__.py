@@ -203,9 +203,9 @@ class BuildInfoBase(ABC):
         return {}
 
     # ----------------------------------------------------------------------
-    @staticmethod
     @abstractmethod
     def Clean(
+        self,
         configuration: Optional[str],
         output_dir: Optional[Path],
         output_stream: TextIO,
@@ -223,9 +223,9 @@ class BuildInfoBase(ABC):
         raise Exception("Abstract method")
 
     # ----------------------------------------------------------------------
-    @staticmethod
     @abstractmethod
     def Build(
+        self,
         configuration: Optional[str],
         output_dir: Optional[Path],
         output_stream: TextIO,

@@ -796,9 +796,9 @@ class RepositoryMapCalculator(ABC):
     # ----------------------------------------------------------------------
     # ----------------------------------------------------------------------
     # ----------------------------------------------------------------------
-    @staticmethod
     @abstractmethod
     def _OnStatusUpdate(
+        self,
         directories_searched: int,
         directories_pending: int,
         repositories_found: int,
@@ -809,9 +809,9 @@ class RepositoryMapCalculator(ABC):
         raise Exception("Abstract method")  # pragma: no cover
 
     # ----------------------------------------------------------------------
-    @staticmethod
     @abstractmethod
     def _OnModuleError(
+        self,
         ex: Exception,
         repo_data: DataTypes.RepoData,
         repo_path: Path,
@@ -820,9 +820,9 @@ class RepositoryMapCalculator(ABC):
         raise Exception("Abstract method")  # pragma: no cover
 
     # ----------------------------------------------------------------------
-    @staticmethod
     @abstractmethod
     def _OnDependencyNameMismatch(
+        self,
         encountered_data: EncounteredRepoData,
         dependency_name: str,
         requesting_data: DataTypes.RepoData,
@@ -833,9 +833,9 @@ class RepositoryMapCalculator(ABC):
         raise Exception("Abstract method")  # pragma: no cover
 
     # ----------------------------------------------------------------------
-    @staticmethod
     @abstractmethod
     def _OnPendingNameMismatch(
+        self,
         pending_data: PendingRepoData,
         pending_path: Path,
         dependency_name: str,
@@ -847,10 +847,10 @@ class RepositoryMapCalculator(ABC):
         raise Exception("Abstract method")  # pragma: no cover
 
     # ----------------------------------------------------------------------
-    @staticmethod
     @abstractmethod
     @contextmanager
     def _SearchContext(
+        self,
         encountered_repos: Dict[uuid.UUID, EncounteredRepoData],
         pending_repos: Dict[uuid.UUID, PendingRepoData],
     ) -> Iterator[None]:

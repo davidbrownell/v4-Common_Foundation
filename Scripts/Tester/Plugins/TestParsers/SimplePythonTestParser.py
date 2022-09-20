@@ -23,6 +23,7 @@ from pathlib import Path
 from typing import Any, Dict
 
 from Common_Foundation.ContextlibEx import ExitStack
+from Common_Foundation.Types import overridemethod
 
 from Common_FoundationEx.CompilerImpl.CompilerImpl import CompilerImpl
 from Common_FoundationEx.TesterPlugins.TestParserImpl import TestParserImpl, TestResult
@@ -55,25 +56,28 @@ class TestParser(TestParserImpl):
         )
 
     # ----------------------------------------------------------------------
-    @staticmethod
-    def GetCustomCommandLineArgs() -> TyperEx.TypeDefinitionsType:
+    @overridemethod
+    def GetCustomCommandLineArgs(self) -> TyperEx.TypeDefinitionsType:
         return {}
 
     # ----------------------------------------------------------------------
-    @staticmethod
+    @overridemethod
     def IsSupportedCompiler(
+        self,
         compiler: CompilerImpl,
     ) -> bool:
         return isinstance(compiler, SimplePythonVerifier)
 
     # ----------------------------------------------------------------------
-    @staticmethod
+    @overridemethod
     def IsSupportedTestItem(
+        self,
         item: Path,
     ) -> bool:
         return item.is_file() and item.suffix == ".py"
 
     # ----------------------------------------------------------------------
+    @overridemethod
     def CreateInvokeCommandLine(
         self,
         compiler: CompilerImpl,
@@ -90,8 +94,8 @@ class TestParser(TestParserImpl):
         )
 
     # ----------------------------------------------------------------------
-    @staticmethod
-    def Parse(*args, **kwargs) -> TestResult:  # pylint: disable=unused-argument
+    @overridemethod
+    def Parse(self, *args, **kwargs) -> TestResult:  # pylint: disable=unused-argument
         # Nothing to do here, as the test is successful if the process exited successfully.
         # If here, it exited successfully.
         return TestResult(

@@ -47,34 +47,33 @@ class TestParserImpl(ABC):
         self.description                    = description
 
     # ----------------------------------------------------------------------
-    @staticmethod
     @abstractmethod
-    def GetCustomCommandLineArgs() -> TyperEx.TypeDefinitionsType:
+    def GetCustomCommandLineArgs(self) -> TyperEx.TypeDefinitionsType:
         """Return type annotations for any arguments that can be provided on the command line"""
         raise Exception("Abstract method")
 
     # ----------------------------------------------------------------------
-    @staticmethod
     @abstractmethod
     def IsSupportedCompiler(
+        self,
         compiler: CompilerImpl,
     ) -> bool:
         """Returns True if the compiler produces results that can be consumed by this test parser."""
         raise Exception("Abstract method")
 
     # ----------------------------------------------------------------------
-    @staticmethod
     @abstractmethod
     def IsSupportedTestItem(
+        self,
         item: Path,
     ) -> bool:
         """Returns True if the test parser is able to process this test item."""
         raise Exception("Abstract method")
 
     # ----------------------------------------------------------------------
-    @staticmethod
     @extensionmethod
     def GetNumSteps(
+        self,
         command_line: str,                  # pylint: disable=unused-argument
         compiler: CompilerImpl,             # pylint: disable=unused-argument
         compiler_context: Dict[str, Any],   # pylint: disable=unused-argument
@@ -88,9 +87,9 @@ class TestParserImpl(ABC):
         return None
 
     # ----------------------------------------------------------------------
-    @staticmethod
     @extensionmethod
     def CreateInvokeCommandLine(
+        self,
         compiler: CompilerImpl,             # pylint: disable=unused-argument
         context: Dict[str, Any],
         *,
@@ -112,9 +111,9 @@ class TestParserImpl(ABC):
         raise Exception("Unknown input")
 
     # ----------------------------------------------------------------------
-    @staticmethod
     @abstractmethod
     def Parse(
+        self,
         compiler: CompilerImpl,
         compiler_context: Dict[str, Any],
         test_data: str,
@@ -130,9 +129,9 @@ class TestParserImpl(ABC):
         raise Exception("Abstract method")
 
     # ----------------------------------------------------------------------
-    @staticmethod
     @extensionmethod
     def RemoveTemporaryArtifacts(
+        self,
         context: Dict[str, Any],  # pylint: disable=unused-argument
     ) -> None:
         """Remove any additional artifacts once test execution is complete"""

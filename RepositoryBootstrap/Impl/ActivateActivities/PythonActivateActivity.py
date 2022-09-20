@@ -27,6 +27,7 @@ import inflect as inflect_mod
 from Common_Foundation.Shell import Commands    # type: ignore
 from Common_Foundation.Shell.All import CurrentShell  # type: ignore
 from Common_Foundation.Streams.DoneManager import DoneManager  # type: ignore
+from Common_Foundation.Types import overridemethod
 
 from ...ActivateActivity import ActivateActivity
 from ...Configuration import VersionSpecs
@@ -54,6 +55,7 @@ class PythonActivateActivity(ActivateActivity):
     # ----------------------------------------------------------------------
     # ----------------------------------------------------------------------
     # ----------------------------------------------------------------------
+    @overridemethod
     def _CreateCommandsImpl(
         self,
         dm: DoneManager,

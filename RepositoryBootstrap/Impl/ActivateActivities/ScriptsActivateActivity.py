@@ -35,6 +35,7 @@ from Common_Foundation.Shell.All import CurrentShell                    # type: 
 from Common_Foundation.Streams.DoneManager import DoneManager           # type: ignore
 from Common_Foundation.Streams.StreamDecorator import StreamDecorator   # type: ignore
 from Common_Foundation import TextwrapEx                                # type: ignore
+from Common_Foundation.Types import overridemethod
 
 from ...ActivateActivity import ActivateActivity
 from ...Configuration import VersionSpecs
@@ -103,6 +104,7 @@ class ScriptsActivateActivity(ActivateActivity):
     # |
     # ----------------------------------------------------------------------
     # Update the comments in ../../Constants.py if this method name changes
+    @overridemethod
     def _CreateCommandsImpl(
         self,
         dm: DoneManager,

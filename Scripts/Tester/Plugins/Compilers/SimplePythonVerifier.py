@@ -46,9 +46,9 @@ class Verifier(VerifierBase, IInvoker):
         )
 
     # ----------------------------------------------------------------------
-    @staticmethod
     @overridemethod
     def IsSupported(  # pylint: disable=arguments-renamed
+        self,
         filename: Path,
     ) -> bool:
         return filename.suffix == ".py"
@@ -70,22 +70,19 @@ class Verifier(VerifierBase, IInvoker):
         )
 
     # ----------------------------------------------------------------------
-    @staticmethod
     @overridemethod
-    def GetCustomCommandLineArgs() -> TyperEx.TypeDefinitionsType:
+    def GetCustomCommandLineArgs(self) -> TyperEx.TypeDefinitionsType:
         return {}
 
     # ----------------------------------------------------------------------
     # ----------------------------------------------------------------------
     # ----------------------------------------------------------------------
-    @staticmethod
     @overridemethod
-    def _GetNumStepsImpl(*args, **kwargs) -> int:  # pylint: disable=unused-argument
+    def _GetNumStepsImpl(self, *args, **kwargs) -> int:  # pylint: disable=unused-argument
         return 1
 
     # ----------------------------------------------------------------------
-    @staticmethod
     @overridemethod
-    def _InvokeImpl(*args, **kwargs) -> Optional[str]:  # pylint: disable=unused-argument
+    def _InvokeImpl(self, *args, **kwargs) -> Optional[str]:  # pylint: disable=unused-argument
         # Nothing to do here
         return None
