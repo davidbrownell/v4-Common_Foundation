@@ -790,7 +790,7 @@ class DistributedRepository(Repository):
 
     # ----------------------------------------------------------------------
     @abstractmethod
-    def EnumUpdateChanges(self) -> Generator[Path, None, None]:
+    def EnumUpdateChanges(self) -> Generator[str, None, None]:
         """Enumerates filenames associated with changes that have not yet been applied to the working directory."""
         raise Exception("Abstract method")  # pragma: no cover
 

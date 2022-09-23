@@ -701,6 +701,22 @@ def HasUpdateChanges(
 
 
 # ----------------------------------------------------------------------
+@app.command("EnumUpdateChanges", rich_help_panel="Distributed Repository Commands", help=DistributedRepository.EnumUpdateChanges.__doc__)
+def EnumUpdateChanges(
+    repo_root: Path=_path_optional_option,
+    scm_name: Optional[Scm]=_scm_optional_option,  # type: ignore
+):
+    return _Wrap(
+        "EnumUpdateChanges",
+        lambda repo: cast(DistributedRepository, repo).GetEnumUpdateChangesCommandLine(),
+        lambda repo: cast(DistributedRepository, repo).EnumUpdateChanges(),
+        repo_root,
+        scm_name,
+        requires_distributed_repository=True,
+    )
+
+
+# ----------------------------------------------------------------------
 @app.command("HasLocalChanges", rich_help_panel="Distributed Repository Commands", help=DistributedRepository.HasLocalChanges.__doc__)
 def HasLocalChanges(
     repo_root: Path=_path_optional_option,

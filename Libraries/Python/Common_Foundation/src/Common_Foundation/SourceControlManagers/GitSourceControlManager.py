@@ -16,6 +16,7 @@
 """Contains the GitSourceControlManager object"""
 
 import re
+import textwrap
 
 from datetime import datetime
 from pathlib import Path
@@ -43,7 +44,7 @@ class GitSourceControlManager(SourceControlManager):
 
     @property
     def default_branch_name(self) -> str:
-        return "master"
+        return "main"
 
     @property
     def release_branch_name(self) -> str:
@@ -257,7 +258,12 @@ class Repository(DistributedRepositoryBase):
         for line in result.output.split("\n"):
             parts = line.split("/")
 
-            if len(parts) >= 4 and parts[1] == "remotes" and parts[2] == "origin":
+            if (
+                len(parts) >= 4
+                and parts[1] == "remotes"
+                and parts[2] == "origin"
+                and parts[3] != "HEAD"
+            ):
                 return parts[3]
 
         assert False, result.output
@@ -772,22 +778,38 @@ class Repository(DistributedRepositoryBase):
 
     # ----------------------------------------------------------------------
     def GetHasUpdateChangesCommandLine(self) -> str:
-        return self.GetEnumUpdateChangesCommandLine()
+        return self._GetCommandLine('git log -n 1 --pretty=%D')
 
     # ----------------------------------------------------------------------
     def HasUpdateChanges(self) -> bool:
-        for _ in self.EnumUpdateChanges():
-            return True
+        result = self._Execute(self.GetHasUpdateChangesCommandLine())
+        assert result.returncode == 0, result.output
 
-        return False
+        return "->" not in result.output
 
     # ----------------------------------------------------------------------
     def GetEnumUpdateChangesCommandLine(self) -> str:
-        raise NotImplementedError("TODO")
+        raise NotImplementedError(
+            textwrap.dedent(
+                """\
+                Git makes this very difficult, as it doesn't associate the detached head with any branch,
+                so the calculation to find the changes between the detached head and some branch is
+                ambiguous. In theory, we could parse the reflog and make a best guess as
+                to which branch is the desired branch, but this guess wouldn't be
+                correct in all cases.
+                """,
+            ),
+        )
 
     # ----------------------------------------------------------------------
-    def EnumUpdateChanges(self) -> Generator[Path, None, None]:
-        raise NotImplementedError("TODO")
+    def EnumUpdateChanges(self) -> Generator[str, None, None]:
+        result = self._Execute(self.GetEnumUpdateChangesCommandLine())
+        assert result.returncode == 0, result.output
+
+        for line in result.output.split("\n"):
+            line = line.strip()
+            if line:
+                yield line
 
     # ----------------------------------------------------------------------
     def GetHasLocalChangesCommandLine(self) -> str:
@@ -795,8 +817,14 @@ class Repository(DistributedRepositoryBase):
 
     # ----------------------------------------------------------------------
     def HasLocalChanges(self) -> bool:
-        for _ in self.EnumLocalChanges():
-            return True
+        try:
+            for _ in self.EnumLocalChanges():
+                return True
+        except NotImplementedError as ex:
+            if "Git makes this very difficult" in str(ex):
+                return True
+
+            raise
 
         return False
 
@@ -805,7 +833,7 @@ class Repository(DistributedRepositoryBase):
         return self._GetCommandLine(
             " && ".join(
                 [
-                    "git remote update",
+                    "git remote update origin",
                     'git --no-pager log "origin/{}..HEAD" --format="%H"'.format(self.GetCurrentBranch()),
                 ],
             ),
@@ -814,11 +842,25 @@ class Repository(DistributedRepositoryBase):
     # ----------------------------------------------------------------------
     def EnumLocalChanges(self) -> Generator[str, None, None]:
         result = self._Execute(self.GetEnumLocalChangesCommandLine())
+        if result.returncode != 0 and "unknown revision" in result.output:
+            raise NotImplementedError(
+                textwrap.dedent(
+                    """\
+                    Git makes this very difficult, as there doesn't seem to be a way to get a list
+                    of changes that have been made on this branch without a ridiculous amount of
+                    parsing.
+
+                    If you see this message, know that this is a branch that hasn't yet been pushed
+                    to the origin.
+                    """,
+                ),
+            )
+
         assert result.returncode == 0, result.output
 
         for line in result.output.split("\n"):
             line = line.strip()
-            if line:
+            if line and not line.startswith("Fetching"):
                 yield line
 
     # ----------------------------------------------------------------------
@@ -837,7 +879,7 @@ class Repository(DistributedRepositoryBase):
         return self._GetCommandLine(
             " && ".join(
                 [
-                    "git remote update",
+                    "git remote update origin",
                     'git --no-pager log "HEAD..origin/{}" --format="%H"'.format(self.GetCurrentBranch()),
                 ],
             ),
@@ -846,11 +888,17 @@ class Repository(DistributedRepositoryBase):
     # ----------------------------------------------------------------------
     def EnumRemoteChanges(self) -> Generator[str, None, None]:
         result = self._Execute(self.GetEnumRemoteChangesCommandLine())
+        if result.returncode != 0 and "unknown revision" in result.output:
+            # There aren't going to be any remote changes on this branch if the remote doesn't
+            # know about it.
+            result.returncode = 0
+            result.output = ""
+
         assert result.returncode == 0, result.output
 
         for line in result.output.split("\n"):
             line = line.strip()
-            if line:
+            if line and not line.startswith("Fetching"):
                 yield line
 
     # ----------------------------------------------------------------------

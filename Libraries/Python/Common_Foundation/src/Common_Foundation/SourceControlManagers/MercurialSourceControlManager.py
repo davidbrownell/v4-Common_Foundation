@@ -830,20 +830,20 @@ class Repository(DistributedRepositoryBase):
 
     # ----------------------------------------------------------------------
     def GetEnumUpdateChangesCommandLine(self) -> str:
-        return "hg status"
+        return self._GetCommandLine(r'hg log --rev "descendants(.) and not ." --template "rev:{rev}\n"')
 
     # ----------------------------------------------------------------------
-    def EnumUpdateChanges(self) -> Generator[Path, None, None]:
+    def EnumUpdateChanges(self) -> Generator[str, None, None]:
         result = self._Execute(self.GetEnumUpdateChangesCommandLine())
         assert result.returncode == 0 or (result.returncode == 1 and "no changes found" in result.output)
 
+        output_prefix = "rev:"
+
         for line in result.output.split("\n"):
             line = line.strip()
-            if not line:
-                continue
 
-            assert len(line) > 2 and line[1] == " " and line[2] != " ", line
-            yield self.repo_root / line[2:]
+            if line.startswith(output_prefix):
+                yield line[len(output_prefix):]
 
     # ----------------------------------------------------------------------
     def GetHasLocalChangesCommandLine(self) -> str:
