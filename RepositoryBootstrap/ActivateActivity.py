@@ -102,14 +102,16 @@ class ActivateActivity(ABC):
         if explicit_version is not None:
             assert explicit_version.version is not None
 
-            explicit_version_string = str(explicit_version.version)
+            versions: Dict[str, SemVer] = {}
 
-            versions = {
-                explicit_version_string: explicit_version.version,
-            }
+            for explicit_version_string in [
+                str(explicit_version.version),
+                "{}.{}".format(explicit_version.version.major, explicit_version.version.minor),
+            ]:
+                versions[explicit_version_string] = explicit_version.version
 
-            for potential_version_prefix in Constants.POTENTIAL_VERSION_PREFIXES:
-                versions["{}{}".format(potential_version_prefix, explicit_version_string)] = explicit_version.version
+                for potential_version_prefix in Constants.POTENTIAL_VERSION_PREFIXES:
+                    versions["{}{}".format(potential_version_prefix, explicit_version_string)] = explicit_version.version
 
         else:
             versions = cls.SortVersions(

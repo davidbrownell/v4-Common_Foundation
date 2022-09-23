@@ -23,10 +23,10 @@ from typing import List, Optional
 
 import inflect as inflect_mod
 
-from Common_Foundation.Shell import Commands  # type: ignore
-from Common_Foundation.Shell.All import CurrentShell  # type: ignore
-from Common_Foundation.Streams.DoneManager import DoneManager  # type: ignore
-from Common_Foundation.Types import overridemethod
+from Common_Foundation.Shell import Commands                                # type: ignore
+from Common_Foundation.Shell.All import CurrentShell                        # type: ignore
+from Common_Foundation.Streams.DoneManager import DoneManager               # type: ignore
+from Common_Foundation.Types import overridemethod                          # type: ignore
 
 from ...ActivateActivity import ActivateActivity
 from ...Configuration import VersionSpecs
@@ -114,7 +114,7 @@ class ToolsActivateActivity(ActivateActivity):
                         # Don't count any tools as official if they are just here to prevent warnings
                         items = list(path.iterdir())
 
-                        if len(items) == 1 and items[0].name.lower() in ["readme.txt", "readme.md"]:
+                        if len(items) == 1 and items[0].stem.lower() in ["readme", ]:
                             continue
 
                         # Look for an activation customization script here. If it exists, invoke that
