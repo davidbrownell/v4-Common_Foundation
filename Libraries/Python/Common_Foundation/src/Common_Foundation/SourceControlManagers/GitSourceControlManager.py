@@ -258,13 +258,8 @@ class Repository(DistributedRepositoryBase):
         for line in result.output.split("\n"):
             parts = line.split("/")
 
-            if (
-                len(parts) >= 4
-                and parts[1] == "remotes"
-                and parts[2] == "origin"
-                and parts[3] != "HEAD"
-            ):
-                return parts[3]
+            assert parts[0] == "refs", parts
+            return parts[-1]
 
         assert False, result.output
 
