@@ -53,7 +53,7 @@ def Execute(
             working_dir=working_dir,
         )
 
-        return SubprocessEx.Stream(command_line)
+        return SubprocessEx.Stream(command_line, sys.stdout)
 
 
 # ----------------------------------------------------------------------
