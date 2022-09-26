@@ -1208,7 +1208,7 @@ def _FindTests(
                             search_dm.WriteVerbose(
                                 "'{}' has been excluded due to the ignore item '{}'.\n".format(
                                     fullpath,
-                                    potential_ignore_filename.name,
+                                    potential_ignore_filename,
                                 ),
                             )
 

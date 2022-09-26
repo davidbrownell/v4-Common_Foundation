@@ -15,6 +15,7 @@
 # ----------------------------------------------------------------------
 """Installs basic python libraries"""
 
+import io
 import os
 import sys
 
@@ -35,8 +36,9 @@ sys.path.insert(0, str(import_path))
 with ExitStack() as exit_stack:
     exit_stack.callback(lambda: sys.path.pop(0))
 
-    from Common_Foundation.Streams.DoneManager import DoneManager, DoneManagerFlags   # type: ignore
-    from Common_Foundation import SubprocessEx  # type: ignore
+    from Common_Foundation.Streams.DoneManager import DoneManager, DoneManagerFlags     # type: ignore
+    from Common_Foundation.Streams.StreamDecorator import StreamDecorator               # type: ignore
+    from Common_Foundation import SubprocessEx                                          # type: ignore
 
 
 # ----------------------------------------------------------------------
@@ -72,17 +74,16 @@ def EntryPoint(
             verbose=verbose,
         ),
     ) as dm:
-        result = SubprocessEx.Run(
-            'python -m pip install --verbose -r "{}"'.format(str(path)),
-        )
+        sink = io.StringIO()
 
-        dm.result = result.returncode
+        with dm.YieldVerboseStream() as verbose_stream:
+            dm.result = SubprocessEx.Stream(
+                'python -m pip install --verbose -r "{}"'.format(str(path)),
+                StreamDecorator([sink, verbose_stream]),
+            )
 
-        if dm.result != 0:
-            dm.WriteError(result.output)
-        else:
-            with dm.YieldVerboseStream() as stream:
-                stream.write(result.output)
+        if dm.result != 0 and not dm.is_verbose:
+            dm.WriteError(sink.getvalue())
 
         return dm.result
 

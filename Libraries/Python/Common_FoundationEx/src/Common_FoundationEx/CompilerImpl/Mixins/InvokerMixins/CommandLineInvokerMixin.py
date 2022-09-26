@@ -76,12 +76,8 @@ class CommandLineInvokerMixin(
         with dm.Nested(
             "Invoking '{}'...".format(command_line),
         ) as invoke_dm:
-            # TODO: This should stream output
-
-            result = SubprocessEx.Run(command_line)
-
-            invoke_dm.result = result.returncode
-            invoke_dm.WriteLine(result.output)
+            with invoke_dm.YieldStream() as stream:
+                invoke_dm.result = SubprocessEx.Stream(command_line, stream)
 
             return None
 

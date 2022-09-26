@@ -17,6 +17,7 @@
 # pylint: disable=missing-module-docstring
 # pylint: disable=missing-class-docstring
 
+import io
 import json
 import os
 import textwrap
@@ -28,11 +29,11 @@ from typing import Callable, cast, List, Optional, TextIO, Tuple, Union
 
 import typer
 
-from Common_Foundation.ContextlibEx import ExitStack
 from Common_Foundation import PathEx
 from Common_Foundation.Streams.DoneManager import DoneManager, DoneManagerFlags
 from Common_Foundation.Shell.All import CurrentShell, LinuxShell, WindowsShell
 from Common_Foundation.Shell.Shell import Shell
+from Common_Foundation.Streams.StreamDecorator import StreamDecorator
 from Common_Foundation import SubprocessEx
 from Common_Foundation import Types
 
@@ -496,62 +497,46 @@ def BuildVerificationTest(
                 ),
                 suffix="\n" if dm.is_verbose else "",
             ) as config_dm:
-                temp_directory = CurrentShell.CreateTempDirectory()
-                with ExitStack(lambda: PathEx.RemoveTree(temp_directory)):
-                    # Create the guest commands
-                    if isinstance(config.shell, LinuxShell):
-                        commands = 'bash -c "{}"'.format(
-                            " && ".join(
-                                [
-                                    ". ./Activate.sh {} --debug".format(dev_environment_config),
-                                    "Tester.sh TestType python_simple Scripts /tmp/TesterOutput UnitTests --debug",
-                                    "Builder.sh Build . /tmp/BuilderOutput --debug",
-                                ],
-                            ),
-                        )
-
-                    elif isinstance(config.shell, WindowsShell):
-                        commands = 'cmd /c "{}"'.format(
-                            " && ".join(
-                                [
-                                    "Activate.cmd {} --debug".format(dev_environment_config),
-                                    r"Tester.cmd TestType python_simple Scripts C:\Temp\TesterOutput UnitTests --debug",
-                                    r"Builder.cmd Build . C:\Temp\BuilderOutput --debug",
-                                ],
-                            ),
-                        )
-
-                    else:
-                        assert False, config.shell  # pragma: no cover
-
-                    output_file = temp_directory / "output.txt"
-
-                    command_line = 'docker run --rm {docker_image_name} {commands} > "{output_file}"'.format(
-                        docker_image_name=_CreateDockerTagTemplate(image_name, config.name).format("activated"),
-                        commands=commands,
-                        output_file=output_file,
+                # Create the guest commands
+                if isinstance(config.shell, LinuxShell):
+                    commands = 'bash -c "{}"'.format(
+                        " && ".join(
+                            [
+                                ". ./Activate.sh {} --debug".format(dev_environment_config),
+                                "Tester.sh TestType python_simple Scripts /tmp/TesterOutput UnitTests --debug",
+                                "Builder.sh Build . /tmp/BuilderOutput --debug",
+                            ],
+                        ),
                     )
 
-                    config_dm.WriteVerbose("Command line: {}\n\n".format(command_line))
+                elif isinstance(config.shell, WindowsShell):
+                    commands = 'cmd /c "{}"'.format(
+                        " && ".join(
+                            [
+                                "Activate.cmd {} --debug".format(dev_environment_config),
+                                r"Tester.cmd TestType python_simple Scripts C:\Temp\TesterOutput UnitTests --debug",
+                                r"Builder.cmd Build . C:\Temp\BuilderOutput --debug",
+                            ],
+                        ),
+                    )
 
-                    # TODO: Streaming
-                    result = SubprocessEx.Run(command_line)
+                else:
+                    assert False, config.shell  # pragma: no cover
 
-                    config_dm.result = result.returncode
+                command_line = 'docker run --rm {docker_image_name} {commands}'.format(
+                    docker_image_name=_CreateDockerTagTemplate(image_name, config.name).format("activated"),
+                    commands=commands,
+                )
 
-                    if config_dm.result != 0:
-                        config_dm.WriteError(result.output)
+                config_dm.WriteVerbose("Command line: {}\n\n".format(command_line))
 
-                        with config_dm.YieldStream() as stream:
-                            with output_file.open(encoding="uft-8") as f:
-                                stream.write(f.read())
+                sink = io.StringIO()
 
-                    else:
-                        config_dm.WriteVerbose(result.output)
+                with config_dm.YieldVerboseStream() as verbose_stream:
+                    config_dm.result = SubprocessEx.Stream(command_line, StreamDecorator([verbose_stream, sink]))
 
-                        with config_dm.YieldVerboseStream() as stream:
-                            with output_file.open(encoding="utf-8") as f:
-                                stream.write(f.read())
+                if config_dm.result != 0 and not config_dm.is_verbose:
+                    config_dm.WriteError(sink.getvalue())
 
 
 # ----------------------------------------------------------------------
@@ -595,15 +580,13 @@ def Publish(
 
                 config_dm.WriteVerbose("Command line: {}\n\n".format(command_line))
 
-                # TODO: Streaming
-                result = SubprocessEx.Run(command_line)
+                sink = io.StringIO()
 
-                config_dm.result = result.returncode
+                with config_dm.YieldVerboseStream() as verbose_stream:
+                    config_dm.result = SubprocessEx.Stream(command_line, StreamDecorator([sink, verbose_stream]))
 
-                if config_dm.result != 0:
-                    config_dm.WriteError(result.output)
-                else:
-                    config_dm.WriteVerbose(result.output)
+                if config_dm.result != 0 and not config_dm.is_verbose:
+                    config_dm.WriteError(sink.getvalue())
 
 
 # ----------------------------------------------------------------------

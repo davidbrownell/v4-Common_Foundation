@@ -15,6 +15,7 @@
 # ----------------------------------------------------------------------
 """Installs internal python libraries in editable mode"""
 
+import io
 import json
 import os
 import sys
@@ -36,8 +37,9 @@ sys.path.insert(0, str(import_path))
 with ExitStack() as exit_stack:
     exit_stack.callback(lambda: sys.path.pop(0))
 
-    from Common_Foundation.Streams.DoneManager import DoneManager, DoneManagerFlags  # type: ignore
-    from Common_Foundation import SubprocessEx  # type: ignore
+    from Common_Foundation.Streams.DoneManager import DoneManager, DoneManagerFlags     # type: ignore
+    from Common_Foundation.Streams.StreamDecorator import StreamDecorator               # type: ignore
+    from Common_Foundation import SubprocessEx                                          # type: ignore
 
 
 # ----------------------------------------------------------------------
@@ -173,20 +175,20 @@ def EntryPoint(
                         library_index + 1,
                         len(libraries_to_install),
                     ),
+                    suffix="\n" if install_dm.is_verbose else "",
                 ) as this_install_dm:
-                    result = SubprocessEx.Run(
-                        'python -m pip install --require-virtualenv --disable-pip-version-check --editable "{}"'.format(
-                            library,
-                        ),
-                    )
+                    sink = io.StringIO()
 
-                    this_install_dm.result = result.returncode
+                    with this_install_dm.YieldVerboseStream() as verbose_stream:
+                        this_install_dm.result = SubprocessEx.Stream(
+                            'python -m pip install --require-virtualenv --disable-pip-version-check --editable "{}"'.format(
+                                library,
+                            ),
+                            StreamDecorator([sink, verbose_stream]),
+                        )
 
-                    if this_install_dm.result != 0:
-                        this_install_dm.WriteError(result.output)
-                    else:
-                        with this_install_dm.YieldVerboseStream() as stream:
-                            stream.write(result.output)
+                    if this_install_dm.result != 0 and not this_install_dm.is_verbose:
+                        this_install_dm.WriteError(sink.getvalue())
 
             return dm.result
 
