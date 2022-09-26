@@ -83,10 +83,7 @@ def GetCommonPath(
     paths = [path.resolve() for path in path_args]
 
     if len(paths) == 1:
-        if paths[0].is_file():
-            return paths[0].parent
-
-        return None
+        return paths[0].parent
 
     path_index = 0
 

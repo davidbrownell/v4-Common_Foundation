@@ -149,10 +149,12 @@ class CompilerImpl(
     ) -> bool:
         """Return True if the item looks like a test item."""
 
-        return (
-            item.name.lower().endswith("test")
-            or any(parent.name.lower().endswith("tests") for parent in item.parents)
-        )
+        if self.input_type == InputType.Files and item.name.lower().endswith("test"):
+            return True
+        if self.input_type == InputType.Directories and item.name.lower().endswith("tests"):
+            return True
+
+        return any(parent.name.lower().endswith("tests") for parent in item.parents)
 
     # ----------------------------------------------------------------------
     @extensionmethod

@@ -19,7 +19,7 @@ import re
 import textwrap
 
 from enum import auto, Enum
-from typing import Dict, List, Optional, Pattern, Set
+from typing import Dict, List, Generator, Optional, Pattern, Set
 
 
 # ----------------------------------------------------------------------
@@ -121,6 +121,101 @@ def TemplateStringToRegexString(
     regex_string = regex_string.replace(r"\ ", " ")
 
     return regex_string
+
+
+# ----------------------------------------------------------------------
+def Generate(
+    regex: Pattern,
+    content: str,
+    *,
+    leading_delimiter: bool=False,
+) -> Generator[
+    Dict[
+        Optional[str],                      # A string key will be the match group name; None key is the leading or following text (depending on the value of `leading_delimiter`)
+        str
+    ],
+    None,
+    None,
+]:
+    """\
+    Handles some of the wonkiness associated with re.split by providing a consistent experience
+    regardless of the input and matches.
+
+    If `leading_delimiter` is True, the generated items will be text and the delimiter information
+    that proceeded it.
+
+    If `leading_delimiter` is False, the generated items will be text and the delimiter information
+    that follows it.
+
+    Examples:
+        regex = re.compile(r"(?P<whitespace>\s+)")
+        value = "This is a test."
+
+        Generate(re.compile(regex, value, leading_delimiter=True) == [
+            {None: "This"},
+            {None: "is", "whitespace": " "},
+            {None: "a", "whitespace": " "},
+            {None: "test.", "whitespace": " "},
+        ]
+
+        Generate(re.compile(regex, value, leading_delimiter=False) == [
+            {None: "This", "whitespace": " ",},
+            {None: "is", "whitespace": " "},
+            {None: "a", "whitespace": " "},
+            {None: "test."},
+        ]
+    """
+
+    results = regex.split(content)
+
+    if regex.groups:
+        if len(results) == 1:
+            # If here, there weren't any matches
+            yield {None: results[0] }
+            return
+
+        assert len(results) % (regex.groups + 1) in [0, 1], len(results)
+
+        if leading_delimiter:
+            # If there is 1 extra element in the list of results, that will be the first
+            # element that doesn't have a corresponding match.
+            if len(results) % (regex.groups + 1) == 1:
+                index_offset = 1
+
+                if results[0]:
+                    yield {None: results[0]}
+
+            else:
+                index_offset = 0
+
+            for index in range(index_offset, len(results), regex.groups + 1):
+                result: Dict[Optional[str], str] = {None: results[index + regex.groups]}
+
+                for group_index, group_name in enumerate(regex.groupindex):
+                    result[group_name] = results[index + group_index]
+
+                yield result
+
+        else:
+            for index in range(0, len(results), regex.groups + 1):
+                result: Dict[Optional[str], str] = {None: results[index]}
+
+                if index != len(results) - 1:
+                    for group_index, group_name in enumerate(regex.groupindex):
+                        result[group_name] = results[index + group_index + 1]
+
+                if len(result) == 1 and not result[None]:
+                    continue
+
+                yield result
+
+    else:
+        # If we have a string with just matches and no content, we can ignore the first result
+        # as it represents that content that comes before the first match (which will be nothing)
+        if results and all(not result for result in results):
+            results = results[1:]
+
+        yield from results
 
 
 # ----------------------------------------------------------------------

@@ -1176,13 +1176,24 @@ def _FindTests(
                 for filename in filenames:
                     fullpath = root / filename
 
-                    if not compiler.IsSupported(fullpath) or not compiler.IsSupportedTestItem(fullpath):
+                    if not compiler.IsSupported(fullpath):
                         search_dm.WriteVerbose(
                             "'{}' is not supported by the compiler '{}'.\n".format(
                                 fullpath,
                                 compiler.name,
                             ),
                         )
+
+                        continue
+
+                    if not compiler.IsSupportedTestItem(fullpath):
+                        search_dm.WriteVerbose(
+                            "'{}' is not supported test item for the compiler '{}'.\n".format(
+                                fullpath,
+                                compiler.name,
+                            ),
+                        )
+
                         continue
 
                     if not is_supported_test_item_func(fullpath):
@@ -1232,9 +1243,19 @@ def _FindTests(
                 nonlocal ignored_count
                 nonlocal ignore_override_count
 
-                if not compiler.IsSupported(root) or not compiler.IsSupportedTestItem(root):
+                if not compiler.IsSupported(root):
                     search_dm.WriteVerbose(
                         "'{}' is not supported by the compiler '{}'.\n".format(
+                            root,
+                            compiler.name,
+                        ),
+                    )
+
+                    return
+
+                if not compiler.IsSupportedTestItem(root):
+                    search_dm.WriteVerbose(
+                        "'{}' is not supported test item for the compiler '{}'.\n".format(
                             root,
                             compiler.name,
                         ),

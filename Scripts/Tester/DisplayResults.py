@@ -175,6 +175,65 @@ def Display(
             def CreateTestIterationText(
                 result: TestIterationResult,
             ) -> str:
+                if result.parse_result.benchmarks:
+                    rows: List[List[str]] = []
+
+                    for group_name, benchmarks in result.parse_result.benchmarks.items():
+                        for bm in benchmarks:
+                            rows.append(
+                                [
+                                    group_name,
+                                    bm.name,
+                                    str(bm.source_filename),
+                                    str(bm.source_line),
+                                    bm.extractor,
+                                    str(bm.min_value),
+                                    str(bm.max_value),
+                                    str(bm.mean_value),
+                                    str(bm.standard_deviation),
+                                    str(bm.samples),
+                                    str(bm.units),
+                                    str(bm.iterations),
+                                ],
+                            )
+
+                    benchmarks = "\n\nBenchmarks:\n\n{}\n".format(
+                        TextwrapEx.CreateTable(
+                            [
+                                "Group Name",
+                                "Name",
+                                "Source Filename",
+                                "Line",
+                                "Extractor",
+                                "Min",
+                                "Max",
+                                "Mean",
+                                "Std Deviation",
+                                "Samples",
+                                "Units",
+                                "Iterations",
+                            ],
+                            rows,
+                            [
+                                TextwrapEx.Justify.Left,
+                                TextwrapEx.Justify.Left,
+                                TextwrapEx.Justify.Left,
+                                TextwrapEx.Justify.Right,
+                                TextwrapEx.Justify.Left,
+                                TextwrapEx.Justify.Center,
+                                TextwrapEx.Justify.Center,
+                                TextwrapEx.Justify.Center,
+                                TextwrapEx.Justify.Center,
+                                TextwrapEx.Justify.Center,
+                                TextwrapEx.Justify.Center,
+                                TextwrapEx.Justify.Center,
+                            ],
+                        ).rstrip(),
+                    )
+
+                else:
+                    benchmarks = ""
+
                 return textwrap.dedent(
                     """\
                     Test Execution:
@@ -223,52 +282,7 @@ def Display(
                             skip_first_line=False,
                         ),
                     ).rstrip(),
-                    benchmarks="" if not result.parse_result.benchmarks else "\n\nBenchmarks:\n\n{}\n".format(
-                        TextwrapEx.CreateTable(
-                            [
-                                "Name",
-                                "Source Filename",
-                                "Line",
-                                "Extractor",
-                                "Min",
-                                "Max",
-                                "Mean",
-                                "Std Deviation",
-                                "Samples",
-                                "Units",
-                                "Iterations",
-                            ],
-                            [
-                                [
-                                    bm.name,
-                                    str(bm.source_filename),
-                                    str(bm.source_line),
-                                    bm.extractor,
-                                    str(bm.min_value),
-                                    str(bm.max_value),
-                                    str(bm.mean_value),
-                                    str(bm.standard_deviation),
-                                    str(bm.samples),
-                                    str(bm.units),
-                                    str(bm.iterations),
-                                ]
-                                for bm in result.parse_result.benchmarks
-                            ],
-                            [
-                                TextwrapEx.Justify.Left,
-                                TextwrapEx.Justify.Left,
-                                TextwrapEx.Justify.Right,
-                                TextwrapEx.Justify.Left,
-                                TextwrapEx.Justify.Center,
-                                TextwrapEx.Justify.Center,
-                                TextwrapEx.Justify.Center,
-                                TextwrapEx.Justify.Center,
-                                TextwrapEx.Justify.Center,
-                                TextwrapEx.Justify.Center,
-                                TextwrapEx.Justify.Center,
-                            ],
-                        ).rstrip(),
-                    ),
+                    benchmarks=benchmarks,
                 )
 
             # ----------------------------------------------------------------------
@@ -450,6 +464,7 @@ def Display(
                             },
                             panel_level=0,
                         ),
+                        "",
                         *configuration_panels,
                     ),
                     border_style=result_color,

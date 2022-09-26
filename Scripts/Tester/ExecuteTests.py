@@ -167,7 +167,7 @@ class ExecuteTests(object):
                 debug_context: Optional[ExecuteTests._WorkingDataContext] = None
                 release_context: Optional[ExecuteTests._WorkingDataContext] = None
 
-                if not isinstance(compiler, Compiler):
+                if isinstance(compiler, Compiler):
                     if release_only:
                         prep_dm.WriteVerbose(
                             "The Debug configuration for '{}' will not be processed due to command line options.\n".format(
@@ -180,7 +180,6 @@ class ExecuteTests(object):
                             this_output_dir / "Debug",
                         )
 
-                else:
                     if debug_only:
                         prep_dm.WriteVerbose(
                             "The Release configuration for '{}' will not be processed due to command line options.\n".format(
@@ -192,6 +191,12 @@ class ExecuteTests(object):
                             display_name_template.format("Release"),
                             this_output_dir / "Release",
                         )
+
+                else:
+                    debug_context = cls._WorkingDataContext(
+                        display_name_template.format("Debug"),
+                        this_output_dir / "Debug",
+                    )
 
                 if debug_context or release_context:
                     working_data_items.append(
@@ -856,10 +861,10 @@ class ExecuteTests(object):
             else:
                 len_common_path_parts = 0
 
-            benchmarks: Dict[str, Dict[str, List[BenchmarkStat]]] = {}
+            benchmarks: Dict[str, Dict[str, Dict[str, List[BenchmarkStat]]]] = {}
 
             for result in all_results:
-                configuration_benchmarks: Dict[str, List[BenchmarkStat]] = {}
+                configuration_benchmarks: Dict[str, Dict[str, List[BenchmarkStat]]] = {}
 
                 for configuration, results in [
                     ("Debug", result.debug),

@@ -62,10 +62,10 @@ class BenchmarkStat(object):
     # ----------------------------------------------------------------------
     @staticmethod
     def ConvertTime(
-        value: int,
+        value: float,
         current_units: Units,
         dest_units: Units,
-    ) -> int:
+    ) -> float:
         if current_units == dest_units:
             return value
 
@@ -113,7 +113,7 @@ class TestResult(object):
 
     subtest_results: Optional[Dict[str, SubtestResult]]
 
-    benchmarks: Optional[List[BenchmarkStat]]
+    benchmarks: Optional[Dict[str, List[BenchmarkStat]]]
 
     # ----------------------------------------------------------------------
     def __post_init__(self):
