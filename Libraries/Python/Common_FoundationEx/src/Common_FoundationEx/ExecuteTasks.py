@@ -63,6 +63,7 @@ class TaskData(object):
 # ----------------------------------------------------------------------
 Step3Type                                   = Callable[
     [
+        Any,                                # TaskData.context
         Callable[
             [
                 int,                        # Step (0-based)
@@ -76,6 +77,7 @@ Step3Type                                   = Callable[
 
 Step2Type                                   = Callable[
     [
+        Any,                                # TaskData.context
         Callable[
             [
                 str,                        # Status
@@ -91,7 +93,7 @@ Step2Type                                   = Callable[
 
 Step1Type                                   = Callable[
     [
-        TaskData,
+        Any,                                # TaskData.context
     ],
     Tuple[
         Path,                               # Log filename
@@ -156,76 +158,70 @@ def ExecuteTasks(
 
                         start_time = time.perf_counter()
 
-                        result = 0
-                        short_desc: Optional[str] = None
-                        log_filename: Optional[Path] = None
+                        # ----------------------------------------------------------------------
+                        def OnExit():
+                            nonlocal success_count
+                            nonlocal error_count
+                            nonlocal warning_count
 
-                        try:
-                            log_filename, next_callback = step1_func(task_data)
+                            progress.update(task_id, completed=True, visible=False)
 
-                            # ----------------------------------------------------------------------
-                            def OnExit():
-                                nonlocal success_count
-                                nonlocal error_count
-                                nonlocal warning_count
-
-                                assert log_filename is not None
-
-                                progress.update(task_id, completed=True, visible=False)
-
-                                if result < 0 and not quiet:
-                                    progress.print(
-                                        r"{prefix}[bold red]ERROR:[/] {name}: {result}{short_desc} \[{suffix}]".format(
-                                            prefix=stdout_context.line_prefix,
-                                            name=task_data.display,
-                                            result=result,
-                                            short_desc=" ({})".format(short_desc) if short_desc else "",
-                                            suffix=str(log_filename) if execute_dm.capabilities.is_headless else "[link=file://{}]View Log[/]".format(
-                                                log_filename.as_posix(),
-                                            ),
+                            if task_data.result < 0 and not quiet:
+                                progress.print(
+                                    r"{prefix}[bold red]ERROR:[/] {name}: {result}{short_desc} \[{suffix}]".format(
+                                        prefix=stdout_context.line_prefix,
+                                        name=task_data.display,
+                                        result=task_data.result,
+                                        short_desc=" ({})".format(task_data.short_desc) if task_data.short_desc else "",
+                                        suffix=str(task_data.log_filename) if execute_dm.capabilities.is_headless else "[link=file://{}]View Log[/]".format(
+                                            task_data.log_filename.as_posix(),
                                         ),
-                                        highlight=False,
-                                    )
-
-                                    stdout_context.persist_content = True
-
-                                if result > 0 and not quiet:
-                                    progress.print(
-                                        r"{prefix}[bold yellow]WARNING:[/] {name}: {result}{short_desc} \[{suffix}]".format(
-                                            prefix=stdout_context.line_prefix,
-                                            name=task_data.display,
-                                            result=result,
-                                            short_desc=" ({})".format(short_desc) if short_desc else "",
-                                            suffix=str(log_filename) if execute_dm.capabilities.is_headless else "[link=file://{}]View Log[/]".format(
-                                                log_filename.as_posix(),
-                                            ),
-                                        ),
-                                        highlight=False,
-                                    )
-
-                                    stdout_context.persist_content = True
-
-                                with count_lock:
-                                    if result < 0:
-                                        error_count += 1
-                                    elif result > 0:
-                                        warning_count += 1
-                                    else:
-                                        success_count += 1
-
-                                    successes = success_count
-                                    errors = error_count
-                                    warnings = warning_count
-
-                                progress.update(
-                                    total_progress_id,
-                                    advance=1,
-                                    status=TextwrapEx.CreateStatusText(successes, errors, warnings),
+                                    ),
+                                    highlight=False,
                                 )
 
-                            # ----------------------------------------------------------------------
+                                stdout_context.persist_content = True
 
-                            with ExitStack(OnExit):
+                            if task_data.result > 0 and not quiet:
+                                progress.print(
+                                    r"{prefix}[bold yellow]WARNING:[/] {name}: {result}{short_desc} \[{suffix}]".format(
+                                        prefix=stdout_context.line_prefix,
+                                        name=task_data.display,
+                                        result=task_data.result,
+                                        short_desc=" ({})".format(task_data.short_desc) if task_data.short_desc else "",
+                                        suffix=str(task_data.log_filename) if execute_dm.capabilities.is_headless else "[link=file://{}]View Log[/]".format(
+                                            task_data.log_filename.as_posix(),
+                                        ),
+                                    ),
+                                    highlight=False,
+                                )
+
+                                stdout_context.persist_content = True
+
+                            with count_lock:
+                                if task_data.result < 0:
+                                    error_count += 1
+                                elif task_data.result > 0:
+                                    warning_count += 1
+                                else:
+                                    success_count += 1
+
+                                successes = success_count
+                                errors = error_count
+                                warnings = warning_count
+
+                            progress.update(
+                                total_progress_id,
+                                advance=1,
+                                status=TextwrapEx.CreateStatusText(successes, errors, warnings),
+                            )
+
+                        # ----------------------------------------------------------------------
+
+                        with ExitStack(OnExit):
+                            try:
+                                task_data.log_filename, step2_func = step1_func(task_data.context)
+
                                 # ----------------------------------------------------------------------
                                 def OnSimpleStatus(
                                     status: str,
@@ -234,7 +230,7 @@ def ExecuteTasks(
 
                                 # ----------------------------------------------------------------------
 
-                                num_steps, next_callback = next_callback(OnSimpleStatus)
+                                num_steps, step3_func = step2_func(task_data.context, OnSimpleStatus)
 
                                 # ----------------------------------------------------------------------
                                 @contextmanager
@@ -278,40 +274,37 @@ def ExecuteTasks(
 
                                     # ----------------------------------------------------------------------
 
-                                    result, short_desc = next_callback(OnProgress)
+                                    task_data.result, task_data.short_desc = step3_func(task_data.context, OnProgress)
 
-                        except KeyboardInterrupt:  # pylint: disable=try-except-raise
-                            raise
+                            except KeyboardInterrupt:  # pylint: disable=try-except-raise
+                                raise
 
-                        except Exception as ex:
-                            if dm.is_debug:
-                                error = traceback.format_exc()
-                            else:
-                                error = str(ex)
+                            except Exception as ex:  # pylint: disable=broad-except
+                                if dm.is_debug:
+                                    error = traceback.format_exc()
+                                else:
+                                    error = str(ex)
 
-                            error = error.rstrip()
+                                error = error.rstrip()
 
-                            if log_filename is None:
-                                # If here, this error has happened before we have received anything
-                                # from the initial callback. Create a log file and write the exception
-                                # information.
-                                log_filename = CurrentShell.CreateTempFilename()
-                                assert log_filename is not None
+                                if task_data.log_filename is None:
+                                    # If here, this error has happened before we have received anything
+                                    # from the initial callback. Create a log file and write the exception
+                                    # information.
+                                    task_data.log_filename = CurrentShell.CreateTempFilename()
+                                    assert task_data.log_filename is not None
 
-                                with log_filename.open("w") as f:
-                                    f.write(error)
+                                    with task_data.log_filename.open("w") as f:
+                                        f.write(error)
 
-                            else:
-                                with log_filename.open("a+") as f:
-                                    f.write("\n\n{}\n".format(error))
+                                else:
+                                    with task_data.log_filename.open("a+") as f:
+                                        f.write("\n\n{}\n".format(error))
 
-                            result = CATASTROPHIC_TASK_FAILURE_RESULT
-                            short_desc = "{} failed spectacularly".format(task_desc)
+                                task_data.result = CATASTROPHIC_TASK_FAILURE_RESULT
+                                task_data.short_desc = "{} failed spectacularly".format(task_desc)
 
-                        task_data.result = result
-                        task_data.short_desc = short_desc
-                        task_data.execution_time = datetime.timedelta(seconds=time.perf_counter() - start_time)
-                        task_data.log_filename = log_filename
+                            task_data.execution_time = datetime.timedelta(seconds=time.perf_counter() - start_time)
 
                     # ----------------------------------------------------------------------
 

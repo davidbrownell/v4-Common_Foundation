@@ -20,7 +20,7 @@ import os
 import textwrap
 import traceback
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
@@ -417,45 +417,47 @@ def _InvokeImpl(
         output_dir: Path
         compiler_context: Dict[str, Any]
 
+        log_filename: Path                  = field(init=False)
+
+        # ----------------------------------------------------------------------
+        def __post_init__(self):
+            self.log_filename = self.output_dir / "output.log"
+
     # ----------------------------------------------------------------------
     def GetLogFilename(
-        task_data: TaskData,
+        context: TaskDataContext,
     ):
-        task_data.context.output_dir.mkdir(parents=True, exist_ok=True)
-
-        log_filename = task_data.context.output_dir / "output.log"
+        context.output_dir.mkdir(parents=True, exist_ok=True)
 
         return (
-            log_filename,
-            lambda progress: GetNumSteps(task_data, log_filename, progress),
+            context.log_filename,
+            GetNumSteps,
         )
 
     # ----------------------------------------------------------------------
     def GetNumSteps(
-        task_data: TaskData,
-        log_filename: Path,
+        context: TaskDataContext,
         progress_func: Callable[[str], None],  # pylint: disable=unused-argument
     ):
         return (
-            compiler.GetNumSteps(task_data.context.compiler_context),
-            lambda progress: Execute(task_data, log_filename, progress),
+            compiler.GetNumSteps(context.compiler_context),
+            Execute,
         )
 
     # ----------------------------------------------------------------------
     def Execute(
-        task_data: TaskData,
-        log_filename: Path,
+        context: TaskDataContext,
         progress_func: Callable[[int, str], bool],
     ):
-        with open(log_filename, "w") as f:
+        with open(context.log_filename, "w") as f:
             result = getattr(compiler, compiler.invocation_method_name)(
-                task_data.context.compiler_context,
+                context.compiler_context,
                 f,
                 progress_func,
                 verbose=dm.is_verbose,
             )
 
-            compiler.RemoveTemporaryArtifacts(task_data.context.compiler_context)
+            compiler.RemoveTemporaryArtifacts(context.compiler_context)
 
             if not isinstance(result, tuple):
                 result = result, None
@@ -508,11 +510,8 @@ def _InvokeImpl(
 
         if add_output_column:
             rows[-1].append(
-                "{} [View]".format(
-                    str(task_data.context.output_dir) if not dm.capabilities.is_headless else inflect.no(
-                        "item",
-                        sum(1 for _ in task_data.context.output_dir.iterdir()),
-                    ),
+                str(task_data.context.output_dir) if not dm.capabilities.is_headless else "{} [View]".format(
+                    inflect.no("item", sum(1 for _ in task_data.context.output_dir.iterdir())),
                 ),
             )
 

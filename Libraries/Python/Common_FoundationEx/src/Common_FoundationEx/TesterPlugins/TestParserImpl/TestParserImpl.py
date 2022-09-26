@@ -117,7 +117,7 @@ class TestParserImpl(ABC):
         compiler: CompilerImpl,
         compiler_context: Dict[str, Any],
         test_data: str,
-        on_progress: Callable[
+        on_progress_func: Callable[
             [
                 int,                        # Step (0-based)
                 str,                        # Status
