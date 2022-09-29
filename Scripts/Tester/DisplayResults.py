@@ -15,10 +15,14 @@
 # ----------------------------------------------------------------------
 """Displays results produced by test runs"""
 
+import itertools
+import inspect
+import re
 import textwrap
 
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Set, Tuple, Union
 
 from rich import print as rich_print
 from rich.console import Group
@@ -32,7 +36,7 @@ from Common_Foundation import TextwrapEx
 
 from Common_FoundationEx.InflectEx import inflect
 
-from Results import BuildResult, CodeCoverageResult, ConfigurationResult, ErrorResult, Result, TestIterationResult, TestResult
+from Results import BuildResult, CodeCoverageResult, ConfigurationResult, ErrorResult, ListResult, Result, TestIterationResult, TestResult
 
 
 # ----------------------------------------------------------------------
@@ -116,14 +120,21 @@ def Display(
         error: ErrorResult,
         title: str,
         border_style: str,
+        plugin_names: Dict[str, str],
     ) -> Panel:
+        aligned_values: Dict[str, str] = {
+            "Result": GetResultDisplay(error.result, error.short_desc),
+        }
+
+        for k, v in plugin_names.items():
+            aligned_values[k] = v
+
+        aligned_values["Execution Time"] = str(error.execution_time)
+        aligned_values["Log Output"] = GetLogDisplay(error.log_filename)
+
         return Panel(
             CreateAlignedKeyValueText(
-                {
-                    "Result": GetResultDisplay(error.result, error.short_desc),
-                    "Log Output": GetLogDisplay(error.log_filename),
-                    "Execution Time": str(error.execution_time),
-                },
+                aligned_values,
                 panel_level=2,
             ).rstrip(),
             border_style=border_style,
@@ -141,38 +152,49 @@ def Display(
         panels: List[Panel] = []
 
         # Build
-        if result.build_result:
-            build_result = result.build_result
+        build_result = result.build_result
 
-            if isinstance(build_result, ErrorResult):
-                panels.append(CreateErrorResultPanel(build_result, "Build Results", build_results_color))
+        if isinstance(build_result, ErrorResult):
+            panels.append(
+                CreateErrorResultPanel(
+                    build_result,
+                    "Build Results",
+                    build_results_color,
+                    {
+                        "Plugin": result.compiler_name,
+                    },
+                ),
+            )
 
-            elif isinstance(build_result, BuildResult):
-                panels.append(
-                    Panel(
-                        CreateAlignedKeyValueText(
-                            {
-                                "Result": GetResultDisplay(build_result.result, build_result.short_desc),
-                                "Log Output": GetLogDisplay(build_result.log_filename),
-                                "Total Execution Time": str(build_result.execution_time),
-                                "Build Execution Time": str(build_result.build_execution_time),
-                            },
-                            panel_level=2,
-                        ).rstrip(),
-                        border_style=build_results_color,
-                        padding=(1, 2),
-                        title="Build Results",
-                        title_align="left",
-                    ),
-                )
+        elif isinstance(build_result, BuildResult):
+            panels.append(
+                Panel(
+                    CreateAlignedKeyValueText(
+                        {
+                            "Result": GetResultDisplay(build_result.result, build_result.short_desc),
+                            "Plugin": result.compiler_name,
+                            "Log Output": GetLogDisplay(build_result.log_filename),
+                            "Total Execution Time": str(build_result.execution_time),
+                            "Build Execution Time": str(build_result.build_execution_time),
+                        },
+                        panel_level=2,
+                    ).rstrip(),
+                    border_style=build_results_color,
+                    padding=(1, 2),
+                    title="Build Results",
+                    title_align="left",
+                ),
+            )
 
-            else:
-                assert False, build_result  # pragma: no cover
+        else:
+            assert False, build_result  # pragma: no cover
 
         # Test
         if result.test_result:
             # ----------------------------------------------------------------------
             def CreateTestIterationText(
+                test_executor_name: str,
+                test_parser_name: str,
                 result: TestIterationResult,
             ) -> str:
                 if result.parse_result.benchmarks:
@@ -247,6 +269,7 @@ def Display(
                         CreateAlignedKeyValueText(
                             {
                                 "Result": GetResultDisplay(result.execute_result.result, result.execute_result.short_desc),
+                                "Plugin": test_executor_name,
                                 "Log Output": GetLogDisplay(result.execute_result.log_filename),
                                 "Execution Time": str(result.execute_result.execution_time),
                             },
@@ -260,6 +283,7 @@ def Display(
                         CreateAlignedKeyValueText(
                             {
                                 "Result": GetResultDisplay(result.parse_result.result, result.parse_result.short_desc),
+                                "Plugin": test_parser_name,
                                 "Execution Time": str(result.parse_result.execution_time),
                             },
                             panel_level=2,
@@ -290,7 +314,17 @@ def Display(
             test_result = result.test_result
 
             if isinstance(test_result, ErrorResult):
-                panels.append(CreateErrorResultPanel(test_result, "Test Results", test_results_color))
+                panels.append(
+                    CreateErrorResultPanel(
+                        test_result,
+                        "Test Results",
+                        test_results_color,
+                        {
+                            "Executor Plugin": result.test_execution_name,
+                            "Parser Plugin": result.test_parser_name,
+                        },
+                    ),
+                )
 
             elif isinstance(test_result, TestResult):
                 if test_result.has_multiple_iterations:
@@ -316,13 +350,21 @@ def Display(
                                 panel_level=2,
                             ),
                             "",
-                            CreateTestIterationText(test_iteration_result),
+                            CreateTestIterationText(
+                                result.test_execution_name,
+                                result.test_parser_name,
+                                test_iteration_result,
+                            ),
                         ]
 
                 else:
                     iteration_display_items: List[Union[str, Panel]] = [
                         "",
-                        CreateTestIterationText(test_result.test_results[0]),
+                        CreateTestIterationText(
+                            result.test_execution_name,
+                            result.test_parser_name,
+                            test_result.test_results[0],
+                        ),
                     ]
 
                 assert iteration_display_items
@@ -356,12 +398,24 @@ def Display(
         if result.coverage_result:
             coverage_result = result.coverage_result
 
+            assert result.code_coverage_validator_name is not None
+
             if isinstance(coverage_result, ErrorResult):
-                panels.append(CreateErrorResultPanel(coverage_result, "Coverage Results", code_coverage_color))
+                panels.append(
+                    CreateErrorResultPanel(
+                        coverage_result,
+                        "Coverage Results",
+                        code_coverage_color,
+                        {
+                            "Plugin": result.code_coverage_validator_name,
+                        },
+                    ),
+                )
 
             elif isinstance(coverage_result, CodeCoverageResult):
                 data_items: Dict[str, str] = {
                     "Result": GetResultDisplay(coverage_result.result, coverage_result.short_desc),
+                    "Plugin": result.code_coverage_validator_name,
                     "Total Execution Time": str(coverage_result.execution_time),
                     "Coverage Percentage": "{:.02f}%".format(coverage_result.coverage_percentage * 100),
                     "Minimum Percentage": "{:.02f}%".format(coverage_result.minimum_percentage * 100),
@@ -660,3 +714,307 @@ def DisplayQuiet(
             total=len(row_data_items),
         ),
     )
+
+
+# ----------------------------------------------------------------------
+def DisplayListResults(
+    dm: DoneManager,
+    list_results: List[ListResult],
+    *,
+    border_style: str="bold white",
+    by_compiler_style: str="deep_sky_blue1",
+    by_test_parser_style: str="purple",
+    by_test_type_style: str="green1",
+) -> None:
+    # ----------------------------------------------------------------------
+    @dataclass
+    class PathInfo(object):
+        test_type: str
+        is_enabled: bool
+
+        compilers: Set[str]                 = field(init=False, default_factory=set)
+        test_parsers: Set[str]              = field(init=False, default_factory=set)
+        configurations: Set[str]            = field(init=False, default_factory=set)
+
+    # ----------------------------------------------------------------------
+
+    compiler_links: Dict[str, str] = {}
+    test_parser_links: Dict[str, str] = {}
+
+    all_path_info: Dict[Path, PathInfo] = {}
+    results_by_compiler: Dict[str, Set[Path]] = {}
+    results_by_test_parser: Dict[str, Set[Path]] = {}
+    results_by_test_type: Dict[str, Set[Path]] = {}
+
+    for list_result in list_results:
+        path_info = all_path_info.get(list_result.path, None)
+        if path_info is None:
+            path_info = PathInfo(list_result.test_type, list_result.is_enabled)
+
+            all_path_info[list_result.path] = path_info
+        else:
+            assert path_info.test_type == list_result.test_type
+            assert path_info.is_enabled == list_result.is_enabled
+
+        if not dm.capabilities.is_headless:
+            if list_result.compiler.name not in compiler_links:
+                compiler_links[list_result.compiler.name] = "link=file://{}".format(Path(inspect.getfile(type(list_result.compiler))).as_posix())
+            if list_result.test_parser.name not in test_parser_links:
+                test_parser_links[list_result.test_parser.name] = "link=file://{}".format(Path(inspect.getfile(type(list_result.test_parser))).as_posix())
+
+        path_info.compilers.add(list_result.compiler.name)
+        path_info.test_parsers.add(list_result.test_parser.name)
+
+        for configuration in (list_result.configurations or []):
+            path_info.configurations.add(configuration)
+
+        results_by_compiler.setdefault(list_result.compiler.name, set()).add(list_result.path)
+        results_by_test_parser.setdefault(list_result.test_parser.name, set()).add(list_result.path)
+        results_by_test_type.setdefault(list_result.test_type, set()).add(list_result.path)
+
+    with dm.YieldStdout() as stdout_context:
+        column_item_regex = re.compile(
+            r"""(?#
+            Start                           )^(?#
+            Whitespace prefix               )(?P<whitespace_prefix>\s*)(?#
+            Content                         )(?P<content>.+?)(?#
+            Whitespace suffix               )(?P<whitespace_suffix>\s*)(?#
+            End                             )$(?#
+            )""",
+        )
+
+        # ----------------------------------------------------------------------
+        def DecorateNames(
+            value: str,
+            links_map: Dict[str, str],
+        ) -> str:
+            match = column_item_regex.match(value)
+            assert match, value
+
+            return "{}{}{}".format(
+                match.group("whitespace_prefix"),
+                ", ".join(
+                    "[{}]{}[/]".format(
+                        links_map[item],
+                        item,
+                    )
+                    for item in [item.strip() for item in match.group("content").split(",")]
+                ),
+                match.group("whitespace_suffix"),
+            )
+
+        # ----------------------------------------------------------------------
+        def DecoratePath(
+            value: str,
+        ) -> str:
+            match = column_item_regex.match(value)
+            assert match, value
+
+            filename = match.group("content")
+
+            return "{}[link=file://{}]{}[/]{}".format(
+                match.group("whitespace_prefix"),
+                Path(filename).as_posix(),
+                filename,
+                match.group("whitespace_suffix"),
+            )
+
+        # ----------------------------------------------------------------------
+        def GetByCompilerInfo(
+            path: Path,
+        ) -> List[str]:
+            path_info = all_path_info[path]
+
+            return [
+                "<None>" if not path_info.configurations else ", ".join(sorted(path_info.configurations, key=lambda value: value.lower())),
+                ", ".join(sorted(path_info.test_parsers, key=lambda value: value.lower())),
+                path_info.test_type,
+                str(path),
+                str(path_info.is_enabled),
+            ]
+
+        # ----------------------------------------------------------------------
+        def DecorateByCompilerInfo(
+            index: int,  # pylint: disable=unused-argument
+            values: List[str],
+        ) -> List[str]:
+            if not dm.capabilities.is_headless:
+                values[1] = DecorateNames(values[1], test_parser_links)
+                values[3] = DecoratePath(values[3])
+
+            return values
+
+        # ----------------------------------------------------------------------
+        def GetByTestParserInfo(
+            path: Path,
+        ) -> List[str]:
+            path_info = all_path_info[path]
+
+            return [
+                "<None>" if not path_info.configurations else ", ".join(sorted(path_info.configurations, key=lambda value: value.lower())),
+                ", ".join(sorted(path_info.compilers, key=lambda value: value.lower())),
+                path_info.test_type,
+                str(path),
+                str(path_info.is_enabled),
+            ]
+
+        # ----------------------------------------------------------------------
+        def DecorateByTestParserInfo(
+            index: int,  # pylint: disable=unused-argument
+            values: List[str],
+        ) -> List[str]:
+            if not dm.capabilities.is_headless:
+                values[1] = DecorateNames(values[1], compiler_links)
+                values[3] = DecoratePath(values[3])
+
+            return values
+
+        # ----------------------------------------------------------------------
+        def GetByTestTypeInfo(
+            path: Path,
+        ) -> List[str]:
+            path_info = all_path_info[path]
+
+            return [
+                "<None>" if not path_info.configurations else ", ".join(sorted(path_info.configurations, key=lambda value: value.lower())),
+                ", ".join(sorted(path_info.compilers, key=lambda value: value.lower())),
+                ", ".join(sorted(path_info.test_parsers, key=lambda value: value.lower())),
+                str(path),
+                str(path_info.is_enabled),
+            ]
+
+        # ----------------------------------------------------------------------
+        def DecorateByTestTypeInfo(
+            index: int,  # pylint: disable=unused-argument
+            values: List[str],
+        ) -> List[str]:
+            if not dm.capabilities.is_headless:
+                values[1] = DecorateNames(values[1], compiler_links)
+                values[2] = DecorateNames(values[2], test_parser_links)
+                values[3] = DecoratePath(values[3])
+
+            return values
+
+        # ----------------------------------------------------------------------
+
+        rich_print(
+            Group(
+                Panel(
+                    Group(
+                        *itertools.chain.from_iterable(
+                            zip(
+                                [
+                                    Panel(
+                                        TextwrapEx.CreateTable(
+                                            [
+                                                "Configs",
+                                                "Test Parsers",
+                                                "Test Type",
+                                                "Path",
+                                                "Enabled",
+                                            ],
+                                            [
+                                                GetByCompilerInfo(path)
+                                                for path in sorted(results_by_compiler[compiler_name])
+                                            ],
+                                            decorate_values_func=DecorateByCompilerInfo,
+                                        ),
+                                        border_style=border_style,
+                                        padding=(1, 2, 0, 2),
+                                        title=compiler_name if dm.capabilities.is_headless else "[{}]{}[/]".format(
+                                            compiler_links[compiler_name],
+                                            compiler_name,
+                                        ),
+                                        title_align="left",
+                                    )
+                                    for compiler_name in sorted(results_by_compiler, key=lambda value: value.lower())
+                                ],
+                                itertools.repeat(""),
+                            ),
+                        ),
+                    ),
+                    border_style=by_compiler_style,
+                    padding=(1, 2, 0, 2),
+                    title="By Compiler",
+                    title_align="left",
+                ),
+                "",
+                Panel(
+                    Group(
+                        *itertools.chain.from_iterable(
+                            zip(
+                                [
+                                    Panel(
+                                        TextwrapEx.CreateTable(
+                                            [
+                                                "Configs",
+                                                "Compilers",
+                                                "Test Type",
+                                                "Path",
+                                                "Enabled",
+                                            ],
+                                            [
+                                                GetByTestParserInfo(path)
+                                                for path in sorted(results_by_test_parser[test_parser_name])
+                                            ],
+                                            decorate_values_func=DecorateByTestParserInfo,
+                                        ),
+                                        border_style=border_style,
+                                        padding=(1, 2, 0, 2),
+                                        title=test_parser_name if dm.capabilities.is_headless else "[{}]{}[/]".format(
+                                            test_parser_links[test_parser_name],
+                                            test_parser_name,
+                                        ),
+                                        title_align="left",
+                                    )
+                                    for test_parser_name in sorted(results_by_test_parser, key=lambda value: value.lower())
+                                ],
+                                itertools.repeat(""),
+                            ),
+                        ),
+                    ),
+                    border_style=by_test_parser_style,
+                    padding=(1, 2, 0, 2),
+                    title="By Test Parser",
+                    title_align="left",
+                ),
+                "",
+                Panel(
+                    Group(
+                        *itertools.chain.from_iterable(
+                            zip(
+                                [
+                                    Panel(
+                                        TextwrapEx.CreateTable(
+                                            [
+                                                "Configs",
+                                                "Compilers",
+                                                "Test Parsers",
+                                                "Path",
+                                                "Enabled",
+                                            ],
+                                            [
+                                                GetByTestTypeInfo(path)
+                                                for path in sorted(results_by_test_type[test_type])
+                                            ],
+                                            decorate_values_func=DecorateByTestTypeInfo,
+                                        ),
+                                        border_style=border_style,
+                                        padding=(1, 2, 0, 2),
+                                        title=test_type,
+                                        title_align="left",
+                                    )
+                                    for test_type in sorted(results_by_test_type, key=lambda value: value.lower())
+                                ],
+                                itertools.repeat(""),
+                            ),
+                        ),
+                    ),
+                    border_style=by_test_type_style,
+                    padding=(1, 2, 0, 2),
+                    title="By Test Type",
+                    title_align="left",
+                ),
+            ),
+            file=stdout_context.stream,  # type: ignore
+        )

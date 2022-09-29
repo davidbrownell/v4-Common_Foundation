@@ -1,6 +1,6 @@
 # ----------------------------------------------------------------------
 # |
-# |  SimplePythonTestParser.py
+# |  PythonUnittestTestParser.py
 # |
 # |  David Brownell <db@DavidBrownell.com>
 # |      2022-09-08 07:53:58
@@ -13,28 +13,21 @@
 # |  http://www.boost.org/LICENSE_1_0.txt.
 # |
 # ----------------------------------------------------------------------
-"""Contains the SimplePythonTestParser object"""
+"""Contains the PythonUnittestTestParser object"""
 
 import datetime
-import os
-import sys
+import re
+import time
 
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Callable, Dict, Optional
 
-from Common_Foundation.ContextlibEx import ExitStack
 from Common_Foundation.Types import overridemethod
 
 from Common_FoundationEx.CompilerImpl.CompilerImpl import CompilerImpl
+from Common_FoundationEx.InflectEx import inflect
 from Common_FoundationEx.TesterPlugins.TestParserImpl import TestParserImpl, TestResult
 from Common_FoundationEx import TyperEx
-
-
-sys.path.insert(0, str(Path(__file__).parent.parent / "Compilers"))
-with ExitStack(lambda: sys.path.pop(0)):
-    assert os.path.isdir(sys.path[0]), sys.path[0]
-
-    from SimplePythonVerifier import Verifier as SimplePythonVerifier  # type: ignore  # pylint: disable=import-error
 
 
 # ----------------------------------------------------------------------
@@ -42,17 +35,19 @@ class TestParser(TestParserImpl):
     """\
     Test parser that runs python files and looks at the process exit code to determine if a test
     passed or failed.
-
-    This test parser exists to demonstrate the capabilities of Tester and should not be used with
-    any real code. A real Python test parser is available as part of the `Common_PythonDevelopment`
-    repository, available at `https://github.com/davidbrownell/v4-Common_PythonDevelopment`.
     """
 
     # ----------------------------------------------------------------------
     def __init__(self):
-        super(TestParser, self).__init__(
-            "SimplePython",
-            "Sample Test Parser intended to demonstrate the capabilities of Tester; DO NOT USE with real workloads.",
+        super(TestParser, self).__init__("PythonUnittest", "Parses python unittest output.")
+
+        self._failure_regex                 = re.compile(
+            r"""(?#
+            Start of line                   )^(?#
+            FAILED                          )FAILED\s+(?#
+            Num Failures                    )\(failures=(?P<failures>\d+)\)(?#
+            )""",
+            re.MULTILINE,
         )
 
     # ----------------------------------------------------------------------
@@ -66,7 +61,7 @@ class TestParser(TestParserImpl):
         self,
         compiler: CompilerImpl,
     ) -> bool:
-        return isinstance(compiler, SimplePythonVerifier)
+        return compiler.IsSupported(Path(__file__))
 
     # ----------------------------------------------------------------------
     @overridemethod
@@ -74,7 +69,11 @@ class TestParser(TestParserImpl):
         self,
         item: Path,
     ) -> bool:
-        return item.is_file() and item.suffix == ".py"
+        return (
+            item.is_file()
+            and item.suffix == ".py"
+            and "import unittest" in item.open().read()
+        )
 
     # ----------------------------------------------------------------------
     @overridemethod
@@ -95,13 +94,41 @@ class TestParser(TestParserImpl):
 
     # ----------------------------------------------------------------------
     @overridemethod
-    def Parse(self, *args, **kwargs) -> TestResult:  # pylint: disable=unused-argument
-        # Nothing to do here, as the test is successful if the process exited successfully.
-        # If here, it exited successfully.
+    def Parse(
+        self,
+        compiler: CompilerImpl,
+        compiler_context: Dict[str, Any],
+        test_data: str,
+        on_progress_func: Callable[
+            [
+                int,                        # Step (0-based)
+                str,                        # Status
+            ],
+            bool,                           # True to continue, False to terminate
+        ],
+    ) -> TestResult:
+        start_time = time.perf_counter()
+
+        result: Optional[int] = None
+        short_desc: Optional[str] = None
+
+        match = self._failure_regex.search(test_data)
+        if match is not None:
+            result = -1
+            short_desc = inflect.no("failure", int(match.group("failures")))
+
+        elif test_data.rstrip().endswith("OK"):
+            result = 0
+
+        else:
+            result = 1
+
+        assert result is not None
+
         return TestResult(
-            0,
-            datetime.timedelta(),
-            None,
+            result,
+            datetime.timedelta(seconds=time.perf_counter() - start_time),
+            short_desc,
             None,
             None,
         )

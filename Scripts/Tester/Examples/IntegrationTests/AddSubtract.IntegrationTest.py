@@ -23,7 +23,7 @@ repository, available at `https://github.com/davidbrownell/v4-Common_PythonDevel
 
 import os
 import sys
-import traceback
+import unittest
 
 from pathlib import Path
 
@@ -40,15 +40,21 @@ with ExitStack(lambda: sys.path.pop(0)):
 
 
 # ----------------------------------------------------------------------
-def test_AddSubtract():
-    assert Add(1, Subtract(23, 2)) == 22
-    assert Subtract(4, Add(23, 1)) == -20
+class TestSuite(unittest.TestCase):
+    def test_AddSubtract(self):
+        self.assertEqual(Add(1, Subtract(23, 2)), 22)
+        self.assertEqual(Subtract(4, Add(23, 1)), -20)
 
 
 # ----------------------------------------------------------------------
+# ----------------------------------------------------------------------
+# ----------------------------------------------------------------------
 if __name__ == "__main__":
     try:
-        test_AddSubtract()
-    except AssertionError as ex:
-        sys.stdout.write(traceback.format_exc())
-        sys.exit(-1)
+        sys.exit(
+            unittest.main(
+                verbosity=2,
+            ),
+        )
+    except KeyboardInterrupt:
+        pass

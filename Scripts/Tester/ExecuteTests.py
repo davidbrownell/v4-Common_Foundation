@@ -246,8 +246,22 @@ class ExecuteTests(object):
             all_results.append(
                 Result(
                     working_data.input_item,
-                    working_data.debug_context.ToConfigurationResult("Debug", iterations != 1) if working_data.debug_context else None,
-                    working_data.release_context.ToConfigurationResult("Release", iterations != 1) if working_data.release_context else None,
+                    None if working_data.debug_context is None else working_data.debug_context.ToConfigurationResult(
+                        compiler.name,
+                        test_executor.name,
+                        test_parser.name,
+                        code_coverage_validator.name if code_coverage_validator is not None else None,
+                        "Debug",
+                        iterations != 1,
+                    ),
+                    None if working_data.release_context is None else working_data.release_context.ToConfigurationResult(
+                        compiler.name,
+                        test_executor.name,
+                        test_parser.name,
+                        code_coverage_validator.name if code_coverage_validator is not None else None,
+                        "Release",
+                        iterations != 1,
+                    ),
                 ),
             )
 
@@ -368,6 +382,10 @@ class ExecuteTests(object):
         # ----------------------------------------------------------------------
         def ToConfigurationResult(
             self,
+            compiler_name: str,
+            test_execution_name: str,
+            test_parser_name: str,
+            code_coverage_validator_name: Optional[str],
             configuration: str,
             has_multiple_iterations: bool,
         ) -> ConfigurationResult:
@@ -378,6 +396,10 @@ class ExecuteTests(object):
             return ConfigurationResult(
                 configuration,
                 self.output_dir,
+                compiler_name,
+                test_execution_name,
+                test_parser_name,
+                code_coverage_validator_name,
                 self.build_result,
                 self.test_result,
                 self.coverage_result,

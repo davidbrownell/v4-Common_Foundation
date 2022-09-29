@@ -22,7 +22,7 @@ import textwrap
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
 
 try:
     import typer
@@ -50,6 +50,7 @@ from Common_FoundationEx import TyperEx
 
 import DisplayResults
 from ExecuteTests import ExecuteTests
+from Results import ListResult
 from TestTypes import TYPES as TEST_TYPE_INFOS
 
 
@@ -63,7 +64,8 @@ with ExitStack(lambda: sys.path.pop(0)):
 
 # ----------------------------------------------------------------------
 IGNORE_FILENAME                             = "Tester-ignore"
-
+DO_NOT_PARSE_FILENAME                       = "Tester-DoNotParse"
+VERBOSE_PLUGIN_ENVIRONMENT_VAR_NAME         = "TESTER_VERBOSE_PLUGIN_INFO"
 
 # ----------------------------------------------------------------------
 @dataclass(frozen=True)
@@ -111,6 +113,8 @@ def InitGlobals():
             lambda: inflect.no("configuration", len(_CONFIGURATIONS)),
         ],
         display_exception_details=False,
+        output_flags=DoneManagerFlags.Create(verbose=bool(os.getenv(VERBOSE_PLUGIN_ENVIRONMENT_VAR_NAME))),
+        suffix="\n",
     ) as dm:
         # ----------------------------------------------------------------------
         def LoadPlugins() -> None:
@@ -172,16 +176,6 @@ def InitGlobals():
                 except:
                     dm.WriteError(mod.__file__ or "")
                     raise
-
-            # Validate
-            if not _CODE_COVERAGE_VALIDATORS:
-                raise Exception("No code coverage validators were found.")
-            if not _COMPILERS:
-                raise Exception("No compilers were found.")
-            if not _TEST_EXECUTORS:
-                raise Exception("No test executors were found.")
-            if not _TEST_PARSERS:
-                raise Exception("No test parsers were found.")
 
         # ----------------------------------------------------------------------
         def CreateConfigurations() -> None:
@@ -270,9 +264,132 @@ def InitGlobals():
             _CONFIGURATIONS.sort(key=lambda value: value.priority)
 
         # ----------------------------------------------------------------------
+        def ValidateConfigurations() -> None:
+            disabled_compilers: Set[CompilerImpl] = set()
+            disabled_test_executors: Set[TestExecutorImpl] = set()
+            disabled_test_parsers: Set[TestParserImpl] = set()
+            disabled_code_coverage_validators: Set[CodeCoverageValidatorImpl] = set()
+
+            # Compilers
+            index = 0
+
+            while index < len(_COMPILERS):
+                compiler = _COMPILERS[index]
+
+                validate_result = compiler.ValidateEnvironment()
+                if validate_result is not None:
+                    dm.WriteVerbose("The compiler '{}' is not valid in this environment ({}).\n".format(compiler.name, validate_result))
+                    disabled_compilers.add(compiler)
+
+                    del _COMPILERS[index]
+                    continue
+
+                index += 1
+
+            if not _COMPILERS:
+                raise Exception("No compilers were found. Set the environment variable '{}' to display more information.".format(VERBOSE_PLUGIN_ENVIRONMENT_VAR_NAME))
+
+            # Test Executors
+            index = 0
+
+            while index < len(_TEST_EXECUTORS):
+                test_executor = _TEST_EXECUTORS[index]
+
+                validate_result = test_executor.ValidateEnvironment()
+                if validate_result is not None:
+                    dm.WriteVerbose("The test executor '{}' is not valid in this environment ({}).\n".format(test_executor.name, validate_result))
+                    disabled_test_executors.add(test_executor)
+
+                    del _TEST_EXECUTORS[index]
+                    continue
+
+                index += 1
+
+            if not _TEST_EXECUTORS:
+                raise Exception("No test executors were found. Set the environment variable '{}' to display more information.".format(VERBOSE_PLUGIN_ENVIRONMENT_VAR_NAME))
+
+            # Test Parsers
+            index = 0
+
+            while index < len(_TEST_PARSERS):
+                test_parser = _TEST_PARSERS[index]
+
+                validate_result = test_parser.ValidateEnvironment()
+                if validate_result is not None:
+                    dm.WriteVerbose("The test parser '{}' is not valid in this environment ({}).\n".format(test_parser.name, validate_result))
+                    disabled_test_parsers.add(test_parser)
+
+                    del _TEST_PARSERS[index]
+                    continue
+
+                index += 1
+
+            if not _TEST_PARSERS:
+                raise Exception("No test parsers were found. Set the environment variable '{}' to display more information.".format(VERBOSE_PLUGIN_ENVIRONMENT_VAR_NAME))
+
+            # Code Coverage Validators
+            index = 0
+
+            while index < len(_CODE_COVERAGE_VALIDATORS):
+                code_coverage_validator = _CODE_COVERAGE_VALIDATORS[index]
+
+                validate_result = code_coverage_validator.ValidateEnvironment()
+                if validate_result is not None:
+                    dm.WriteVerbose("The code coverage validator '{}' is not valid in this environment ({}).\n".format(code_coverage_validator.name, validate_result))
+                    disabled_code_coverage_validators.add(code_coverage_validator)
+
+                    del _CODE_COVERAGE_VALIDATORS[index]
+                    continue
+
+                index += 1
+
+            if not _CODE_COVERAGE_VALIDATORS:
+                raise Exception("No code coverage validators were found. Set the environment variable '{}' to display more information.".format(VERBOSE_PLUGIN_ENVIRONMENT_VAR_NAME))
+
+            # Remove configurations that are no longer valid
+            index = 0
+
+            while index < len(_CONFIGURATIONS):
+                configuration = _CONFIGURATIONS[index]
+
+                should_remove = False
+
+                if not should_remove and configuration.compiler in disabled_compilers:
+                    dm.WriteVerbose(
+                        "The configuration '{}' is not valid in this environment as the compiler '{}' has been disabled.\n".format(
+                            configuration.name,
+                            configuration.compiler.name,
+                        ),
+                    )
+
+                    should_remove = True
+
+                if not should_remove and configuration.test_parser in disabled_test_parsers:
+                    dm.WriteVerbose(
+                        "The configuration '{}' is not valid in this environment as the test parser '{}' has been disabled.\n".format(
+                            configuration.name,
+                            configuration.test_parser.name,
+                        ),
+                    )
+
+                    should_remove = True
+
+                if should_remove:
+                    if configuration.test_executor in disabled_test_executors:
+                        object.__setattr__(configuration, "test_executor", None)
+                    if configuration.code_coverage_validator in disabled_code_coverage_validators:
+                        object.__setattr__(configuration, "code_coverage_validator", None)
+
+                    del _CONFIGURATIONS[index]
+                    continue
+
+                index += 1
+
+        # ----------------------------------------------------------------------
 
         LoadPlugins()
         CreateConfigurations()
+        ValidateConfigurations()
 
     # ----------------------------------------------------------------------
 
@@ -965,6 +1082,111 @@ def ExecuteTree(
 
 
 # ----------------------------------------------------------------------
+@app.command("List", rich_help_panel="Test Discovery", no_args_is_help=True)
+def ListFunc(
+    input_dir: Path=_directory_input_argument,
+    all_tests: bool=typer.Option(False, "--all-tests", help="Display all tests, even those that do not match a configuration."),
+    verbose: bool=_verbose_option,
+    debug: bool=_debug_option,
+) -> None:
+    """Lists all tests."""
+
+    with DoneManager.CreateCommandLine(
+        output_flags=DoneManagerFlags.Create(verbose=verbose, debug=debug),
+    ) as dm:
+        directory_compiler_info: Dict[CompilerImpl, List[TestParserImpl]] = {}
+        filename_compiler_info: Dict[CompilerImpl, List[TestParserImpl]] = {}
+
+        for compiler in _COMPILERS:
+            test_parsers: List[TestParserImpl] = [
+                test_parser for test_parser in _TEST_PARSERS if test_parser.IsSupportedCompiler(compiler)
+            ]
+
+            if test_parsers:
+                if compiler.input_type == InputType.Directories:
+                    directory_compiler_info[compiler] = test_parsers
+                elif compiler.input_type == InputType.Files:
+                    filename_compiler_info[compiler] = test_parsers
+                else:
+                    assert False, compiler.input_type  # pragma: no cover
+
+        if not directory_compiler_info and not filename_compiler_info:
+            dm.WriteInfo("No compilers were found.\n")
+            return
+
+        configuration_map: Dict[Tuple[CompilerImpl, TestParserImpl], List[str]] = {}
+
+        for configuration in _CONFIGURATIONS:
+            configuration_map.setdefault((configuration.compiler, configuration.test_parser), []).append(configuration.name)
+
+        list_results: List[ListResult] = []
+
+        with dm.Nested(
+            "Searching for tests in '{}'...".format(input_dir),
+            lambda: "{} found".format(inflect.no("test item", len(list_results))),
+            suffix="\n",
+        ) as search_dm:
+            for root, directories, filenames in EnumSource.EnumSource(input_dir):
+                if (root / DO_NOT_PARSE_FILENAME).exists():
+                    search_dm.WriteVerbose("Skipping '{}' due to '{}'.\n".format(root, DO_NOT_PARSE_FILENAME))
+
+                    directories[:] = []
+                    continue
+
+                # Process compilers that operate on directories
+                for compiler, test_parsers in directory_compiler_info.items():
+                    if (
+                        compiler.IsSupported(root)
+                        and compiler.IsSupportedTestItem(root)
+                    ):
+                        for test_parser in test_parsers:
+                            if test_parser.IsSupportedTestItem(root):
+                                configurations = configuration_map.get((compiler, test_parser), None)
+                                if configurations is None and not all_tests:
+                                    continue
+
+                                list_results.append(
+                                    ListResult(
+                                        compiler,
+                                        test_parser,
+                                        configurations,
+                                        root.name,
+                                        root,
+                                        is_enabled=not (root / IGNORE_FILENAME).exists(),
+                                    ),
+                                )
+
+                # Process compilers that operate on filenames
+                if filename_compiler_info:
+                    for filename in filenames:
+                        fullpath = root / filename
+
+                        for compiler, test_parsers in filename_compiler_info.items():
+                            if (
+                                compiler.IsSupported(fullpath)
+                                and compiler.IsSupportedTestItem(fullpath)
+                            ):
+                                for test_parser in test_parsers:
+                                    if test_parser.IsSupportedTestItem(fullpath):
+                                        configurations = configuration_map.get((compiler, test_parser), None)
+                                        if configurations is None and not all_tests:
+                                            continue
+
+                                        list_results.append(
+                                            ListResult(
+                                                compiler,
+                                                test_parser,
+                                                configurations,
+                                                root.name,
+                                                fullpath,
+                                                is_enabled=not (fullpath.parent / "{}-ignore".format(fullpath.name)).exists(),
+                                            ),
+                                        )
+
+        DisplayResults.DisplayListResults(dm, list_results)
+
+
+# ----------------------------------------------------------------------
 # ----------------------------------------------------------------------
 # ----------------------------------------------------------------------
 def _TestImpl(
@@ -1242,6 +1464,14 @@ def _FindTests(
             ) -> None:
                 nonlocal ignored_count
                 nonlocal ignore_override_count
+
+                for parent in root.parents:
+                    potential_do_not_parse_filename = parent / DO_NOT_PARSE_FILENAME
+
+                    if potential_do_not_parse_filename.exists():
+                        search_dm.WriteVerbose("Skipping '{}' due to '{}'.\n".format(root, potential_do_not_parse_filename))
+
+                        return
 
                 if not compiler.IsSupported(root):
                     search_dm.WriteVerbose(

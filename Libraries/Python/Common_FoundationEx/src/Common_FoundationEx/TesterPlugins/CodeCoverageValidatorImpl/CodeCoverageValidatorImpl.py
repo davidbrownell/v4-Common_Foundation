@@ -17,8 +17,11 @@
 
 from abc import abstractmethod, ABC
 from pathlib import Path
+from typing import Optional
 
 from Common_Foundation.Streams.DoneManager import DoneManager
+from Common_Foundation.Types import extensionmethod
+
 from Common_FoundationEx import TyperEx
 
 from .Results import CodeCoverageResult
@@ -36,6 +39,23 @@ class CodeCoverageValidatorImpl(ABC):
     ):
         self.name                           = name
         self.description                    = description
+
+    # ----------------------------------------------------------------------
+    @extensionmethod
+    def ValidateEnvironment(self) -> Optional[str]:
+        """\
+        Opportunity to validate that a code coverage validator can be run in the current environment.
+
+        Overload this method when a code coverage validator will never be successful when running in
+        a specific environment (for example, trying to run a Windows code coverage validator in a Linux
+        environment).
+
+        Return None if the environment is valid or a string that describes why the
+        current environment is invalid for this code coverage validator.
+        """
+
+        # Do nothing by default
+        return None
 
     # ----------------------------------------------------------------------
     @abstractmethod

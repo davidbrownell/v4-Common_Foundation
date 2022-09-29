@@ -19,7 +19,7 @@ import re
 import textwrap
 
 from enum import auto, Enum
-from typing import Dict, List, Generator, Optional, Pattern, Set
+from typing import cast, Dict, List, Generator, Optional, Pattern, Set, Union
 
 
 # ----------------------------------------------------------------------
@@ -130,9 +130,14 @@ def Generate(
     *,
     leading_delimiter: bool=False,
 ) -> Generator[
-    Dict[
-        Optional[str],                      # A string key will be the match group name; None key is the leading or following text (depending on the value of `leading_delimiter`)
-        str
+    Union[
+        # Generated value when capture groups are present
+        Dict[
+            Optional[str],                      # A string key will be the match group name; None key is the leading or following text (depending on the value of `leading_delimiter`)
+            str
+        ],
+        # Generated value when capture groups are not present
+        str,
     ],
     None,
     None,
@@ -215,7 +220,7 @@ def Generate(
         if results and all(not result for result in results):
             results = results[1:]
 
-        yield from results
+        yield from cast(List[str], results)
 
 
 # ----------------------------------------------------------------------

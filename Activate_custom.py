@@ -70,8 +70,8 @@ def GetCustomActions(
             "DEVELOPMENT_ENVIRONMENT_TESTER_CONFIGURATIONS",
             [
                 # <configuration name>-<python type>-<value>[-pri=<priority>]
-                "python_simple-compiler-SimplePython-pri=10000",
-                "python_simple-test_parser-SimplePython-pri=10000",
+                "basic_python_unittest-compiler-Noop-pri=10000",
+                "basic_python_unittest-test_parser-PythonUnittest",
             ],
         ),
     )

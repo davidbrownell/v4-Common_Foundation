@@ -1,6 +1,6 @@
 # ----------------------------------------------------------------------
 # |
-# |  SimplePythonVerifier.py
+# |  NoopVerifier.py
 # |
 # |  David Brownell <db@DavidBrownell.com>
 # |      2022-09-08 08:10:48
@@ -22,57 +22,39 @@ from Common_Foundation.Types import overridemethod
 
 from Common_FoundationEx.CompilerImpl.Verifier import InputType, Verifier as VerifierBase
 from Common_FoundationEx.CompilerImpl.Interfaces.IInvoker import IInvoker
-from Common_FoundationEx.InflectEx import inflect
 from Common_FoundationEx import TyperEx
 
 
 # ----------------------------------------------------------------------
 class Verifier(VerifierBase, IInvoker):
     """\
-    Verifier that runs python files.
+    Verifier that doesn't do anything.
 
     This verifier exists to demonstrate the capabilities of Tester and should not be used with
-    any real code. A real Python verifier is available as part of the `Common_PythonDevelopment`
-    repository, available at `https://github.com/davidbrownell/v4-Common_PythonDevelopment`.
+    any real code.
     """
 
     # ----------------------------------------------------------------------
     def __init__(self):
         super(Verifier, self).__init__(
-            "SimplePython",
-            "Sample Verifier intended to demonstrate the capabilities of Tester; DO NOT USE with real workloads.",
+            "Noop",
+            "Sample Verifier intended to demonstrate the capabilities of Tester; DO NOT USE with real workloads (as it doesn't do anything).",
             InputType.Files,
             can_execute_in_parallel=True,
         )
 
     # ----------------------------------------------------------------------
     @overridemethod
-    def IsSupported(  # pylint: disable=arguments-renamed
-        self,
-        filename: Path,
-    ) -> bool:
-        return filename.suffix == ".py"
-
-    # ----------------------------------------------------------------------
-    @overridemethod
-    def ItemToTestName(
-        self,
-        item: Path,
-        test_type_name: str,
-    ) -> Optional[Path]:
-        if self.IsSupportedTestItem(item):
-            return item
-
-        return item.parent / "{}_{}{}".format(
-            item.stem,
-            inflect.singular_noun(test_type_name) or test_type_name,
-            item.suffix,
-        )
-
-    # ----------------------------------------------------------------------
-    @overridemethod
     def GetCustomCommandLineArgs(self) -> TyperEx.TypeDefinitionsType:
         return {}
+
+    # ----------------------------------------------------------------------
+    @overridemethod
+    def IsSupported(  # pylint: disable=arguments-renamed
+        self,
+        filename_or_directory: Path,
+    ) -> bool:
+        return filename_or_directory.is_file()
 
     # ----------------------------------------------------------------------
     # ----------------------------------------------------------------------

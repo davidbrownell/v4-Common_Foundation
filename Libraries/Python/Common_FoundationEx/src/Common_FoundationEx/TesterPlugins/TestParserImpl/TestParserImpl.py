@@ -47,6 +47,23 @@ class TestParserImpl(ABC):
         self.description                    = description
 
     # ----------------------------------------------------------------------
+    @extensionmethod
+    def ValidateEnvironment(self) -> Optional[str]:
+        """\
+        Opportunity to validate that a test parser can be run in the current environment.
+
+        Overload this method when a test parser will never be successful when running in
+        a specific environment (for example, trying to run a Windows test parser in a Linux
+        environment).
+
+        Return None if the environment is valid or a string that describes why the
+        current environment is invalid for this test parser.
+        """
+
+        # Do nothing by default
+        return None
+
+    # ----------------------------------------------------------------------
     @abstractmethod
     def GetCustomCommandLineArgs(self) -> TyperEx.TypeDefinitionsType:
         """Return type annotations for any arguments that can be provided on the command line"""

@@ -23,7 +23,7 @@ import subprocess
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, cast, Dict, IO, List, Optional, TextIO
+from typing import Callable, cast, Dict, IO, List, Optional, TextIO, Union
 
 from .ContextlibEx import ExitStack
 from .Streams.TextWriter import TextWriter
@@ -79,7 +79,7 @@ def Run(
 # ----------------------------------------------------------------------
 def Stream(
     command_line: str,
-    stream: TextWriter,
+    stream: Union[TextWriter, TextIO],
     cwd: Optional[Path]=None,
     env: Optional[Dict[str, str]]=None,
     *,

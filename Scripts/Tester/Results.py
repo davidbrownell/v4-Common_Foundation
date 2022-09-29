@@ -22,9 +22,10 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List, Optional, Tuple, Union
 
+from Common_FoundationEx.CompilerImpl.CompilerImpl import CompilerImpl
 from Common_FoundationEx.TesterPlugins.CodeCoverageValidatorImpl import CodeCoverageResult
 from Common_FoundationEx.TesterPlugins.TestExecutorImpl import ExecuteResult as ExecuteResultBase
-from Common_FoundationEx.TesterPlugins.TestParserImpl import TestResult as ParseResult
+from Common_FoundationEx.TesterPlugins.TestParserImpl import TestParserImpl, TestResult as ParseResult
 
 # Convenience imports
 from Common_FoundationEx.TesterPlugins.TestParserImpl import BenchmarkStat  # pylint: disable=unused-import
@@ -186,6 +187,11 @@ class ConfigurationResult(object):
     configuration: str
     output_dir: Path
 
+    compiler_name: str
+    test_execution_name: str
+    test_parser_name: str
+    code_coverage_validator_name: Optional[str]
+
     build_result: Union[ErrorResult, BuildResult]
     test_result: Union[None, ErrorResult, TestResult]
     coverage_result: Union[None, ErrorResult, CodeCoverageResult]
@@ -201,6 +207,7 @@ class ConfigurationResult(object):
     def __post_init__(self):
         assert self.test_result is None or self.build_result.result == 0
         assert self.coverage_result is None or self.build_result.result == 0
+        assert self.coverage_result is None or self.code_coverage_validator_name
 
         # ----------------------------------------------------------------------
         def GetInfo() -> Tuple[
@@ -281,3 +288,17 @@ class Result(object):
                 result = config_result.result
 
         return result
+
+
+# ----------------------------------------------------------------------
+@dataclass(frozen=True)
+class ListResult(object):
+    # ----------------------------------------------------------------------
+    compiler: CompilerImpl
+    test_parser: TestParserImpl
+    configurations: Optional[List[str]]
+    test_type: str
+
+    path: Path
+
+    is_enabled: bool                        = field(kw_only=True)
