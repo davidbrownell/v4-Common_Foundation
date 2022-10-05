@@ -153,6 +153,65 @@ def GetCustomActions(
             # This key isn't available on all versions of Windows
             pass
 
+        # Colors can look funky on older terminals
+        try:
+            # Determine if console host is the default terminal
+            is_console_host = False
+
+            try:
+                hkey = winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Console\%%Startup")
+                with ExitStack(lambda: winreg.CloseKey(hkey)):
+                    value = winreg.QueryValueEx(hkey, "DelegationTerminal")[0]
+
+                    if value == "{00000000-0000-0000-0000-000000000000}":
+                        is_console_host = True
+
+            except FileNotFoundError:
+                # Assume that the terminal is console host if it hasn't been set to something else.
+                # This logic is likely to break in the future as Windows Terminal is soon to be
+                # the default.
+                is_console_host = True
+
+            if is_console_host:
+                hkey = winreg.OpenKey(winreg.HKEY_CURRENT_USER, "Console")
+                with ExitStack(lambda: winreg.CloseKey(hkey)):
+                    is_set = False
+
+                    try:
+                        value = winreg.QueryValueEx(hkey, "VirtualTerminalLevel")[0]
+                        is_set = value >= 1
+                    except FileNotFoundError:
+                        # If there, the value didn't exist
+                        pass
+
+                    if not is_set:
+                        commands.append(
+                            Commands.Message(
+                                TextwrapEx.Indent(
+                                    TextwrapEx.CreateWarningText(
+                                        textwrap.dedent(
+                                            """\
+                                            Ansi escape codes may not be working as expected based on the terminal that is currently
+                                            in use.
+
+                                            To enable Ansi escape codes:
+
+                                                1) Launch 'regedit'
+                                                2) Navigate to 'HKEY_CURRENT_USER\\Console'
+                                                3) Create the DWORD value 'VirtualTerminalLevel'
+                                                4) Set the value to 1
+                                                5) Open a new terminal window.
+                                            """,
+                                        ),
+                                    ),
+                                    2,
+                                ),
+                            ),
+                        )
+
+        except FileNotFoundError:
+            pass
+
     # Check to see if git is installed and if its settings are set to the best defaults
     if SubprocessEx.Run("git rev-parse --show-toplevel").returncode == 0:
         # core.autocrlf
