@@ -609,7 +609,7 @@ class DoneManager(object):
         instance = cls(
             StreamDecorator(
                 stream,
-                prefix="\n",
+                prefix="\n" if args.heading else "",
                 line_prefix=args.line_prefix,
                 decorate_empty_lines=False,
             ),

@@ -333,8 +333,9 @@ class BuildInfo(BuildInfoBase):
                 if bundle_dm.result != 0:
                     bundle_dm.WriteError(result.output)
                     return bundle_dm.result
-                else:
-                    bundle_dm.WriteVerbose(result.output)
+
+                with bundle_dm.YieldVerboseStream() as stream:
+                    stream.write(result.output)
 
             with dm.Nested("Creating dockerfiles..."):
                 on_progress_update(self.__class__.BuildStep.CreatingDockerFiles.value, "Creating dockerfiles")
@@ -449,7 +450,8 @@ class BuildInfo(BuildInfoBase):
                             this_build_dm.WriteError(result.output)
                             return this_build_dm.result
 
-                        this_build_dm.WriteVerbose(result.output)
+                        with this_build_dm.YieldVerboseStream() as stream:
+                            stream.write(result.output)
 
             return dm.result
 

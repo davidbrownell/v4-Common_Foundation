@@ -20,27 +20,15 @@ import itertools
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import List, Optional, Tuple, Union
+from typing import List, Optional, Tuple
 
 from Common_FoundationEx.CompilerImpl.CompilerImpl import CompilerImpl
 from Common_FoundationEx.TesterPlugins.CodeCoverageValidatorImpl import CodeCoverageResult
-from Common_FoundationEx.TesterPlugins.TestExecutorImpl import ExecuteResult as ExecuteResultBase
+from Common_FoundationEx.TesterPlugins.TestExecutorImpl import ExecuteResult
 from Common_FoundationEx.TesterPlugins.TestParserImpl import TestParserImpl, TestResult as ParseResult
 
 # Convenience imports
 from Common_FoundationEx.TesterPlugins.TestParserImpl import BenchmarkStat  # pylint: disable=unused-import
-
-
-# ----------------------------------------------------------------------
-@dataclass(frozen=True)
-class ErrorResult(object):
-    """Result from encountering severe errors (exceptions) when attempting to process an item"""
-
-    result: int
-    execution_time: datetime.timedelta      # Includes time spent configuring, waiting, etc
-    log_filename: Path
-
-    short_desc: Optional[str]
 
 
 # ----------------------------------------------------------------------
@@ -57,12 +45,6 @@ class BuildResult(object):
     build_execution_time: datetime.timedelta
     output_dir: Path
     binary: Path
-
-
-# ----------------------------------------------------------------------
-@dataclass(frozen=True)
-class ExecuteResult(ExecuteResultBase):
-    log_filename: Path
 
 
 # ----------------------------------------------------------------------
@@ -128,7 +110,6 @@ class TestResult(object):
     """Result of executing one or more tests for a specific configuration"""
 
     execution_time: datetime.timedelta
-    log_filename: Path
 
     test_results: List[TestIterationResult]
     has_multiple_iterations: bool           = field(kw_only=True)
@@ -186,15 +167,16 @@ class ConfigurationResult(object):
 
     configuration: str
     output_dir: Path
+    log_filename: Path
 
     compiler_name: str
     test_execution_name: str
     test_parser_name: str
     code_coverage_validator_name: Optional[str]
 
-    build_result: Union[ErrorResult, BuildResult]
-    test_result: Union[None, ErrorResult, TestResult]
-    coverage_result: Union[None, ErrorResult, CodeCoverageResult]
+    build_result: Optional[BuildResult]
+    test_result: Optional[TestResult]
+    coverage_result: Optional[CodeCoverageResult]
 
     has_multiple_iterations: bool
 
@@ -205,9 +187,9 @@ class ConfigurationResult(object):
 
     # ----------------------------------------------------------------------
     def __post_init__(self):
-        assert self.test_result is None or self.build_result.result == 0
-        assert self.coverage_result is None or self.build_result.result == 0
-        assert self.coverage_result is None or self.code_coverage_validator_name
+        assert self.build_result is None or self.test_result is None or self.build_result.result == 0
+        assert self.build_result is None or self.coverage_result is None or self.build_result.result == 0
+        assert self.build_result is None or self.coverage_result is None or self.code_coverage_validator_name
 
         # ----------------------------------------------------------------------
         def GetInfo() -> Tuple[
@@ -217,8 +199,12 @@ class ConfigurationResult(object):
             datetime.timedelta,
         ]:
             # Get the average and total times
-            average_time = self.build_result.execution_time
-            total_time = self.build_result.execution_time
+            if self.build_result is None:
+                average_time = datetime.timedelta()
+                total_time = datetime.timedelta()
+            else:
+                average_time = self.build_result.execution_time
+                total_time = self.build_result.execution_time
 
             if self.test_result is not None:
                 if isinstance(self.test_result, TestResult):
@@ -234,7 +220,7 @@ class ConfigurationResult(object):
             success_desc: Optional[str] = None
 
             for result in itertools.chain(
-                [self.build_result, ],
+                [self.build_result, ] if self.build_result else [],
                 [self.test_result, ] if self.test_result else [],
                 [self.coverage_result, ] if self.coverage_result else [],
             ):
@@ -269,6 +255,7 @@ class Result(object):
 
     # ----------------------------------------------------------------------
     test_item: Path
+    output_dir: Path
 
     debug: Optional[ConfigurationResult]
     release: Optional[ConfigurationResult]

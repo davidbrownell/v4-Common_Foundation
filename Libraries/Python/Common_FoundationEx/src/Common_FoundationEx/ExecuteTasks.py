@@ -42,7 +42,7 @@ from .InflectEx import inflect
 # |  Public Types
 # |
 # ----------------------------------------------------------------------
-CATASTROPHIC_TASK_FAILURE_RESULT            = 123
+CATASTROPHIC_TASK_FAILURE_RESULT            = -123
 
 
 # ----------------------------------------------------------------------
@@ -63,7 +63,6 @@ class TaskData(object):
 # ----------------------------------------------------------------------
 Step3Type                                   = Callable[
     [
-        Any,                                # TaskData.context
         Callable[
             [
                 int,                        # Step (0-based)
@@ -77,7 +76,6 @@ Step3Type                                   = Callable[
 
 Step2Type                                   = Callable[
     [
-        Any,                                # TaskData.context
         Callable[
             [
                 str,                        # Status
@@ -230,7 +228,7 @@ def ExecuteTasks(
 
                                 # ----------------------------------------------------------------------
 
-                                num_steps, step3_func = step2_func(task_data.context, OnSimpleStatus)
+                                num_steps, step3_func = step2_func(OnSimpleStatus)
 
                                 # ----------------------------------------------------------------------
                                 @contextmanager
@@ -274,7 +272,7 @@ def ExecuteTasks(
 
                                     # ----------------------------------------------------------------------
 
-                                    task_data.result, task_data.short_desc = step3_func(task_data.context, OnProgress)
+                                    task_data.result, task_data.short_desc = step3_func(OnProgress)
 
                             except KeyboardInterrupt:  # pylint: disable=try-except-raise
                                 raise

@@ -72,7 +72,7 @@ class CommandLineInvokerMixin(
         with dm.Nested("Creating command line...") as command_line_dm:
             command_line = self.CreateInvokeCommandLine(command_line_dm, context)
 
-        on_progress_func(0, "Running")
+        on_progress_func(0, "Running...")
         with dm.Nested(
             "Invoking '{}'...".format(command_line),
         ) as invoke_dm:

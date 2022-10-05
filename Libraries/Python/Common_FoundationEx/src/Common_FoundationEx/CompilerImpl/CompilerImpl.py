@@ -454,7 +454,7 @@ class CompilerImpl(
                 suffix="\n",
             ) as verbose_dm:
                 # Get the invoke reason
-                on_progress_func(CompilerImpl.Steps.DetectingChanges.value, "Detecting changes")
+                on_progress_func(CompilerImpl.Steps.DetectingChanges.value, "Detecting Changes...")
                 with verbose_dm.Nested(
                     "Detecting changes...",
                     lambda: "No changes were detected" if invoke_reason is None else str(invoke_reason),
@@ -464,7 +464,7 @@ class CompilerImpl(
                         return verbose_dm.result
 
                 # Get the inputs
-                on_progress_func(CompilerImpl.Steps.ExtractingInputItems.value, "Extracting input items")
+                on_progress_func(CompilerImpl.Steps.ExtractingInputItems.value, "Extracting Input Items...")
                 with verbose_dm.Nested(
                     "Extracting input items...",
                     lambda: "{} found".format(inflect.no("item", len(input_items))),
@@ -504,7 +504,7 @@ class CompilerImpl(
 
                     stream.write("\n")
 
-                on_progress_func(CompilerImpl.Steps.Executing.value, "Executing")
+                on_progress_func(CompilerImpl.Steps.Executing.value, "Executing...")
 
                 step_offset = CompilerImpl.Steps.Executing.value + 1
 
@@ -516,7 +516,7 @@ class CompilerImpl(
                 )
 
                 if invoke_dm.result >= 0:
-                    on_progress_func(num_internal_steps + len(CompilerImpl.Steps) - 1, "Persisting context")
+                    on_progress_func(num_internal_steps + len(CompilerImpl.Steps) - 1, "Persisting Context...")
                     with invoke_dm.VerboseNested("Persisting context..."):
                         self._PersistContext(context)
 

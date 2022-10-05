@@ -26,9 +26,9 @@ from Common_Foundation.Streams.DoneManager import DoneManager  # type: ignore
 from Common_Foundation import SubprocessEx  # type: ignore
 from Common_Foundation import TextwrapEx  # type: ignore
 
-from RepositoryBootstrap.Impl.ActivateActivities.ScriptsActivateActivity import Extractor, ExtractorMap
 from RepositoryBootstrap import Constants
-from RepositoryBootstrap import DynamicPluginArchitecture
+from RepositoryBootstrap.Impl.ActivateActivities.ScriptsActivateActivity import Extractor, ExtractorMap
+from RepositoryBootstrap.SetupAndActivate import DynamicPluginArchitecture
 
 
 # ----------------------------------------------------------------------

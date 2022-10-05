@@ -57,6 +57,7 @@ def GetCustomActions(
     # Note that it is safe to remove any parameters that are not used
     dm: DoneManager,                                    # pylint: disable=unused-argument
     explicit_configurations: Optional[List[str]],       # pylint: disable=unused-argument
+    force: bool,                                        # pylint: disable=unused-argument
 ) -> List[Commands.Command]:
     """Return custom actions invoked as part of the setup process for this repository"""
 

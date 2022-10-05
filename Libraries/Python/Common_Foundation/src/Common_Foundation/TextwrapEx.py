@@ -15,6 +15,7 @@
 # ----------------------------------------------------------------------
 """Enhancements for the textwrap library"""
 
+import math
 import re
 import sys
 import textwrap
@@ -296,7 +297,7 @@ def GetSizeDisplay(
 
     for unit in [ 'K', 'M', 'G', 'T', 'P', 'E', 'Z', ]:
         if result < 1024.0:
-            return "{} {}B".format(int(result), unit)
+            return "{} {}B".format(int(math.ceil(result)), unit)
 
         result /= 1024.0
 

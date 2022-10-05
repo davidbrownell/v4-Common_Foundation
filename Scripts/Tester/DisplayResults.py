@@ -36,7 +36,7 @@ from Common_Foundation import TextwrapEx
 
 from Common_FoundationEx.InflectEx import inflect
 
-from Results import BuildResult, CodeCoverageResult, ConfigurationResult, ErrorResult, ListResult, Result, TestIterationResult, TestResult
+from Results import ConfigurationResult, ListResult, Result, TestIterationResult, TestResult
 
 
 # ----------------------------------------------------------------------
@@ -116,34 +116,6 @@ def Display(
         )
 
     # ----------------------------------------------------------------------
-    def CreateErrorResultPanel(
-        error: ErrorResult,
-        title: str,
-        border_style: str,
-        plugin_names: Dict[str, str],
-    ) -> Panel:
-        aligned_values: Dict[str, str] = {
-            "Result": GetResultDisplay(error.result, error.short_desc),
-        }
-
-        for k, v in plugin_names.items():
-            aligned_values[k] = v
-
-        aligned_values["Execution Time"] = str(error.execution_time)
-        aligned_values["Log Output"] = GetLogDisplay(error.log_filename)
-
-        return Panel(
-            CreateAlignedKeyValueText(
-                aligned_values,
-                panel_level=2,
-            ).rstrip(),
-            border_style=border_style,
-            padding=(1, 2),
-            title=title,
-            title_align="left",
-        )
-
-    # ----------------------------------------------------------------------
     def CreateConfigurationPanel(
         result: ConfigurationResult,
         *,
@@ -152,28 +124,15 @@ def Display(
         panels: List[Panel] = []
 
         # Build
-        build_result = result.build_result
+        if result.build_result:
+            build_result = result.build_result
 
-        if isinstance(build_result, ErrorResult):
-            panels.append(
-                CreateErrorResultPanel(
-                    build_result,
-                    "Build Results",
-                    build_results_color,
-                    {
-                        "Plugin": result.compiler_name,
-                    },
-                ),
-            )
-
-        elif isinstance(build_result, BuildResult):
             panels.append(
                 Panel(
                     CreateAlignedKeyValueText(
                         {
                             "Result": GetResultDisplay(build_result.result, build_result.short_desc),
-                            "Plugin": result.compiler_name,
-                            "Log Output": GetLogDisplay(build_result.log_filename),
+                            "Plugin Name": result.compiler_name,
                             "Total Execution Time": str(build_result.execution_time),
                             "Build Execution Time": str(build_result.build_execution_time),
                         },
@@ -185,9 +144,6 @@ def Display(
                     title_align="left",
                 ),
             )
-
-        else:
-            assert False, build_result  # pragma: no cover
 
         # Test
         if result.test_result:
@@ -269,8 +225,7 @@ def Display(
                         CreateAlignedKeyValueText(
                             {
                                 "Result": GetResultDisplay(result.execute_result.result, result.execute_result.short_desc),
-                                "Plugin": test_executor_name,
-                                "Log Output": GetLogDisplay(result.execute_result.log_filename),
+                                "Plugin Name": test_executor_name,
                                 "Execution Time": str(result.execute_result.execution_time),
                             },
                             panel_level=2,
@@ -283,7 +238,7 @@ def Display(
                         CreateAlignedKeyValueText(
                             {
                                 "Result": GetResultDisplay(result.parse_result.result, result.parse_result.short_desc),
-                                "Plugin": test_parser_name,
+                                "Plugin Name": test_parser_name,
                                 "Execution Time": str(result.parse_result.execution_time),
                             },
                             panel_level=2,
@@ -313,86 +268,68 @@ def Display(
 
             test_result = result.test_result
 
-            if isinstance(test_result, ErrorResult):
-                panels.append(
-                    CreateErrorResultPanel(
-                        test_result,
-                        "Test Results",
-                        test_results_color,
+            if test_result.has_multiple_iterations:
+                iteration_display_items: List[Union[str, Panel]] = [
+                    CreateAlignedKeyValueText(
                         {
-                            "Executor Plugin": result.test_execution_name,
-                            "Parser Plugin": result.test_parser_name,
+                            "Average Execution Time": str(test_result.average_time),
                         },
+                        panel_level=2,
                     ),
-                )
+                ]
 
-            elif isinstance(test_result, TestResult):
-                if test_result.has_multiple_iterations:
-                    iteration_display_items: List[Union[str, Panel]] = [
+                for index, test_iteration_result in enumerate(test_result.test_results):
+                    iteration_display_items += [
+                        "",
+                        Rule("Iteration #{}".format(index + 1), style="none"),
+                        "",
                         CreateAlignedKeyValueText(
                             {
-                                "Average Execution Time": str(test_result.average_time),
+                                "Result": GetResultDisplay(test_iteration_result.result, test_iteration_result.short_desc),
+                                "Total Execution Time": str(test_iteration_result.total_time),
                             },
                             panel_level=2,
                         ),
-                    ]
-
-                    for index, test_iteration_result in enumerate(test_result.test_results):
-                        iteration_display_items += [
-                            "",
-                            Rule("Iteration #{}".format(index + 1), style="none"),
-                            "",
-                            CreateAlignedKeyValueText(
-                                {
-                                    "Result": GetResultDisplay(test_iteration_result.result, test_iteration_result.short_desc),
-                                    "Total Execution Time": str(test_iteration_result.total_time),
-                                },
-                                panel_level=2,
-                            ),
-                            "",
-                            CreateTestIterationText(
-                                result.test_execution_name,
-                                result.test_parser_name,
-                                test_iteration_result,
-                            ),
-                        ]
-
-                else:
-                    iteration_display_items: List[Union[str, Panel]] = [
                         "",
                         CreateTestIterationText(
                             result.test_execution_name,
                             result.test_parser_name,
-                            test_result.test_results[0],
+                            test_iteration_result,
                         ),
                     ]
 
-                assert iteration_display_items
-                assert isinstance(iteration_display_items[-1], str), iteration_display_items[-1]
-                iteration_display_items[-1] = iteration_display_items[-1].rstrip()
-
-                panels.append(
-                    Panel(
-                        Group(
-                            CreateAlignedKeyValueText(
-                                {
-                                    "Result": GetResultDisplay(test_result.result, test_result.short_desc),
-                                    "Log Output": GetLogDisplay(test_result.log_filename),
-                                    "Total Execution Time": str(test_result.execution_time),
-                                },
-                                panel_level=2,
-                            ).rstrip(),
-                            *iteration_display_items,
-                        ),
-                        border_style=test_results_color,
-                        padding=(1, 2),
-                        title="Test Results",
-                        title_align="left",
-                    ),
-                )
-
             else:
-                assert False, test_result  # pragma: no cover
+                iteration_display_items: List[Union[str, Panel]] = [
+                    "",
+                    CreateTestIterationText(
+                        result.test_execution_name,
+                        result.test_parser_name,
+                        test_result.test_results[0],
+                    ),
+                ]
+
+            assert iteration_display_items
+            assert isinstance(iteration_display_items[-1], str), iteration_display_items[-1]
+            iteration_display_items[-1] = iteration_display_items[-1].rstrip()
+
+            panels.append(
+                Panel(
+                    Group(
+                        CreateAlignedKeyValueText(
+                            {
+                                "Result": GetResultDisplay(test_result.result, test_result.short_desc),
+                                "Total Execution Time": str(test_result.execution_time),
+                            },
+                            panel_level=2,
+                        ).rstrip(),
+                        *iteration_display_items,
+                    ),
+                    border_style=test_results_color,
+                    padding=(1, 2),
+                    title="Test Results",
+                    title_align="left",
+                ),
+            )
 
         # Coverage
         if result.coverage_result:
@@ -400,84 +337,70 @@ def Display(
 
             assert result.code_coverage_validator_name is not None
 
-            if isinstance(coverage_result, ErrorResult):
-                panels.append(
-                    CreateErrorResultPanel(
-                        coverage_result,
-                        "Coverage Results",
-                        code_coverage_color,
-                        {
-                            "Plugin": result.code_coverage_validator_name,
-                        },
+            data_items: Dict[str, str] = {
+                "Result": GetResultDisplay(coverage_result.result, coverage_result.short_desc),
+                "Plugin Name": result.code_coverage_validator_name,
+                "Total Execution Time": str(coverage_result.execution_time),
+                "Coverage Percentage": "{:.02f}%".format(coverage_result.coverage_percentage * 100),
+                "Minimum Percentage": "{:.02f}%".format(coverage_result.minimum_percentage * 100),
+            }
+
+            assert isinstance(result.test_result, TestResult), result.test_result
+            assert result.test_result.test_results
+            assert result.test_result.test_results[0].execute_result.coverage_result
+
+            coverage_execute_result = result.test_result.test_results[0].execute_result.coverage_result
+
+            assert coverage_execute_result.coverage_percentage is not None
+
+            if coverage_execute_result.coverage_data_filename is not None:
+                assert coverage_execute_result.coverage_data_filename.is_file(), coverage_execute_result.coverage_data_filename
+
+                data_items["Coverage Data File"] = r"{} \[{}]".format(
+                    TextwrapEx.GetSizeDisplay(coverage_execute_result.coverage_data_filename.stat().st_size),
+                    coverage_execute_result.coverage_data_filename if dm.capabilities.is_headless else "[link=file://{}]View[/]".format(
+                        coverage_execute_result.coverage_data_filename.as_posix(),
                     ),
                 )
 
-            elif isinstance(coverage_result, CodeCoverageResult):
-                data_items: Dict[str, str] = {
-                    "Result": GetResultDisplay(coverage_result.result, coverage_result.short_desc),
-                    "Plugin": result.code_coverage_validator_name,
-                    "Total Execution Time": str(coverage_result.execution_time),
-                    "Coverage Percentage": "{:.02f}%".format(coverage_result.coverage_percentage * 100),
-                    "Minimum Percentage": "{:.02f}%".format(coverage_result.minimum_percentage * 100),
-                }
-
-                assert isinstance(result.test_result, TestResult), result.test_result
-                assert result.test_result.test_results
-                assert result.test_result.test_results[0].execute_result.coverage_result
-
-                coverage_execute_result = result.test_result.test_results[0].execute_result.coverage_result
-
-                assert coverage_execute_result.coverage_percentage is not None
-
-                if coverage_execute_result.coverage_data_filename is not None:
-                    assert coverage_execute_result.coverage_data_filename.is_file(), coverage_execute_result.coverage_data_filename
-
-                    data_items["Coverage Data File"] = r"{} \[{}]".format(
-                        TextwrapEx.GetSizeDisplay(coverage_execute_result.coverage_data_filename.stat().st_size),
-                        coverage_execute_result.coverage_data_filename if dm.capabilities.is_headless else "[link=file://{}]View[/]".format(
-                            coverage_execute_result.coverage_data_filename.as_posix(),
+            panels.append(
+                Panel(
+                    textwrap.dedent(
+                        """\
+                        {data}{files}
+                        """,
+                    ).format(
+                        data=CreateAlignedKeyValueText(
+                            data_items,
+                            panel_level=2,
                         ),
-                    )
-
-                panels.append(
-                    Panel(
-                        textwrap.dedent(
-                            """\
-                            {data}{files}
-                            """,
-                        ).format(
-                            data=CreateAlignedKeyValueText(
-                                data_items,
-                                panel_level=2,
-                            ),
-                            files="" if not coverage_execute_result.coverage_percentages else "\n\nIndividual Results:\n{}".format(
-                                TextwrapEx.Indent(
-                                    CreateAlignedKeyValueText(
-                                        {
-                                            k: "{:.02f}%".format(v * 100)
-                                            for k, v in coverage_execute_result.coverage_percentages.items()
-                                        },
-                                        panel_level=2,
-                                        indentation=4,
-                                    ),
-                                    4,
-                                    skip_first_line=False,
+                        files="" if not coverage_execute_result.coverage_percentages else "\n\nIndividual Results:\n{}".format(
+                            TextwrapEx.Indent(
+                                CreateAlignedKeyValueText(
+                                    {
+                                        k: "{:.02f}%".format(v * 100)
+                                        for k, v in coverage_execute_result.coverage_percentages.items()
+                                    },
+                                    panel_level=2,
+                                    indentation=4,
                                 ),
+                                4,
+                                skip_first_line=False,
                             ),
-                        ).rstrip(),
-                        border_style=code_coverage_color,
-                        padding=(1, 2),
-                        title="Coverage Results",
-                        title_align="left",
-                    ),
-                )
-
-            else:
-                assert False, coverage_result  # pragma: no cover
+                        ),
+                    ).rstrip(),
+                    border_style=code_coverage_color,
+                    padding=(1, 2),
+                    title="Coverage Results",
+                    title_align="left",
+                ),
+            )
 
         # Top-level stats
         top_level_data: Dict[str, str] = {
             "Result": GetResultDisplay(result.result, result.short_desc),
+            "Output Directory": GetOutputDirDisplay(result.output_dir),
+            "Log Output": GetLogDisplay(result.log_filename),
             "Total Execution Time": str(result.execution_time),
         }
 
@@ -515,6 +438,7 @@ def Display(
                         CreateAlignedKeyValueText(
                             {
                                 "Result": GetResultDisplay(result.result, None),
+                                "Output Directory": GetOutputDirDisplay(result.output_dir),
                             },
                             panel_level=0,
                         ),
@@ -569,6 +493,9 @@ def DisplayQuiet(
                 str(result.output_dir) if dm.capabilities.is_headless else "{} [View]".format(
                     inflect.no("item", sum(1 for _ in result.output_dir.iterdir())),
                 ),
+                str(result.log_filename) if dm.capabilities.is_headless else "{} [View Log]".format(
+                    TextwrapEx.GetSizeDisplay(result.log_filename.stat().st_size),
+                ),
                 result.short_desc or "",
             ],
         )
@@ -620,6 +547,11 @@ def DisplayQuiet(
                 values[4],
             )
 
+            values[5] = TextwrapEx.CreateAnsiHyperLinkEx(
+                "file://{}".format(result.log_filename.as_posix()),
+                values[5],
+            )
+
         if result.result < 0:
             color_on = failure_on
         elif result.result > 0:
@@ -661,6 +593,7 @@ def DisplayQuiet(
                     "Result",
                     "Execution Time",
                     "Output Directory",
+                    "Log Output",
                     "Short Description",
                 ],
                 rows,
@@ -669,6 +602,7 @@ def DisplayQuiet(
                     TextwrapEx.Justify.Center,
                     TextwrapEx.Justify.Left,
                     TextwrapEx.Justify.Left,
+                    TextwrapEx.Justify.Left if dm.capabilities.is_headless else TextwrapEx.Justify.Right,
                     TextwrapEx.Justify.Left if dm.capabilities.is_headless else TextwrapEx.Justify.Right,
                     TextwrapEx.Justify.Left,
                 ],

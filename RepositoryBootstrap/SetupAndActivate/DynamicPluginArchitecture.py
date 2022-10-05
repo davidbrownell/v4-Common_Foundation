@@ -48,7 +48,7 @@ from Common_Foundation.Shell.All import CurrentShell
 from Common_Foundation.Streams.DoneManager import DoneManager
 from Common_Foundation.Streams.StreamDecorator import StreamDecorator
 
-from . import Constants as RepositoryBootstrapConstants
+from .. import Constants as RepositoryBootstrapConstants
 
 
 # ----------------------------------------------------------------------

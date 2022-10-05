@@ -59,7 +59,7 @@ sys.path.insert(0, Types.EnsureValid(os.getenv("DEVELOPMENT_ENVIRONMENT_FOUNDATI
 with ExitStack(lambda: sys.path.pop(0)):
     assert os.path.isdir(sys.path[0]), sys.path[0]
 
-    from RepositoryBootstrap import DynamicPluginArchitecture  # pylint: disable=import-error
+    from RepositoryBootstrap.SetupAndActivate import DynamicPluginArchitecture  # pylint: disable=import-error
 
 
 # ----------------------------------------------------------------------
@@ -114,7 +114,6 @@ def InitGlobals():
         ],
         display_exception_details=False,
         output_flags=DoneManagerFlags.Create(verbose=bool(os.getenv(VERBOSE_PLUGIN_ENVIRONMENT_VAR_NAME))),
-        suffix="\n",
     ) as dm:
         # ----------------------------------------------------------------------
         def LoadPlugins() -> None:
@@ -1264,7 +1263,11 @@ def _TestImpl(
     # Invoke
     if (
         filename_or_directory.is_file()
-        or (filename_or_directory.is_dir() and configuration.compiler.IsSupported(filename_or_directory))
+        or (
+            filename_or_directory.is_dir()
+            and configuration.compiler.IsSupported(filename_or_directory)
+            and configuration.compiler.IsSupportedTestItem(filename_or_directory)
+        )
     ):
         if quiet and filename_or_directory.is_file():
             raise typer.BadParameter("'quiet' is only used when executing tests via a directory.")

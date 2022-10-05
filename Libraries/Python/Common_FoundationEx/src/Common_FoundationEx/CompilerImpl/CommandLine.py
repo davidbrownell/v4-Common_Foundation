@@ -22,7 +22,7 @@ import traceback
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import typer
 
@@ -35,7 +35,7 @@ from Common_Foundation.Streams.DoneManager import DoneManager, DoneManagerFlags 
 from Common_Foundation.Streams.StreamDecorator import StreamDecorator
 from Common_Foundation import TextwrapEx
 
-from Common_FoundationEx.ExecuteTasks import ExecuteTasks, TaskData
+from Common_FoundationEx import ExecuteTasks
 from Common_FoundationEx.InflectEx import inflect
 
 from .CompilerImpl import CompilerImpl, InputType
@@ -424,50 +424,43 @@ def _InvokeImpl(
             self.log_filename = self.output_dir / "output.log"
 
     # ----------------------------------------------------------------------
-    def GetLogFilename(
+    def Step1(
         context: TaskDataContext,
     ):
         context.output_dir.mkdir(parents=True, exist_ok=True)
 
+        # ----------------------------------------------------------------------
+        def Step2(*args, **kwargs) -> Tuple[int, ExecuteTasks.Step3Type]:
+            return compiler.GetNumSteps(context.compiler_context), Step3
+
+        # ----------------------------------------------------------------------
+        def Step3(
+            progress_func: Callable[[int, str], bool],
+        ) -> Tuple[int, Optional[str]]:
+            with open(context.log_filename, "w") as f:
+                result = getattr(compiler, compiler.invocation_method_name)(
+                    context.compiler_context,
+                    f,
+                    progress_func,
+                    verbose=dm.is_verbose,
+                )
+
+                if not isinstance(result, tuple):
+                    result = result, None
+
+                return result
+
+        # ----------------------------------------------------------------------
+
         return (
             context.log_filename,
-            GetNumSteps,
+            Step2,
         )
 
     # ----------------------------------------------------------------------
-    def GetNumSteps(
-        context: TaskDataContext,
-        progress_func: Callable[[str], None],  # pylint: disable=unused-argument
-    ):
-        return (
-            compiler.GetNumSteps(context.compiler_context),
-            Execute,
-        )
 
-    # ----------------------------------------------------------------------
-    def Execute(
-        context: TaskDataContext,
-        progress_func: Callable[[int, str], bool],
-    ):
-        with open(context.log_filename, "w") as f:
-            result = getattr(compiler, compiler.invocation_method_name)(
-                context.compiler_context,
-                f,
-                progress_func,
-                verbose=dm.is_verbose,
-            )
-
-            compiler.RemoveTemporaryArtifacts(context.compiler_context)
-
-            if not isinstance(result, tuple):
-                result = result, None
-
-            return result
-
-    # ----------------------------------------------------------------------
-
-    tasks: List[TaskData] = [
-        TaskData(
+    tasks: List[ExecuteTasks.TaskData] = [
+        ExecuteTasks.TaskData(
             context["display_name"],
             TaskDataContext(
                 output_dir / "{:06}".format(index),
@@ -478,11 +471,11 @@ def _InvokeImpl(
         for index, context in enumerate(context_info.contexts)
     ]
 
-    ExecuteTasks(
+    ExecuteTasks.ExecuteTasks(
         dm,
         "Executing",
         tasks,
-        GetLogFilename,
+        Step1,
         quiet=quiet,
         max_num_threads=1 if single_threaded else None,
     )

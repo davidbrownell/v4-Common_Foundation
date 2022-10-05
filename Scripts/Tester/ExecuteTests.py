@@ -3,7 +3,7 @@
 # |  ExecuteTests.py
 # |
 # |  David Brownell <db@DavidBrownell.com>
-# |      2022-09-01 12:04:11
+# |      2022-10-04 08:08:47
 # |
 # ----------------------------------------------------------------------
 # |
@@ -13,49 +13,46 @@
 # |  http://www.boost.org/LICENSE_1_0.txt.
 # |
 # ----------------------------------------------------------------------
-"""Implements functionality to execute tests"""
 
-import multiprocessing
+import datetime
 import socket
 import textwrap
-import threading
 import time
-import traceback
+import threading
 
-from concurrent.futures import ThreadPoolExecutor
+from contextlib import contextmanager
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
 from enum import auto, Enum
 from pathlib import Path
-from typing import Any, Callable, cast, Dict, Generator, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple, Union
 from xml.etree import ElementTree as ET
 
-from rich.progress import Progress, TaskID
-
-from Common_Foundation.ContextlibEx import ExitStack
 from Common_Foundation import JsonEx
 from Common_Foundation import PathEx
 from Common_Foundation.Shell.All import CurrentShell
 from Common_Foundation.Streams.DoneManager import DoneManager, DoneManagerFlags
 from Common_Foundation import TextwrapEx
 
-from Common_FoundationEx.CompilerImpl.CompilerImpl import CompilerImpl
 from Common_FoundationEx.CompilerImpl.Compiler import Compiler
+from Common_FoundationEx.CompilerImpl.CompilerImpl import CompilerImpl
 from Common_FoundationEx.CompilerImpl.Verifier import Verifier
+from Common_FoundationEx import ExecuteTasks
 from Common_FoundationEx.InflectEx import inflect
 from Common_FoundationEx.TesterPlugins.CodeCoverageValidatorImpl import CodeCoverageValidatorImpl
 from Common_FoundationEx.TesterPlugins.TestExecutorImpl import TestExecutorImpl
 from Common_FoundationEx.TesterPlugins.TestParserImpl import TestParserImpl
 
-from Results import BenchmarkStat, BuildResult, CodeCoverageResult, ConfigurationResult, ErrorResult, ExecuteResult, Result, TestIterationResult, TestResult
+from Results import BenchmarkStat, BuildResult, CodeCoverageResult, ConfigurationResult, Result, TestIterationResult, TestResult
 
 
 # ----------------------------------------------------------------------
 class ExecuteTests(object):
-    """Container for the parameters so we don't need to continually pass them around"""
+    """Contains for the parameters so we don't need to continually pass them around."""
 
-    CATASTROPHIC_TASK_FAILURE_RESULT        = -123456789
-
+    # ----------------------------------------------------------------------
+    # |
+    # |  Public Methods
+    # |
     # ----------------------------------------------------------------------
     @classmethod
     def Execute(
@@ -69,7 +66,7 @@ class ExecuteTests(object):
         code_coverage_validator: Optional[CodeCoverageValidatorImpl],
         metadata: Dict[str, Any],
         *,
-        parallel_tests: Optional[bool],
+        parallel_tests: bool,
         single_threaded: bool,
         iterations: int,
         continue_iterations_on_error: bool,
@@ -80,81 +77,102 @@ class ExecuteTests(object):
         quiet: bool,
         junit_xml_output_filename: Optional[str],
     ) -> List[Result]:
+        # Ensure that the plugins are valid in this environment
+        for plugin, desc in [
+            (compiler, "compiler"),
+            (test_executor, "test executor"),
+            (test_parser, "test parser"),
+            (code_coverage_validator, "code coverage validator"),
+        ]:
+            if plugin is None:
+                continue
+
+            result = plugin.ValidateEnvironment()
+            if result is not None:
+                raise Exception(
+                    textwrap.dedent(
+                        """\
+                        The {} '{}' does not support the current environment.
+
+                        {}
+                        """,
+                    ).format(
+                        desc,
+                        plugin.name,
+                        TextwrapEx.Indent(result.strip(), 4),
+                    ),
+                )
+
         # Check for compatible plugins
-        result = compiler.ValidateEnvironment()
-        if result is not None:
-            raise Exception(
-                textwrap.dedent(
-                    """\
-                    The compiler '{}' does not support the current environment.
+        for plugin, desc in [
+            (test_executor, "test executor"),
+            (test_parser, "test parser"),
+        ]:
+            if not plugin.IsSupportedCompiler(compiler):
+                raise Exception(
+                    "The {} '{}' is not compatible with the compiler '{}'.".format(
+                        desc,
+                        plugin.name,
+                        compiler.name,
+                    ),
+                )
 
-                    {}
-                    """,
-                ).format(compiler.name, TextwrapEx.Indent(result.rstrip(), 4)),
-            )
-
-        result = test_executor.ValidateEnvironment()
-        if result is not None:
-            raise Exception(
-                textwrap.dedent(
-                    """\
-                    The test parser '{}' does not support the current environment.
-
-                    {}
-                    """,
-                ).format(test_parser.name, TextwrapEx.Indent(result.rstrip(), 4)),
-            )
-
-        if not test_parser.IsSupportedCompiler(compiler):
-            raise Exception("The test parser '{}' does not support the compiler '{}'.".format(test_parser.name, compiler.name))
-
-        if not test_executor.IsSupportedCompiler(compiler):
-            raise Exception("The test executor '{}' does not support the compiler '{}'.".format(test_executor.name, compiler.name))
-
+        # Check for valid args
         if skip_build and not isinstance(compiler, Verifier):
             raise Exception("The build can only be skipped for compilers that act as verifiers.")
 
         if debug_only and release_only:
-            raise Exception("Debug only and Release only are mutually exclusive options.")
+            raise Exception("Debug-only and Release-only are mutually exclusive options.")
 
         # Update flags for code coverage builds
         if code_coverage_validator is not None:
             parallel_tests = False
+            iterations = 1
 
             if isinstance(compiler, Compiler):
                 debug_only = True
                 release_only = False
 
         # Prepare the working data
-        output_dir.mkdir(parents=True, exist_ok=True)
-
-        working_data_items: List[ExecuteTests._WorkingData] = []
+        test_item_data_items: List[ExecuteTests._TestItemData] = []
 
         with dm.Nested(
             "Preparing data...",
-            lambda: "{} to process".format(inflect.no("configuration", len(working_data_items))),
-            suffix="\n",
+            lambda: "{} to process".format(inflect.no("configuration", len(test_item_data_items))),
         ) as prep_dm:
-            # Prepare the data
-            common_path = PathEx.GetCommonPath(*test_items)
-            assert common_path is not None
+            output_dir.mkdir(parents=True, exist_ok=True)
 
-            len_common_path_parts = len(common_path.parts)
+            common_path = PathEx.GetCommonPath(*test_items)
+            len_common_path_parts = 0 if common_path is None else len(common_path.parts)
 
             for test_item in test_items:
-                if not compiler.IsSupported(test_item):
-                    prep_dm.WriteVerbose("'{}' is not supported by the compiler '{}'.\n".format(test_item, compiler.name))
+                # Determine if the test item is supported
+                is_supported = True
+
+                for plugin, plugin_desc, item_desc, func in [
+                    (compiler, "compiler", "item", lambda: compiler.IsSupported(test_item)),
+                    (compiler, "compiler", "test item", lambda: compiler.IsSupportedTestItem(test_item)),
+                    (test_executor, "test executor", "test item", lambda: test_executor.IsSupportedTestItem(test_item)),
+                    (test_parser, "test parser", "test item", lambda: test_parser.IsSupportedTestItem(test_item)),
+                ]:
+                    if not func():
+                        prep_dm.WriteVerbose(
+                            "'{}' is not a supported {} with the {} '{}'.\n".format(
+                                test_item,
+                                item_desc,
+                                plugin_desc,
+                                plugin.name,
+                            ),
+                        )
+
+                        is_supported = False
+                        break
+
+                if not is_supported:
                     continue
 
-                if not compiler.IsSupportedTestItem(test_item):
-                    prep_dm.WriteVerbose("'{}' is not a supported test item for the compiler '{}'.\n".format(test_item, compiler.name))
-                    continue
-
-                if not test_parser.IsSupportedTestItem(test_item):
-                    prep_dm.WriteVerbose("'{}' is not a supported test item for the test parser '{}'.\n".format(test_item, test_parser.name))
-                    continue
-
-                assert len(test_item.parts) > len_common_path_parts, (test_item, common_path)
+                # Prepare the configuration data
+                assert len(test_item.parts) > len_common_path_parts
                 display_name_template = "{} ({{}})".format(Path(*test_item.parts[len_common_path_parts:]))
 
                 # Create a suitable output dir
@@ -163,124 +181,121 @@ class ExecuteTests(object):
                     replace_char="-",
                 )
 
-                # Create the contexts and working data
-                debug_context: Optional[ExecuteTests._WorkingDataContext] = None
-                release_context: Optional[ExecuteTests._WorkingDataContext] = None
+                debug: Optional[ExecuteTests._ConfigurationData] = None
+                release: Optional[ExecuteTests._ConfigurationData] = None
 
                 if isinstance(compiler, Compiler):
                     if release_only:
                         prep_dm.WriteVerbose(
-                            "The Debug configuration for '{}' will not be processed due to command line options.\n".format(
+                            "The Debug configuration for '{}' will not be processed because Release-only has been specified.\n".format(
                                 test_item,
                             ),
                         )
                     else:
-                        debug_context = cls._WorkingDataContext(
+                        debug = cls._ConfigurationData(
                             display_name_template.format("Debug"),
+                            test_item,
                             this_output_dir / "Debug",
+                            is_debug_configuration=True,
                         )
 
                     if debug_only:
                         prep_dm.WriteVerbose(
-                            "The Release configuration for '{}' will not be processed due to command line options.\n".format(
+                            "The Release configuration for '{}' will not be processed because Debug-only has been specified.\n".format(
                                 test_item,
                             ),
                         )
                     else:
-                        release_context = cls._WorkingDataContext(
+                        release = cls._ConfigurationData(
                             display_name_template.format("Release"),
+                            test_item,
                             this_output_dir / "Release",
+                            is_debug_configuration=False,
                         )
-
                 else:
-                    debug_context = cls._WorkingDataContext(
+                    debug = cls._ConfigurationData(
                         display_name_template.format("Debug"),
+                        test_item,
                         this_output_dir / "Debug",
+                        is_debug_configuration=True,
                     )
 
-                if debug_context or release_context:
-                    working_data_items.append(
-                        cls._WorkingData(test_item, this_output_dir, debug_context, release_context),
-                    )
+                assert debug is not None or release is not None
 
-        if not working_data_items:
+                test_item_data_items.append(
+                    cls._TestItemData(test_item, this_output_dir, debug, release),
+                )
+
+        if not test_item_data_items:
             return []
 
         tester = cls(
             dm,
             common_path,
-            working_data_items,
+            test_item_data_items,
             compiler,
-            test_parser,
             test_executor,
+            test_parser,
             code_coverage_validator,
             metadata,
             parallel_tests=parallel_tests,
             single_threaded=single_threaded,
             iterations=iterations,
             continue_iterations_on_error=continue_iterations_on_error,
-            debug_only=debug_only,
-            release_only=release_only,
-            build_only=build_only,
-            skip_build=skip_build,
             quiet=quiet,
         )
 
         # Prepare the output dirs
         for task_data in tester._CreateTasks():
-            # Prepare the output dir
             if task_data.context.output_dir.is_dir():
                 PathEx.RemoveTree(task_data.context.output_dir)
 
             task_data.context.output_dir.mkdir(parents=True)
 
-        tester._Build()
+        # Return the build and tests
+        if not skip_build:
+            tester._Build()
 
         if not build_only:
             tester._Test()
-            dm.WriteLine("")
 
-        all_results: List[Result] = []
-
-        for working_data in tester._working_items:
-            all_results.append(
-                Result(
-                    working_data.input_item,
-                    None if working_data.debug_context is None else working_data.debug_context.ToConfigurationResult(
-                        compiler.name,
-                        test_executor.name,
-                        test_parser.name,
-                        code_coverage_validator.name if code_coverage_validator is not None else None,
-                        "Debug",
-                        iterations != 1,
-                    ),
-                    None if working_data.release_context is None else working_data.release_context.ToConfigurationResult(
-                        compiler.name,
-                        test_executor.name,
-                        test_parser.name,
-                        code_coverage_validator.name if code_coverage_validator is not None else None,
-                        "Release",
-                        iterations != 1,
-                    ),
+        # Collect the results
+        all_results: List[Result] = [
+            Result(
+                test_item_data.test_item,
+                test_item_data.output_dir,
+                None if test_item_data.debug is None else test_item_data.debug.ToConfigurationResult(
+                    compiler.name,
+                    test_executor.name,
+                    test_parser.name,
+                    code_coverage_validator.name if code_coverage_validator else None,
+                    "Debug",
+                    has_multiple_iterations=iterations != 1,
+                ),
+                None if test_item_data.release is None else test_item_data.release.ToConfigurationResult(
+                    compiler.name,
+                    test_executor.name,
+                    test_parser.name,
+                    code_coverage_validator.name if code_coverage_validator else None,
+                    "Release",
+                    has_multiple_iterations=iterations != 1,
                 ),
             )
-
-        common_path = PathEx.GetCommonPath(*(result.test_item for result in all_results))
+            for test_item_data in test_item_data_items
+        ]
 
         if all(result.result == 0 for result in all_results):
             tester._CreateBenchmarks(
-                dm,
                 output_dir / "Benchmarks.json",
                 all_results,
-                common_path,
+                len_common_path_parts,
             )
 
         if junit_xml_output_filename:
-            tester._CreateJunitResults(
-                dm,
+            tester._CreateJUnitResults(
                 output_dir / junit_xml_output_filename,
                 all_results,
-                common_path,
+                len_common_path_parts,
             )
 
         dm.WriteLine("")
@@ -291,40 +306,32 @@ class ExecuteTests(object):
     def __init__(
         self,
         dm: DoneManager,
-        common_path: Path,
-        working_items: List["ExecuteTests._WorkingData"],
+        common_path: Optional[Path],
+        test_item_data_items: List["ExecuteTests._TestItemData"],
         compiler: CompilerImpl,
-        test_parser: TestParserImpl,
         test_executor: TestExecutorImpl,
+        test_parser: TestParserImpl,
         code_coverage_validator: Optional[CodeCoverageValidatorImpl],
-        compiler_metadata: Dict[str, Any],
+        metadata: Dict[str, Any],
         *,
-        parallel_tests: Optional[bool],
+        parallel_tests: bool,
         single_threaded: bool,
         iterations: int,
         continue_iterations_on_error: bool,
-        debug_only: bool,
-        release_only: bool,
-        build_only: bool,
-        skip_build: bool,
         quiet: bool,
     ):
         self._dm                            = dm
         self._common_path                   = common_path
-        self._working_items                 = working_items
+        self._test_item_data_items          = test_item_data_items
         self._compiler                      = compiler
-        self._test_parser                   = test_parser
         self._test_executor                 = test_executor
+        self._test_parser                   = test_parser
         self._code_coverage_validator       = code_coverage_validator
-        self._compiler_metadata             = compiler_metadata
+        self._metadata                      = metadata
         self._parallel_tests                = parallel_tests
         self._single_threaded               = single_threaded
         self._iterations                    = iterations
         self._continue_iterations_on_error  = continue_iterations_on_error
-        self._debug_only                    = debug_only
-        self._release_only                  = release_only
-        self._build_only                    = build_only
-        self._skip_build                    = skip_build
         self._quiet                         = quiet
 
     # ----------------------------------------------------------------------
@@ -333,51 +340,63 @@ class ExecuteTests(object):
     # |
     # ----------------------------------------------------------------------
     @dataclass
-    class _WorkingDataContext(object):
+    class _TestItemData(object):
+        # ----------------------------------------------------------------------
+        test_item: Path
+        output_dir: Path
+
+        debug: Optional["ExecuteTests._ConfigurationData"]
+        release: Optional["ExecuteTests._ConfigurationData"]
+
+        execution_lock: threading.Lock      = field(init=False, default_factory=threading.Lock)
+
+    # ----------------------------------------------------------------------
+    @dataclass
+    class _ConfigurationData(object):
         # ----------------------------------------------------------------------
         display_name: str
+
+        test_item: Path
         output_dir: Path
+
+        is_debug_configuration: bool                                        = field(kw_only=True)
+
+        was_skipped: bool                                                   = field(init=False, default=False)
 
         compiler_context: Optional[Dict[str, Any]]                          = field(init=False, default=None)
 
-        build_result: Union[None, ErrorResult, BuildResult]                 = field(init=False, default=None)
-        test_result: Union[None, ErrorResult, TestResult]                   = field(init=False, default=None)
-        coverage_result: Union[None, ErrorResult, CodeCoverageResult]       = field(init=False, default=None)
+        build_result: Union[None, BuildResult]                              = field(init=False, default=None)
+        test_result: Union[None, TestResult]                                = field(init=False, default=None)
+        coverage_result: Union[None, CodeCoverageResult]                    = field(init=False, default=None)
 
         # ----------------------------------------------------------------------
         @property
         def has_errors(self) -> bool:
-            if self.build_result and self.build_result.result != 0:
-                return True
-
-            if self.test_result and self.test_result.result != 0:
-                return True
-
-            if self.coverage_result and self.coverage_result.result != 0:
-                return True
-
-            return False
+            return self.GetResult()[0] != 0
 
         # ----------------------------------------------------------------------
-        def GetBuildLogFilename(self) -> Path:
-            return self.output_dir / "build.log"
+        def GetLogFilename(self) -> Path:
+            return self.output_dir / "tester.log"
 
         # ----------------------------------------------------------------------
-        def GetTestLogFilename(self) -> Path:
-            return self.output_dir / "test.log"
+        def GetResult(self) -> Tuple[int, Optional[str]]:
+            short_desc: Optional[str] = None
 
-        # ----------------------------------------------------------------------
-        def GetTestIterationExecutionLogFilename(
-            self,
-            iteration: int,
-            num_iterations: int,
-        ) -> Path:
-            if num_iterations == 1:
-                filename = "test_execution.log"
-            else:
-                filename = "test_execution.{:06d}.log".format(iteration + 1)
+            for result in [
+                self.build_result,
+                self.test_result,
+                self.coverage_result,
+            ]:
+                if result is None:
+                    continue
 
-            return self.output_dir / filename
+                if result.result != 0:
+                    return result.result, result.short_desc
+
+                if result.short_desc:
+                    short_desc = result.short_desc
+
+            return 0, short_desc
 
         # ----------------------------------------------------------------------
         def ToConfigurationResult(
@@ -387,6 +406,7 @@ class ExecuteTests(object):
             test_parser_name: str,
             code_coverage_validator_name: Optional[str],
             configuration: str,
+            *,
             has_multiple_iterations: bool,
         ) -> ConfigurationResult:
             assert self.build_result is not None
@@ -396,6 +416,7 @@ class ExecuteTests(object):
             return ConfigurationResult(
                 configuration,
                 self.output_dir,
+                self.GetLogFilename(),
                 compiler_name,
                 test_execution_name,
                 test_parser_name,
@@ -407,201 +428,198 @@ class ExecuteTests(object):
             )
 
     # ----------------------------------------------------------------------
-    @dataclass
-    class _WorkingData(object):
-        # ----------------------------------------------------------------------
-        input_item: Path
-        output_dir: Path
-
-        debug_context: Optional["ExecuteTests._WorkingDataContext"]
-        release_context: Optional["ExecuteTests._WorkingDataContext"]
-
-        execution_lock: threading.Lock          = field(init=False, default_factory=threading.Lock)
-
-    # ----------------------------------------------------------------------
-    @dataclass(frozen=True)
-    class _TaskData(object):
-        # ----------------------------------------------------------------------
-        working_data: "ExecuteTests._WorkingData"
-        context: "ExecuteTests._WorkingDataContext"
-        is_debug_configuration: bool
-
-    # ----------------------------------------------------------------------
     # |
     # |  Private Methods
     # |
     # ----------------------------------------------------------------------
-    def _CreateTasks(self) -> List["ExecuteTests._TaskData"]:
-        debug_tasks: List[ExecuteTests._TaskData] = []
-        release_tasks: List[ExecuteTests._TaskData] = []
+    def _CreateTasks(self) -> List[ExecuteTasks.TaskData]:
+        debug_tasks: List[ExecuteTasks.TaskData] = []
+        release_tasks: List[ExecuteTasks.TaskData] = []
 
-        for working_data in self._working_items:
+        for test_item_data in self._test_item_data_items:
             if (
-                not self._release_only
-                and working_data.debug_context is not None
-                and not working_data.debug_context.has_errors
+                test_item_data.debug is not None
+                and not test_item_data.debug.has_errors
+                and not test_item_data.debug.was_skipped
             ):
-                debug_tasks.append(ExecuteTests._TaskData(working_data, working_data.debug_context, True))
+                debug_tasks.append(
+                    ExecuteTasks.TaskData(
+                        test_item_data.debug.display_name,
+                        test_item_data.debug,
+                        test_item_data.execution_lock,
+                    ),
+                )
 
             if (
-                not self._debug_only
-                and working_data.release_context is not None
-                and not working_data.release_context.has_errors
+                test_item_data.release is not None
+                and not test_item_data.release.has_errors
+                and not test_item_data.release.was_skipped
             ):
-                release_tasks.append(ExecuteTests._TaskData(working_data, working_data.release_context, False))
+                release_tasks.append(
+                    ExecuteTasks.TaskData(
+                        test_item_data.release.display_name,
+                        test_item_data.release,
+                        test_item_data.execution_lock,
+                    ),
+                )
 
         return debug_tasks + release_tasks
 
     # ----------------------------------------------------------------------
     def _Build(self) -> None:
         # ----------------------------------------------------------------------
-        def TaskDance(
-            task_data: ExecuteTests._TaskData,
-        ) -> Any:
+        def Step1(
+            config_data: ExecuteTests._ConfigurationData,
+        ) -> Tuple[Path, ExecuteTasks.Step2Type]:
             total_start_time = time.perf_counter()
-            log_filename = task_data.context.GetBuildLogFilename()
-
-            # Return the log filename and receive the initial progress callback
-            initial_progress_func = yield log_filename
+            log_filename = config_data.GetLogFilename()
 
             # Create the name of the binary file that may be generated; some
             # plugins use this information to calculate outputs (even if the
             # file itself doesn't exist).
             if isinstance(self._compiler, Verifier):
-                binary_filename = task_data.working_data.input_item
+                binary_filename = config_data.test_item
             else:
-                binary_filename = task_data.context.output_dir / "test_artifact"
+                binary_filename = config_data.output_dir / "test_artifact"
 
                 ext = getattr(self._compiler, "binary_extension", None)
                 if ext:
                     binary_filename += ext
 
-            # Open the log file and generate the results
-            with log_filename.open("w") as f:
-                with DoneManager.Create(
-                    f,
-                    "",
-                    line_prefix="",
-                    display=False,
-                    output_flags=DoneManagerFlags.Create(
-                        debug=True,
-                    ),
-                ) as file_dm:
-                    initial_progress_func("Configuring...")
+            # ----------------------------------------------------------------------
+            @contextmanager
+            def YieldLogDM() -> Iterator[DoneManager]:
+                with log_filename.open("a+") as f:
+                    with DoneManager.Create(
+                        f,
+                        "",
+                        line_prefix="",
+                        display=False,
+                        output_flags=DoneManagerFlags.Create(debug=True),
+                    ) as dm:
+                        yield dm
 
-                    # Create the metadata that will be used to create the context item
+            # ----------------------------------------------------------------------
+
+            with YieldLogDM() as dm:
+                dm.WriteLine(
+                    textwrap.dedent(
+                        """\
+                        # ----------------------------------------------------------------------
+                        # |
+                        # | Build Info
+                        # |
+                        # ----------------------------------------------------------------------
+                        Compiler:                     {}
+                        Binary Filename:              {}
+
+                        """,
+                    ).format(self._compiler.name, binary_filename),
+                )
+
+            # ----------------------------------------------------------------------
+            def Step2(
+                initial_progress_func: Callable[[str], None],
+            ) -> Tuple[int, ExecuteTasks.Step3Type]:
+                initial_progress_func("Configuring...")
+
+                with YieldLogDM() as log_dm:
+                    # Create the metadata used to create the compiler context
                     metadata: Dict[str, Any] = {
-                        **self._compiler_metadata,
+                        **self._metadata,
                         **{
-                            "debug_build": task_data.is_debug_configuration,
+                            "debug_build": config_data.is_debug_configuration,
                             "profile_build": bool(self._code_coverage_validator),
                             "output_filename": binary_filename,
-                            "output_dir": task_data.context.output_dir,
+                            "output_dir": config_data.output_dir,
                             "force": True,
                         },
                     }
 
-                    # Create the context from the metadata
-                    object.__setattr__(
-                        task_data.context,
-                        "compiler_context",
-                        self._compiler.GetSingleContextItem(
-                            file_dm,
-                            task_data.working_data.input_item,
-                            metadata,
-                        ),
+                    compiler_context = self._compiler.GetSingleContextItem(
+                        log_dm,
+                        config_data.test_item,
+                        metadata,
                     )
 
-                    # Return the number of steps and receive the updated progress func
-                    if (
-                        task_data.context.compiler_context is None
-                        or self._skip_build
-                        or file_dm.result != 0
-                    ):
-                        yield 0 # Num steps, receives progress func
+                    if log_dm.result != 0:
+                        raise Exception("Compiler context generation failed.")
 
-                        if task_data.context.compiler_context is None:
-                            file_dm.WriteLine("The compiler returned an empty context.")
-                            short_desc = "Skipped by the compiler"
-                        elif self._skip_build:
-                            short_desc = "Skipped via command line"
-                        elif file_dm.result != 0:
-                            short_desc = "Context generation failed"
-                        else:
-                            assert False  # pragma: no cover
+                    config_data.compiler_context = compiler_context
 
-                        task_data.context.build_result = BuildResult(
-                            file_dm.result,
-                            timedelta(seconds=time.perf_counter() - total_start_time),
-                            log_filename,
-                            short_desc if self._skip_build else "{}: {}".format(self._compiler.name, short_desc) if short_desc else "",
-                            timedelta(),
-                            task_data.context.output_dir,
-                            binary_filename,
-                        )
-
+                    if compiler_context is None:
+                        num_steps = 0
                     else:
-                        # Return the number of build steps, receive an updated progress func
-                        num_steps = self._compiler.GetNumSteps(task_data.context.compiler_context)
-                        progress_func = yield num_steps
+                        num_steps = self._compiler.GetNumSteps(compiler_context)
 
-                        with file_dm.YieldStream() as stream:
-                            build_start_time = time.perf_counter()
+                # ----------------------------------------------------------------------
+                def Step3(
+                    progress_func: Callable[[int, str], bool],
+                ) -> Tuple[int, Optional[str]]:
+                    with YieldLogDM() as log_dm:
+                        build_start_time = time.perf_counter()
 
-                            return_value = getattr(
-                                self._compiler,
-                                self._compiler.invocation_method_name,
-                            )(
-                                task_data.context.compiler_context,
-                                stream,
-                                lambda step, status: progress_func(step + 1, status),
-                                verbose=self._dm.is_verbose,
-                            )
+                        if compiler_context is None:
+                            log_dm.WriteLine("The compiler return empty context.\n")
 
-                            if isinstance(return_value, tuple):
-                                result, short_desc = return_value
-                            else:
-                                result = return_value
-                                short_desc = None
+                            result = 0
+                            short_desc = "Skipped by the compiler"
 
-                        # Remove temporary artifacts
-                        self._compiler.RemoveTemporaryArtifacts(task_data.context.compiler_context)
+                            config_data.was_skipped = True
 
-                        now_perf_counter = time.perf_counter()
+                        else:
+                            with log_dm.Nested("Building...") as building_dm:
+                                with building_dm.YieldStream() as stream:
+                                    result = getattr(self._compiler, self._compiler.invocation_method_name)(
+                                        compiler_context,
+                                        stream,
+                                        lambda step, status: progress_func(step + 1, status),
+                                        verbose=True,
+                                    )
 
-                        task_data.context.build_result = BuildResult(
+                                    if isinstance(result, tuple):
+                                        result, short_desc = result
+                                    else:
+                                        short_desc = None
+
+                                # Remove temporary artifacts
+                                self._compiler.RemoveTemporaryArtifacts(compiler_context)
+
+                        current_time = time.perf_counter()
+
+                        config_data.build_result = BuildResult(
                             result,
-                            timedelta(seconds=now_perf_counter - total_start_time),
+                            datetime.timedelta(seconds=current_time - total_start_time),
                             log_filename,
                             "{}: {}".format(self._compiler.name, short_desc) if short_desc else "",
-                            timedelta(seconds=now_perf_counter - build_start_time),
-                            task_data.context.output_dir,
+                            datetime.timedelta(seconds=current_time - build_start_time),
+                            config_data.output_dir,
                             binary_filename,
                         )
 
-                    yield (
-                        task_data.context.build_result.result,
-                        task_data.context.build_result.short_desc,
-                    )
+                    return result, short_desc
+
+                # ----------------------------------------------------------------------
+
+                return num_steps, Step3
+
+            # ----------------------------------------------------------------------
+
+            return log_filename, Step2
 
         # ----------------------------------------------------------------------
-        def OnErrorResult(
-            task_data: ExecuteTests._TaskData,
-            result: ErrorResult,
-        ) -> None:
-            assert task_data.context.build_result is None
-            task_data.context.build_result = result
 
-        # ----------------------------------------------------------------------
-        #
-        self._ExecuteTasks("Building", TaskDance, OnErrorResult)
+        ExecuteTasks.ExecuteTasks(
+            self._dm,
+            "Building",
+            self._CreateTasks(),
+            Step1,
+            quiet=self._quiet,
+            max_num_threads=1 if self._single_threaded else None,
+        )
 
     # ----------------------------------------------------------------------
     def _Test(self) -> None:
-        # ----------------------------------------------------------------------
-        class CodeCoverageSteps(Enum):
-            ValidatingCodeCoverage          = 0
-
         # ----------------------------------------------------------------------
         class IterationSteps(Enum):
             Executing                       = 0
@@ -609,39 +627,71 @@ class ExecuteTests(object):
             ParsingResults                  = auto()
 
         # ----------------------------------------------------------------------
-        def TaskDance(
-            task_data: ExecuteTests._TaskData,
-        ) -> Any:
-            test_log_filename = task_data.context.GetTestLogFilename()
+        class CodeCoverageSteps(Enum):
+            Validating                      = 0
 
-            with test_log_filename.open("w") as f:
-                with DoneManager.Create(
-                    f,
-                    "",
-                    line_prefix="",
-                    display=False,
-                    output_flags=DoneManagerFlags.Create(
-                        debug=True,
+        # ----------------------------------------------------------------------
+        def Step1(
+            config_data: ExecuteTests._ConfigurationData,
+        ) -> Tuple[Path, ExecuteTasks.Step2Type]:
+            log_filename = config_data.GetLogFilename()
+
+            # ----------------------------------------------------------------------
+            @contextmanager
+            def YieldLogDM() -> Iterator[DoneManager]:
+                with log_filename.open("a+") as f:
+                    with DoneManager.Create(
+                        f,
+                        "",
+                        line_prefix="",
+                        display=False,
+                        output_flags=DoneManagerFlags.Create(debug=True),
+                    ) as dm:
+                        yield dm
+
+            # ----------------------------------------------------------------------
+
+            with YieldLogDM() as dm:
+                dm.WriteLine(
+                    textwrap.dedent(
+                        """\
+
+                        # ----------------------------------------------------------------------
+                        # |
+                        # | Test Info
+                        # |
+                        # ----------------------------------------------------------------------
+                        Test Executor:                {}
+                        Test Parser:                  {}
+                        Num Iterations:               {}
+                        """,
+                    ).format(
+                        self._test_executor.name,
+                        self._test_parser.name,
+                        self._iterations,
                     ),
-                ) as dm:
-                    # Return the log filename and receive the initial progress callback
-                    initial_progress_func = yield test_log_filename
+                )
 
-                    # Create the command line to invoke the test
-                    assert task_data.context.compiler_context is not None
+            # ----------------------------------------------------------------------
+            def Step2(
+                initial_progress_func: Callable[[str], None],
+            ) -> Tuple[int, ExecuteTasks.Step3Type]:
+                assert config_data.compiler_context is not None
 
+                with YieldLogDM() as log_dm:
                     initial_progress_func("Creating command line...")
+
                     command_line = self._test_parser.CreateInvokeCommandLine(
                         self._compiler,
-                        task_data.context.compiler_context,
+                        config_data.compiler_context,
                         debug_on_error=False,
                     )
 
-                    dm.WriteLine("Command line: {}\n\n".format(command_line))
+                    log_dm.WriteLine("Test Execution Command Line:  {}\n\n".format(command_line))
 
-                    # Return the number of steps and get the standard progress callback
-                    num_executor_steps = self._test_executor.GetNumSteps(self._compiler, task_data.context.compiler_context) or 0
-                    num_parser_steps = self._test_parser.GetNumSteps(command_line, self._compiler, task_data.context.compiler_context) or 0
+                    # Calculate the number of steps
+                    num_executor_steps = self._test_executor.GetNumSteps(self._compiler, config_data.compiler_context) or 0
+                    num_parser_steps = self._test_parser.GetNumSteps(command_line, self._compiler, config_data.compiler_context) or 0
 
                     steps_per_iteration = len(IterationSteps) + num_executor_steps + num_parser_steps
 
@@ -649,281 +699,282 @@ class ExecuteTests(object):
                     if self._code_coverage_validator:
                         num_steps += len(CodeCoverageSteps)
 
-                    progress_func = yield num_steps
+                # ----------------------------------------------------------------------
+                def Step3(
+                    progress_func: Callable[[int, str], bool],
+                ) -> Tuple[int, Optional[str]]:
+                    assert config_data.compiler_context is not None
 
-                    if self._iterations == 1:
-                        # ----------------------------------------------------------------------
-                        def ExecutorSingleProgressAdapter(
-                            iteration: int,  # pylint: disable=unused-argument
-                            step: int,
-                            status: str,
-                        ) -> bool:
-                            return progress_func(step + 1, status)
+                    with YieldLogDM() as log_dm:
+                        if self._iterations == 1:
+                            # ----------------------------------------------------------------------
+                            def SingleExecutorProgressAdapter(
+                                iteration: int,  # pylint: disable=unused-argument
+                                step: int,
+                                status: str,
+                            ) -> bool:
+                                return progress_func(step + 1, status)
 
-                        # ----------------------------------------------------------------------
-                        def ParserSingleProgressAdapter(
-                            iteration: int,  # pylint: disable=unused-argument
-                            step: int,
-                            status: str,
-                        ) -> bool:
-                            return progress_func(len(IterationSteps) + num_executor_steps + step + 1, status)
+                            # ----------------------------------------------------------------------
+                            def SingleParserProgressAdapter(
+                                iteration: int,  # pylint: disable=unused-argument
+                                step: int,
+                                status: str,
+                            ) -> bool:
+                                return progress_func(len(IterationSteps) + num_executor_steps + step + 1, status)
 
-                        # ----------------------------------------------------------------------
+                            # ----------------------------------------------------------------------
 
-                        executor_progress_func = ExecutorSingleProgressAdapter
-                        parser_progress_func = ParserSingleProgressAdapter
+                            executor_progress_func = SingleExecutorProgressAdapter
+                            parser_progress_func = SingleParserProgressAdapter
 
-                    else:
-                        # ----------------------------------------------------------------------
-                        def ExecutorMultipleProgressAdapter(
-                            iteration: int,
-                            step: int,
-                            status: str,
-                        ) -> bool:
-                            return progress_func(
-                                iteration * steps_per_iteration + step + 1,
-                                "Iteration #{}: {}".format(iteration + 1, status),
+                        else:
+                            # ----------------------------------------------------------------------
+                            def MultipleExecutorProgressAdapter(
+                                iteration: int,
+                                step: int,
+                                status: str,
+                            ) -> bool:
+                                return progress_func(
+                                    iteration * steps_per_iteration + step + 1,
+                                    "Iteration #{}: {}".format(iteration + 1, status),
+                                )
+
+                            # ----------------------------------------------------------------------
+                            def MultipleParserProgressAdapter(
+                                iteration: int,
+                                step: int,
+                                status: str,
+                            ) -> bool:
+                                return progress_func(
+                                    iteration * steps_per_iteration + len(IterationSteps) + num_executor_steps + step + 1,
+                                    "Iteration #{}: {}".format(iteration + 1, status),
+                                )
+
+                            # ----------------------------------------------------------------------
+
+                            executor_progress_func = MultipleExecutorProgressAdapter
+                            parser_progress_func = MultipleParserProgressAdapter
+
+                        # Run the tests
+                        total_test_start_time = time.perf_counter()
+
+                        test_iteration_results: List[TestIterationResult] = []
+
+                        for iteration in range(self._iterations):
+                            with log_dm.Nested(
+                                "Iteration #{}...".format(iteration + 1),
+                                suffix="\n",
+                            ) as iteration_dm:
+                                # Execute the test
+                                executor_progress_func(iteration, IterationSteps.Executing.value, "Testing...")
+
+                                execute_result, execute_output = self._test_executor.Execute(
+                                    iteration_dm,
+                                    self._compiler,
+                                    config_data.compiler_context,
+                                    command_line,
+                                    lambda step, status: executor_progress_func(iteration, step, status),
+                                )
+
+                                assert iteration_dm.result == execute_result.result
+
+                                executor_progress_func(iteration, IterationSteps.RemovingTemporaryArtifacts.value, "Removing temporary artifacts...")
+                                self._test_parser.RemoveTemporaryArtifacts(config_data.compiler_context)
+
+                                iteration_dm.WriteInfo(execute_output.strip())
+
+                                iteration_dm.WriteLine(
+                                    textwrap.dedent(
+                                        """\
+
+                                        Execute Result:         {}
+                                        Execute Time:           {}
+                                        Execute Short Desc:     {}
+
+                                        """,
+                                    ).format(
+                                        execute_result.result,
+                                        execute_result.execution_time,
+                                        execute_result.short_desc or "<None>",
+                                    ),
+                                )
+
+                                if execute_result.short_desc:
+                                    object.__setattr__(
+                                        execute_result,
+                                        "short_desc",
+                                        "{}: {}".format(self._test_executor.name, execute_result.short_desc),
+                                    )
+
+                                # Parse the results
+                                executor_progress_func(iteration, IterationSteps.ParsingResults.value, "Parsing Results...")
+
+                                parse_result = self._test_parser.Parse(
+                                    self._compiler,
+                                    config_data.compiler_context,
+                                    execute_output,
+                                    lambda step, status: parser_progress_func(iteration, step, status),
+                                )
+
+                                iteration_dm.WriteLine(
+                                    textwrap.dedent(
+                                        """\
+                                        Parse Result:           {}
+                                        Parse Time:             {}
+                                        Parse Short Desc:       {}
+
+                                        """,
+                                    ).format(
+                                        parse_result.result,
+                                        parse_result.execution_time,
+                                        parse_result.short_desc or "<None>",
+                                    ),
+                                )
+
+                                if parse_result.short_desc:
+                                    object.__setattr__(
+                                        parse_result,
+                                        "short_desc",
+                                        "{}: {}".format(self._test_parser.name, parse_result.short_desc),
+                                    )
+
+                                test_iteration_results.append(TestIterationResult(execute_result, parse_result))
+
+                                if test_iteration_results[-1].result < 0:
+                                    if self._continue_iterations_on_error:
+                                        continue
+
+                                    break
+
+                        assert test_iteration_results
+
+                        # Commit the test results
+                        config_data.test_result = TestResult(
+                            datetime.timedelta(seconds=time.perf_counter() - total_test_start_time),
+                            test_iteration_results,
+                            has_multiple_iterations=self._iterations != 1,
+                        )
+
+                        # Validate code coverage (if necessary)
+                        if (
+                            self._code_coverage_validator is not None
+                            and config_data.build_result is not None
+                            and test_iteration_results[-1].execute_result.coverage_result is not None
+                            and test_iteration_results[-1].execute_result.coverage_result.coverage_percentage is not None
+                        ):
+                            log_dm.WriteLine(
+                                textwrap.dedent(
+                                    """\
+                                    # ----------------------------------------------------------------------
+                                    # |
+                                    # | Coverage Info
+                                    # |
+                                    # ----------------------------------------------------------------------
+                                    Code Coverage Validator:      {}
+                                    """,
+                                ).format(self._code_coverage_validator.name),
+                            )
+                            progress_func(
+                                steps_per_iteration * self._iterations + CodeCoverageSteps.Validating.value + 1,
+                                "Validating Code Coverage...",
                             )
 
-                        # ----------------------------------------------------------------------
-                        def ParserMultipleProgressAdapter(
-                            iteration: int,
-                            step: int,
-                            status: str,
-                        ) -> bool:
-                            return progress_func(
-                                iteration * steps_per_iteration + len(IterationSteps) + num_executor_steps + step + 1,
-                                "Iteration #{}: {}".format(iteration + 1, status),
+                            code_coverage_result = self._code_coverage_validator.Validate(
+                                log_dm,
+                                config_data.build_result.binary,
+                                test_iteration_results[-1].execute_result.coverage_result.coverage_percentage,
                             )
 
-                        # ----------------------------------------------------------------------
+                            log_dm.WriteLine(
+                                textwrap.dedent(
+                                    """\
+                                    Code Coverage Result:         {}
+                                    Code Coverage Time:           {}
+                                    Code Coverage Short Desc:     {}
 
-                        executor_progress_func = ExecutorMultipleProgressAdapter
-                        parser_progress_func = ParserMultipleProgressAdapter
+                                    """,
+                                ).format(
+                                    code_coverage_result.result,
+                                    code_coverage_result.execution_time,
+                                    code_coverage_result.short_desc or "<None>",
+                                ),
+                            )
 
-                    # Run the tests
-                    total_test_execution_start_time = time.perf_counter()
+                            if code_coverage_result.short_desc:
+                                object.__setattr__(
+                                    code_coverage_result,
+                                    "short_desc",
+                                    "{}: {}".format(self._code_coverage_validator.name, code_coverage_result.short_desc),
+                                )
 
-                    test_iteration_results: List[TestIterationResult] = []
+                            # Commit the coverage results
+                            config_data.coverage_result = code_coverage_result
 
-                    for iteration in range(self._iterations):
-                        # Execute the test
-                        executor_progress_func(iteration, IterationSteps.Executing.value, "Testing...")
+                    return config_data.GetResult()
 
-                        execute_result, execute_output = self._test_executor.Execute(
-                            dm,
-                            self._compiler,
-                            task_data.context.compiler_context,
-                            command_line,
-                            lambda step, status: executor_progress_func(iteration, step, status),
-                        )
+                # ----------------------------------------------------------------------
 
-                        # Remove temporary artifacts
-                        executor_progress_func(iteration, IterationSteps.RemovingTemporaryArtifacts.value, "Removing temporary artifacts...")
-                        self._test_parser.RemoveTemporaryArtifacts(task_data.context.compiler_context)
+                return num_steps, Step3
 
-                        # Process the execution results
-                        execute_log_filename = task_data.context.GetTestIterationExecutionLogFilename(
-                            iteration,
-                            self._iterations,
-                        )
+            # ----------------------------------------------------------------------
 
-                        with execute_log_filename.open("w") as f:
-                            f.write(execute_output)
-
-                        execute_result = ExecuteResult(
-                            execute_result.result,
-                            execute_result.execution_time,
-                            "{}: {}".format(self._test_executor.name, execute_result.short_desc) if execute_result.short_desc else self._test_executor.name,
-                            execute_result.coverage_result,
-                            execute_log_filename,
-                        )
-
-                        dm.WriteLine(
-                            "Test execution for iteration #{iteration}:  {result:> 5} ({short_desc}) -> {log_filename}\n".format(
-                                iteration=iteration + 1,
-                                result=execute_result.result,
-                                short_desc=execute_result.short_desc,
-                                log_filename=execute_log_filename,
-                            ),
-                        )
-
-                        # Parse the results
-                        executor_progress_func(iteration, IterationSteps.ParsingResults.value, "Parsing results...")
-
-                        parse_result = self._test_parser.Parse(
-                            self._compiler,
-                            task_data.context.compiler_context,
-                            execute_output,
-                            lambda step, status: parser_progress_func(iteration, step, status),
-                        )
-
-                        object.__setattr__(
-                            parse_result,
-                            "short_desc",
-                            "{}: {}".format(self._test_parser.name, parse_result.short_desc)
-                                if parse_result.short_desc else self._test_parser.name
-                            ,
-                        )
-
-                        # Process the parse results
-                        dm.WriteLine(
-                            "Test extraction for iteration #{iteration}: {result:> 5} ({short_desc})\n\n".format(
-                                iteration=iteration + 1,
-                                result=parse_result.result,
-                                short_desc=parse_result.short_desc,
-                            ),
-                        )
-
-                        # Create the iteration information
-                        test_iteration_results.append(
-                            TestIterationResult(execute_result, parse_result),
-                        )
-
-                        if test_iteration_results[-1].result < 0:
-                            if self._continue_iterations_on_error:
-                                continue
-
-                            break
-
-                    # Commit the test results
-                    total_test_execution_time = timedelta(seconds=time.perf_counter() - total_test_execution_start_time)
-
-                    task_data.context.test_result = TestResult(
-                        total_test_execution_time,
-                        test_log_filename,
-                        test_iteration_results,
-                        has_multiple_iterations=self._iterations != 1,
-                    )
-
-                    # Validate code coverage (if necessary)
-                    assert isinstance(task_data.context.build_result, BuildResult), task_data.context.build_result
-                    assert task_data.context.build_result.result == 0, task_data.context.build_result
-                    assert test_iteration_results
-
-                    if (
-                        test_iteration_results[0].execute_result.coverage_result is not None
-                        and test_iteration_results[0].execute_result.coverage_result.coverage_percentage is not None
-                        and self._code_coverage_validator is not None
-                        and task_data.context.build_result.binary is not None
-                    ):
-                        progress_func(
-                            steps_per_iteration * self._iterations + CodeCoverageSteps.ValidatingCodeCoverage.value + 1,
-                            "Validating Code Coverage...",
-                        )
-
-                        code_coverage_result = self._code_coverage_validator.Validate(
-                            dm,
-                            task_data.context.build_result.binary,
-                            test_iteration_results[0].execute_result.coverage_result.coverage_percentage,
-                        )
-
-                        object.__setattr__(
-                            code_coverage_result,
-                            "short_desc",
-                            "{}: {}".format(self._code_coverage_validator.name, code_coverage_result.short_desc)
-                                if code_coverage_result.short_desc else self._code_coverage_validator.name
-                            ,
-                        )
-
-                        # Commit the coverage results
-                        task_data.context.coverage_result = code_coverage_result
-
-                    # Return the final data
-                    if (
-                        task_data.context.coverage_result is None
-                        or task_data.context.test_result.result < 0
-                        or (
-                            task_data.context.test_result.result > 0
-                            and task_data.context.coverage_result.result == 0
-                        )
-                    ):
-                        yield (
-                            task_data.context.test_result.result,
-                            task_data.context.test_result.short_desc,
-                        )
-                    else:
-                        yield (
-                            task_data.context.coverage_result.result,
-                            task_data.context.coverage_result.short_desc,
-                        )
-
-        # ----------------------------------------------------------------------
-        def OnErrorResult(
-            task_data: ExecuteTests._TaskData,
-            result: ErrorResult,
-        ) -> None:
-            if task_data.context.test_result is None:
-                task_data.context.test_result = result
-            elif task_data.context.coverage_result is None:
-                task_data.context.coverage_result = result
-            else:
-                assert False, task_data  # pragma: no cover
+            return log_filename, Step2
 
         # ----------------------------------------------------------------------
 
-        self._ExecuteTasks(
+        ExecuteTasks.ExecuteTasks(
+            self._dm,
             "Testing",
-            TaskDance,
-            OnErrorResult,
-            max_num_threads=None if self._parallel_tests else 1,
+            self._CreateTasks(),
+            Step1,
+            quiet=self._quiet,
+            max_num_threads=1 if self._single_threaded or not self._parallel_tests else None,
         )
 
     # ----------------------------------------------------------------------
-    @staticmethod
     def _CreateBenchmarks(
-        dm: DoneManager,
-        filename: Path,
+        self,
+        output_filename: Path,
         all_results: List[Result],
-        common_path: Optional[Path]
+        len_common_path_parts: int,
     ) -> None:
-        with dm.Nested("Creating Benchmarks at '{}'...".format(filename)):
-            if common_path:
-                len_common_path_parts = len(common_path.parts)
-            else:
-                len_common_path_parts = 0
-
+        with self._dm.Nested("Creating benchmarks at '{}'...".format(output_filename)):
             benchmarks: Dict[str, Dict[str, Dict[str, List[BenchmarkStat]]]] = {}
 
             for result in all_results:
                 configuration_benchmarks: Dict[str, Dict[str, List[BenchmarkStat]]] = {}
 
-                for configuration, results in [
+                for configuration, configuration_result in [
                     ("Debug", result.debug),
                     ("Release", result.release),
                 ]:
-                    if results is None or not isinstance(results.test_result, TestResult):
+                    if configuration_result is None or configuration_result.test_result is None:
                         continue
 
-                    assert results.test_result.test_results
-                    parse_result = results.test_result.test_results[0].parse_result
+                    assert configuration_result.test_result.test_results
+                    parse_result = configuration_result.test_result.test_results[0].parse_result
 
                     if parse_result.benchmarks:
                         configuration_benchmarks[configuration] = parse_result.benchmarks
 
                 if configuration_benchmarks:
-                    assert len(result.test_item.parts) > len_common_path_parts
+                    assert len_common_path_parts < len(result.test_item.parts)
                     benchmarks[Path(*result.test_item.parts[len_common_path_parts:]).as_posix()] = configuration_benchmarks
 
-            with filename.open("w") as f:
+            with output_filename.open("w") as f:
                 JsonEx.Dump(benchmarks, f)
 
     # ----------------------------------------------------------------------
-    @staticmethod
-    def _CreateJunitResults(
-        dm: DoneManager,
-        junit_xml_output_filename: Path,
+    def _CreateJUnitResults(
+        self,
+        output_filename: Path,
         all_results: List[Result],
-        common_path: Optional[Path],
+        len_common_path_parts: int,
     ) -> None:
-        with dm.Nested("Creating JUnit output at '{}'...".format(junit_xml_output_filename)):
-            if common_path:
-                len_common_path_parts = len(common_path.parts)
-            else:
-                len_common_path_parts = 0
-
+        with self._dm.Nested("Creating JUnit output at '{}'...".format(output_filename)):
             hostname = socket.gethostname()
-            timestamp = datetime.now().isoformat()
+            timestamp = datetime.datetime.now().isoformat()
 
             root = ET.Element("testsuites")
 
@@ -934,23 +985,23 @@ class ExecuteTests(object):
                 suite.set("hostname", hostname)
                 suite.set("timestamp", timestamp)
 
-                assert len(result.test_item.parts) > len_common_path_parts, (result.test_item, common_path)
+                assert len_common_path_parts < len(result.test_item.parts)
                 suite.set("name", Path(*result.test_item.parts[len_common_path_parts:]).as_posix())
 
-                for configuration, results in [
+                for configuration, result in [
                     ("Debug", result.debug),
                     ("Release", result.release),
                 ]:
-                    if results is None or not isinstance(results.test_result, TestResult):
+                    if result is None or result.test_result is None:
                         continue
 
                     testcase = ET.Element("testcase")
 
                     testcase.set("name", configuration)
-                    testcase.set("time", str(results.execution_time.total_seconds()))
+                    testcase.set("time", str(result.execution_time.total_seconds()))
 
-                    assert results.test_result.test_results
-                    parse_result = results.test_result.test_results[0].parse_result
+                    assert result.test_result.test_results
+                    parse_result = result.test_result.test_results[0].parse_result
 
                     for test_name, subtest_result in (parse_result.subtest_results or {}).items():
                         if subtest_result.result == 0:
@@ -973,263 +1024,10 @@ class ExecuteTests(object):
 
                 root.append(suite)
 
-            with junit_xml_output_filename.open("w") as f:
+            with output_filename.open("w") as f:
                 f.write(
                     ET.tostring(
                         root,
                         encoding="unicode",
                     ),
                 )
-
-    # ----------------------------------------------------------------------
-    def _ExecuteTasks(
-        self,
-        desc: str,
-        execution_task_func: Callable[      # The intricate dance between the task func and custom implementation
-            [
-                "ExecuteTests._TaskData",
-            ],
-            Generator[
-                Union[
-                    Path,                               # 1) Yield a path to the log file
-                    int,                                # 2b) Yield the number of steps
-                    Tuple[int, Optional[str]],          # 3b) Yield the final result and short desc
-                ],
-                Union[
-                    Callable[[str], None],  # 2a) Caller sends a progress callback
-                    Callable[               # 3a) Caller sends a step-based progress callback
-                        [
-                            int,    # Step
-                            str,    # Status
-                        ],
-                        bool,       # True to continue, False to terminate
-                    ],
-                ],
-                None,
-            ],
-        ],
-        on_error_result_func: Callable[["ExecuteTests._TaskData", ErrorResult], None],
-        *,
-        max_num_threads: Optional[int]=None,
-    ) -> None:
-        tasks = self._CreateTasks()
-        if not tasks:
-            return
-
-        error_count = 0
-        warning_count = 0
-        success_count = 0
-
-        count_lock = threading.Lock()
-
-        with self._dm.Nested(
-            "{} {}...".format(desc, inflect.no("test item", len(tasks))),
-            [
-                lambda: "{} succeeded".format(inflect.no("test item", success_count)),
-                lambda: "{} with failures".format(inflect.no("test item", error_count)),
-                lambda: "{} with warnings".format(inflect.no("test item", warning_count)),
-            ],
-            suffix="\n" if (error_count or warning_count) and not self._quiet else "",
-        ) as execute_dm:
-            with execute_dm.YieldStdout() as stdout_context:
-                with Progress(
-                    *Progress.get_default_columns(),
-                    "{task.fields[status]}",
-                    transient=True,
-                ) as progress:
-                    total_progress_id = progress.add_task(
-                        "{}Total Progress".format(stdout_context.line_prefix),
-                        total=len(tasks),
-                        status="",
-                    )
-
-                    num_threads = 1 if self._single_threaded else min(len(tasks), multiprocessing.cpu_count())
-                    if max_num_threads is not None:
-                        num_threads = min(num_threads, max_num_threads)
-
-                    with ThreadPoolExecutor(num_threads) as executor:
-                        # ----------------------------------------------------------------------
-                        def Impl(
-                            task_id: TaskID,
-                            task_data: ExecuteTests._TaskData,
-                        ) -> None:
-                            if not self._quiet:
-                                progress.update(task_id, visible=True)
-
-                            start_time = time.perf_counter()
-                            log_filename: Optional[Path] = None
-                            result = 0
-                            short_desc: Optional[str] = None
-
-                            try:
-                                # ----------------------------------------------------------------------
-                                def OnExit():
-                                    nonlocal success_count
-                                    nonlocal error_count
-                                    nonlocal warning_count
-
-                                    assert log_filename is not None
-
-                                    progress.update(task_id, completed=True, visible=False)
-
-                                    if result < 0 and not self._quiet:
-                                        progress.print(
-                                            r"{prefix}[bold red]ERROR:[/] {name}: {result}{short_desc} \[{suffix}]".format(
-                                                prefix=stdout_context.line_prefix,
-                                                name=task_data.context.display_name,
-                                                result=result,
-                                                short_desc=" ({})".format(short_desc) if short_desc else "",
-                                                suffix=str(log_filename) if execute_dm.capabilities.is_headless else "[link=file://{}]View Log[/]".format(
-                                                    log_filename.as_posix(),
-                                                ),
-                                            ),
-                                            highlight=False,
-                                        )
-
-                                        stdout_context.persist_content = True
-
-                                    if result > 0 and not self._quiet:
-                                        progress.print(
-                                            r"{prefix}[bold yellow]WARNING:[/] {name}: {result}{short_desc} \[{suffix}]".format(
-                                                prefix=stdout_context.line_prefix,
-                                                name=task_data.context.display_name,
-                                                result=result,
-                                                short_desc=" ({})".format(short_desc) if short_desc else "",
-                                                suffix=str(log_filename) if execute_dm.capabilities.is_headless else "[link=file://{}]View Log[/]".format(
-                                                    log_filename.as_posix(),
-                                                ),
-                                            ),
-                                            highlight=False,
-                                        )
-
-                                        stdout_context.persist_content = True
-
-                                    with count_lock:
-                                        if result < 0:
-                                            error_count += 1
-                                        elif result > 0:
-                                            warning_count += 1
-                                        else:
-                                            success_count += 1
-
-                                        successes = success_count
-                                        errors = error_count
-                                        warnings = warning_count
-
-                                    progress.update(
-                                        total_progress_id,
-                                        advance=1,
-                                        status=TextwrapEx.CreateStatusText(successes, errors, warnings),
-                                    )
-
-                                # ----------------------------------------------------------------------
-
-                                with ExitStack(OnExit):
-                                    # Get the log filename name
-                                    task_dance_iter = execution_task_func(task_data)
-
-                                    log_filename = cast(Path, next(task_dance_iter))
-
-                                    # Send the progress and wait for the number of steps
-                                    num_steps = cast(int, task_dance_iter.send(lambda status: progress.update(task_id, status=status)))
-
-                                    # Wait for our turn
-                                    progress.update(task_id, status="Waiting...")
-
-                                    with task_data.working_data.execution_lock:
-                                        # Update the progress bar
-                                        progress.update(task_id, total=num_steps)
-
-                                        current_step = 0
-
-                                        # ----------------------------------------------------------------------
-                                        def OnProgress(
-                                            step: int,
-                                            status: str,
-                                        ) -> bool:
-                                            nonlocal current_step
-
-                                            advance = step - 1 - current_step
-                                            current_step = step - 1
-
-                                            progress.update(
-                                                task_id,
-                                                advance=advance,
-                                                status="({} of {}) {}".format(
-                                                    current_step + 1,
-                                                    num_steps,
-                                                    status,
-                                                ),
-                                            )
-
-                                            return True
-
-                                        # ----------------------------------------------------------------------
-
-                                        # Send the progress func and wait for completion
-                                        result, short_desc = cast(Tuple[int, Optional[str]], task_dance_iter.send(OnProgress))
-
-                            except StopIteration:
-                                pass
-
-                            except KeyboardInterrupt:  # pylint: disable=try-except-raise
-                                raise
-
-                            except Exception as ex:
-                                if self._dm.is_debug:
-                                    error = traceback.format_exc()
-                                else:
-                                    error = str(ex)
-
-                                error = error.strip()
-
-                                if log_filename is None:
-                                    # If here, this error has happened before we have received
-                                    # anything from the callback. Create a log file and write
-                                    # the exception information.
-                                    log_filename = CurrentShell.CreateTempFilename()
-                                    assert log_filename is not None
-
-                                    with log_filename.open("w") as f:
-                                        f.write(error)
-
-                                else:
-                                    with log_filename.open("a+") as f:
-                                        f.write("\n\n{}".format(error))
-
-                                assert log_filename is not None
-
-                                # Commit the result
-                                on_error_result_func(
-                                    task_data,
-                                    ErrorResult(
-                                        self.__class__.CATASTROPHIC_TASK_FAILURE_RESULT,
-                                        timedelta(seconds=time.perf_counter() - start_time),
-                                        log_filename,
-                                        "{} failed spectacularly".format(desc),
-                                    ),
-                                )
-
-                        # ----------------------------------------------------------------------
-
-                        futures = [
-                            executor.submit(
-                                Impl,
-                                progress.add_task(
-                                    "{}  {}".format(stdout_context.line_prefix, task.context.display_name),
-                                    status="",
-                                    total=None,
-                                    visible=False,
-                                ),
-                                task,
-                            )
-                            for task in tasks
-                        ]
-
-                        for future in futures:
-                            future.result()
-
-            if error_count:
-                execute_dm.result = -1
-            elif warning_count and execute_dm.result == 0:
-                execute_dm.result = 1

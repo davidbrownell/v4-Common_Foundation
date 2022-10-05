@@ -16,6 +16,7 @@
 """Contains the TestExecutorImpl object"""
 
 from abc import abstractmethod, ABC
+from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from Common_Foundation.Streams.DoneManager import DoneManager
@@ -83,6 +84,15 @@ class TestExecutorImpl(ABC):
         raise Exception("Abstract method")
 
     # ----------------------------------------------------------------------
+    @abstractmethod
+    def IsSupportedTestItem(
+        self,
+        item: Path,
+    ) -> bool:
+        """Returns True if the test parser is able to process this test item."""
+        raise Exception("Abstract method")
+
+    # ----------------------------------------------------------------------
     @extensionmethod
     def GetNumSteps(
         self,
@@ -101,11 +111,11 @@ class TestExecutorImpl(ABC):
     @abstractmethod
     def Execute(
         self,
-        dm: DoneManager,
+        dm: DoneManager,                    # Writes to file
         compiler: CompilerImpl,
         context: Dict[str, Any],
         command_line: str,
-        on_progress: Callable[
+        on_progress_func: Callable[         # UX status updates
             [
                 int,                        # Step (0-based)
                 str,                        # Status
@@ -114,6 +124,18 @@ class TestExecutorImpl(ABC):
         ],
         includes: Optional[List[str]]=None,
         excludes: Optional[List[str]]=None,
-    ) -> Tuple[ExecuteResult, str]:
-        """Executes a test and returns the results"""
+    ) -> Tuple[
+        ExecuteResult,
+        str,                                # Execute output
+    ]:
+        """\
+        Executes a test and returns the results.
+
+        This method signature is complicated out of necessity; here is how the moving pieces work together:
+
+            dm:                             Writes to a file; wrapped in a DoneManager for easier scoped-semantics (e.g. "DONE! suffixes").
+            on_progress_func:               Updated a progress bar, but is not persisted.
+            Execute output return value:    Data that will be parsed by an object derived from `TestParserImpl` to determine test results. This content
+                                            will also be written to the file associated with `dm`.
+        """
         raise Exception("Abstract method")

@@ -18,6 +18,7 @@
 import datetime
 import time
 
+from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from Common_Foundation.Streams.DoneManager import DoneManager
@@ -50,7 +51,15 @@ class TestExecutor(TestExecutorImpl):
     @overridemethod
     def IsSupportedCompiler(
         self,
-        compiler: CompilerImpl,
+        compiler: CompilerImpl,  # pylint: disable=unused-argument
+    ) -> bool:
+        return True
+
+    # ----------------------------------------------------------------------
+    @overridemethod
+    def IsSupportedTestItem(
+        self,
+        item: Path,  # pylint: disable=unused-argument
     ) -> bool:
         return True
 
@@ -62,13 +71,15 @@ class TestExecutor(TestExecutorImpl):
         compiler: CompilerImpl,                         # pylint: disable=unused-argument
         context: Dict[str, Any],                        # pylint: disable=unused-argument
         command_line: str,
-        on_progress: Callable[..., Any],                # pylint: disable=unused-argument
+        on_progress_func: Callable[..., Any],           # pylint: disable=unused-argument
         includes: Optional[List[str]]=None,             # pylint: disable=unused-argument
         excludes: Optional[List[str]]=None,             # pylint: disable=unused-argument
     ) -> Tuple[ExecuteResult, str]:
         start_time = time.perf_counter()
 
         result = SubprocessEx.Run(command_line)
+
+        dm.result = result.returncode
 
         return (
             ExecuteResult(
