@@ -18,8 +18,9 @@
 import os
 import textwrap
 
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import List, Optional
 
 from semantic_version import Version as SemVer
 
@@ -34,33 +35,41 @@ from .. import Constants
 
 
 # ----------------------------------------------------------------------
+@dataclass(frozen=True)
+class InstallBinaryToolInfo(object):
+    tool_name: str
+    version_directory: str
+    required_version: Optional[SemVer]
+
+    force: bool                             = field(kw_only=True, default=False)
+    write_sentinel_in_tool_root: bool       = field(kw_only=True, default=False)
+    archive_name: str                       = field(default="install.7z")
+
+
+# ----------------------------------------------------------------------
 def InstallBinaries(
     dm: DoneManager,
-    root: Path,
-    tools: List[
-        Tuple[
-            str,                            # Tool name
-            str,                            # Version directory
-            Optional[SemVer],               # Required version
-        ],
-    ],
+    repo_root: Path,
+    tool_info_items: List[InstallBinaryToolInfo],
     *,
-    force: bool,
-    write_sentinel_in_tool_root: bool=False,            # Write the installed sentinel in the tool root rather than the actual install dir.
-                                                        # Set this to True when the installed dir is read-only.
-    archive_name: str="install.7z",
+    force_all: bool,
 ) -> None:
     """Installs an archive if the tool does not exist or is the wrong version."""
 
-    tools_dir = root / Constants.TOOLS_SUBDIR
+    tools_dir = repo_root / Constants.TOOLS_SUBDIR
     assert tools_dir.is_dir(), tools_dir
 
-    for index, (tool_name, version_dir, required_version) in enumerate(tools):
+    for index, tool_info in enumerate(tool_info_items):
         with dm.Nested(
-            "Processing '{}' [{}] ({} of {})...".format(tool_name, version_dir, index + 1, len(tools)),
+            "Processing '{}' [{}] ({} of {})...".format(
+                tool_info.tool_name,
+                tool_info.version_directory,
+                index + 1,
+                len(tool_info_items),
+            ),
             suffix="\n" if dm.is_verbose else "",
         ) as this_dm:
-            fullpath = tools_dir / tool_name / version_dir
+            fullpath = tools_dir / tool_info.tool_name / tool_info.version_directory
             assert fullpath.is_dir(), fullpath
 
             fullpath /= CurrentShell.family_name
@@ -70,25 +79,26 @@ def InstallBinaries(
             if potential_fullpath.is_dir():
                 fullpath = potential_fullpath
 
-            archive_filename = fullpath / archive_name
+            archive_filename = fullpath / tool_info.archive_name
 
             if not archive_filename.is_file():
                 this_dm.WriteError("The file '{}' does not exist.\n".format(archive_filename))
                 continue
 
             if (
-                not force
+                not force_all
+                and not tool_info.force
                 and CheckInstalledSentinel(
                     this_dm,
                     fullpath,
-                    required_version,
-                    sentinel_in_tool_root=write_sentinel_in_tool_root,
+                    tool_info.required_version,
+                    sentinel_in_tool_root=tool_info.write_sentinel_in_tool_root,
                 )
             ):
                 this_dm.WriteVerbose("'{}' exists and is up-to-date.\n".format(fullpath))
                 continue
 
-            sentinel_filename = GetSentinelFilename(fullpath, sentinel_in_tool_root=write_sentinel_in_tool_root)
+            sentinel_filename = GetSentinelFilename(fullpath, sentinel_in_tool_root=tool_info.write_sentinel_in_tool_root)
 
             if sentinel_filename.is_file():
                 with this_dm.Nested("Removing '{}'...".format(sentinel_filename)):
@@ -102,9 +112,9 @@ def InstallBinaries(
 
             with this_dm.Nested("Installing '{}'...".format(archive_filename)) as install_dm:
                 if CurrentShell.family_name == "Windows":
-                    command_line = '7z x -y "-o{}" {}'.format(install_root, archive_name)
+                    command_line = '7z x -y "-o{}" {}'.format(install_root, tool_info.archive_name)
                 else:
-                    command_line = '7zz x -y "-o{}" {}'.format(install_root, archive_name)
+                    command_line = '7zz x -y "-o{}" {}'.format(install_root, tool_info.archive_name)
 
                 result = SubprocessEx.Run(
                     command_line,
@@ -123,8 +133,8 @@ def InstallBinaries(
             WriteInstalledSentinel(
                 this_dm,
                 fullpath,
-                required_version,
-                write_sentinel_in_tool_root=write_sentinel_in_tool_root,
+                tool_info.required_version,
+                write_sentinel_in_tool_root=tool_info.write_sentinel_in_tool_root,
             )
 
 
