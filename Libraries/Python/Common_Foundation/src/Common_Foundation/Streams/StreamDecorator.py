@@ -208,7 +208,7 @@ class StreamDecorator(TextWriter):
         if not self.isatty():
             try:
                 self.write("\n")
-                yield StreamDecorator.YieldStdoutContext(self, line_prefix, persist_content=False)
+                yield StreamDecorator.YieldStdoutContext(self, line_prefix, persist_content=True)
 
             finally:
                 self.write("\n")
@@ -217,17 +217,9 @@ class StreamDecorator(TextWriter):
 
         assert self.has_stdout, "This functionality can only be used with streams that ultimately write to `sys.stdout`"
 
-        context = StreamDecorator.YieldStdoutContext(sys.stdout, line_prefix, persist_content=False)
+        context = StreamDecorator.YieldStdoutContext(sys.stdout, line_prefix, persist_content=True)
 
-        try:
-            sys.stdout.write("\n")
-            yield context
-
-        finally:
-            if not context.persist_content:
-                # Move the cursor back up to the original line
-                sys.stdout.write("\033[1A\r")
-                sys.stdout.write(self.GetCompleteLinePrefix(include_self=False))
+        yield context
 
     # ----------------------------------------------------------------------
     # |

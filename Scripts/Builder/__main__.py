@@ -290,6 +290,8 @@ def Build(
                         warnings: List[Union[None, str, int]] = [None for _ in range(len(configuration_infos))]
 
                         with priority_group_dm.YieldStdout() as stdout_context:
+                            stdout_context.persist_content = False
+
                             with Progress(
                                 *Progress.get_default_columns(),
                                 "{task.fields[status]}",
@@ -867,6 +869,8 @@ def _GetBuildInfos(
         errors: List[str] = []
 
         with extract_dm.YieldStdout() as context:
+            context.persist_content = False
+
             with Progress(
                 *Progress.get_default_columns(),
                 "{task.fields[status]}",

@@ -613,7 +613,10 @@ class BuildInfoBase(ABC):
         with dm.Nested("{}...".format(desc)) as execute_dm:
             output: Optional[str] = None
 
+            # TODO: Covert this to use ExecuteTasks
             with execute_dm.YieldStdout() as stdout_context:
+                stdout_context.persist_content = False
+
                 with Progress(
                     *Progress.get_default_columns(),
                     "{task.fields[status]}",

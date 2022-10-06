@@ -1425,6 +1425,8 @@ def _WrapAll(
             exceptions: List[Optional[Exception]] = [None for _ in range(len(repositories))]
 
             with query_dm.YieldStdout() as context:
+                context.persist_content = False
+
                 with Progress(
                     transient=True,
                 ) as progress:
@@ -1512,6 +1514,8 @@ def _WrapAll(
                 lambda: "{} processed".format(inflect.no("repository", len(query_repositories))),
             ) as action_dm:
                 with action_dm.YieldStdout() as context:
+                    context.persist_content = False
+
                     action_results: List[Any] = [None for _ in range(len(query_repositories))]
                     exceptions: List[Optional[Exception]] = [None for _ in range(len(query_repositories))]
 

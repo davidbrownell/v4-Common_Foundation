@@ -698,6 +698,8 @@ def _ProcessItems(
         exceptions: List[Optional[str]] = [None for _ in range(len(items))]
 
         with nested_dm.YieldStdout() as context:
+            context.persist_content = False
+
             with Progress(
                 transient=True,
             ) as progress:

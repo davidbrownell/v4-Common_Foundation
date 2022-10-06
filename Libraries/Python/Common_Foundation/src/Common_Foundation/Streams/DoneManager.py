@@ -550,34 +550,47 @@ class DoneManager(object):
     # ----------------------------------------------------------------------
     @contextmanager
     def YieldStdout(self) -> Iterator[StreamDecorator.YieldStdoutContext]:
-        """Provides scoped access to `sys.stdout` (if possible); writing to this stream will NOT include line prefixes"""
+        """\
+        Provides scoped access to `sys.stdout` (if possible); writing to this stream will NOT include line prefixes.
+
+        Note that the cursor should be restored to its original location (when yielded by
+        this generator) when control is restored to this generator and the `persist_content`
+        is set to False.
+        """
 
         if self.preserve_status:
             self.PreserveStatus()
         else:
             self.ClearStatus()
 
-        is_stdout = False
-        persist_content = False
+        with self._stream.YieldStdout() as context:
+            try:
+                if not self._wrote_content:
+                    context.stream.write("\n")
 
-        try:
-            with self._stream.YieldStdout() as context:
-                try:
-                    yield context
-                finally:
-                    is_stdout = context.stream is sys.stdout
-                    persist_content = context.persist_content
+                yield context
 
-        finally:
-            if is_stdout:
-                if persist_content:
-                    # Persisting status can get the done managers off track when it comes to line
-                    # prefixes. Add a newline to get things aligned again.
-                    self.WriteLine("\n")
+            finally:
+                # We need to get the cursor back to where it was before we
+                # yielded the stream. This logic depends upon if anything
+                # had been written using this DoneManager before the stream
+                # was yielded and if the caller wants to preserve anything
+                # that was written.
+                if context.stream is sys.stdout:
+                    sys.stdout.write("\r")
 
-                elif self.heading:
-                    sys.stdout.write(self.heading)
-                    sys.stdout.flush()
+                    if context.persist_content and self._wrote_content:
+                        sys.stdout.write("\n")
+
+                    elif (
+                        not context.persist_content
+                        and not self._wrote_content
+                    ):
+                        # Move up a line, write the whitespace and heading
+                        sys.stdout.write(
+                            "\033[1A{}{}".format(self._line_prefix, self.heading),
+                        )
+                        sys.stdout.flush()
 
     # ----------------------------------------------------------------------
     def __post_init__(self):

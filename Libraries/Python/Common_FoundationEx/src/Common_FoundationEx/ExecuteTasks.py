@@ -130,6 +130,8 @@ def ExecuteTasks(
         suffix="\n" if (error_count or warning_count) and not quiet else "",
     ) as execute_dm:
         with execute_dm.YieldStdout() as stdout_context:
+            stdout_context.persist_content = False
+
             with Progress(
                 *Progress.get_default_columns(),
                 "{task.fields[status]}",
