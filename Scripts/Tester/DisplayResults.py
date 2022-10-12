@@ -378,7 +378,10 @@ def Display(
                             TextwrapEx.Indent(
                                 CreateAlignedKeyValueText(
                                     {
-                                        k: "{:.02f}%".format(v * 100)
+                                        k: "{:.2f}%{}".format((
+                                            v[0] if isinstance(v, tuple) else v) * 100,
+                                            " ({})".format(v[1]) if isinstance(v, tuple) else "",
+                                        )
                                         for k, v in coverage_execute_result.coverage_percentages.items()
                                     },
                                     panel_level=2,

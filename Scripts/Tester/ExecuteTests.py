@@ -19,6 +19,7 @@ import socket
 import textwrap
 import time
 import threading
+import traceback
 
 from contextlib import contextmanager
 from dataclasses import dataclass, field
@@ -42,7 +43,7 @@ from Common_FoundationEx.TesterPlugins.CodeCoverageValidatorImpl import CodeCove
 from Common_FoundationEx.TesterPlugins.TestExecutorImpl import TestExecutorImpl
 from Common_FoundationEx.TesterPlugins.TestParserImpl import TestParserImpl
 
-from Results import BenchmarkStat, BuildResult, CodeCoverageResult, ConfigurationResult, Result, TestIterationResult, TestResult
+from Results import BenchmarkStat, BuildResult, CodeCoverageResult, ConfigurationResult, ExecuteResult, ParseResult, Result, TestIterationResult, TestResult
 
 
 # ----------------------------------------------------------------------
@@ -609,10 +610,14 @@ class ExecuteTests(object):
 
         # ----------------------------------------------------------------------
 
+        tasks = self._CreateTasks()
+        if not tasks:
+            return
+
         ExecuteTasks.ExecuteTasks(
             self._dm,
             "Building",
-            self._CreateTasks(),
+            tasks,
             Step1,
             quiet=self._quiet,
             max_num_threads=1 if self._single_threaded else None,
@@ -766,86 +771,122 @@ class ExecuteTests(object):
                                 "Iteration #{}...".format(iteration + 1),
                                 suffix="\n",
                             ) as iteration_dm:
-                                # Execute the test
-                                executor_progress_func(iteration, IterationSteps.Executing.value, "Testing...")
+                                with iteration_dm.Nested(
+                                    "Test Execution...",
+                                    suffix="\n",
+                                ) as test_execution_dm:
+                                    # Execute the test
+                                    executor_progress_func(iteration, IterationSteps.Executing.value, "Testing...")
 
-                                execute_result, execute_output = self._test_executor.Execute(
-                                    iteration_dm,
-                                    self._compiler,
-                                    config_data.compiler_context,
-                                    command_line,
-                                    lambda step, status: executor_progress_func(iteration, step, status),
-                                )
+                                    execute_start_time = time.perf_counter()
 
-                                assert iteration_dm.result == execute_result.result
+                                    try:
+                                        execute_result, execute_output = self._test_executor.Execute(
+                                            test_execution_dm,
+                                            self._compiler,
+                                            config_data.compiler_context,
+                                            command_line,
+                                            lambda step, status: executor_progress_func(iteration, step, status),  # pylint: disable=cell-var-from-loop
+                                        )
 
-                                executor_progress_func(iteration, IterationSteps.RemovingTemporaryArtifacts.value, "Removing temporary artifacts...")
-                                self._test_parser.RemoveTemporaryArtifacts(config_data.compiler_context)
+                                        executor_progress_func(iteration, IterationSteps.RemovingTemporaryArtifacts.value, "Removing temporary artifacts...")
+                                        self._test_parser.RemoveTemporaryArtifacts(config_data.compiler_context)
 
-                                iteration_dm.WriteInfo(execute_output.strip())
+                                    except:  # pylint: disable=bare-except
+                                        execute_result = ExecuteResult(
+                                            ExecuteTasks.CATASTROPHIC_TASK_FAILURE_RESULT,
+                                            datetime.timedelta(seconds=time.perf_counter() - execute_start_time),
+                                            "The test executor failed spectacularly",
+                                            None,
+                                        )
 
-                                iteration_dm.WriteLine(
-                                    textwrap.dedent(
-                                        """\
+                                        execute_output = ""
 
-                                        Execute Result:         {}
-                                        Execute Time:           {}
-                                        Execute Short Desc:     {}
+                                        test_execution_dm.WriteError(traceback.format_exc())
 
-                                        """,
-                                    ).format(
-                                        execute_result.result,
-                                        execute_result.execution_time,
-                                        execute_result.short_desc or "<None>",
-                                    ),
-                                )
+                                    test_execution_dm.result = execute_result.result
+                                    test_execution_dm.WriteInfo("\n{}\n".format(execute_output.strip()))
 
-                                if execute_result.short_desc:
-                                    object.__setattr__(
-                                        execute_result,
-                                        "short_desc",
-                                        "{}: {}".format(self._test_executor.name, execute_result.short_desc),
+                                    test_execution_dm.WriteLine(
+                                        textwrap.dedent(
+                                            """\
+
+                                            Execute Result:         {}
+                                            Execute Time:           {}
+                                            Execute Short Desc:     {}
+
+                                            """,
+                                        ).format(
+                                            execute_result.result,
+                                            execute_result.execution_time,
+                                            execute_result.short_desc or "<None>",
+                                        ),
                                     )
 
-                                # Parse the results
-                                executor_progress_func(iteration, IterationSteps.ParsingResults.value, "Parsing Results...")
+                                    if execute_result.short_desc:
+                                        object.__setattr__(
+                                            execute_result,
+                                            "short_desc",
+                                            "{}: {}".format(self._test_executor.name, execute_result.short_desc),
+                                        )
 
-                                parse_result = self._test_parser.Parse(
-                                    self._compiler,
-                                    config_data.compiler_context,
-                                    execute_output,
-                                    lambda step, status: parser_progress_func(iteration, step, status),
-                                )
+                                with iteration_dm.Nested(
+                                    "Test Parser...",
+                                    suffix="\n",
+                                ) as test_parser_dm:
+                                    # Parse the results
+                                    executor_progress_func(iteration, IterationSteps.ParsingResults.value, "Parsing Results...")
 
-                                iteration_dm.WriteLine(
-                                    textwrap.dedent(
-                                        """\
-                                        Parse Result:           {}
-                                        Parse Time:             {}
-                                        Parse Short Desc:       {}
+                                    parse_start_time = time.perf_counter()
 
-                                        """,
-                                    ).format(
-                                        parse_result.result,
-                                        parse_result.execution_time,
-                                        parse_result.short_desc or "<None>",
-                                    ),
-                                )
+                                    try:
+                                        parse_result = self._test_parser.Parse(
+                                            self._compiler,
+                                            config_data.compiler_context,
+                                            execute_output,
+                                            lambda step, status: parser_progress_func(iteration, step, status),
+                                        )
 
-                                if parse_result.short_desc:
-                                    object.__setattr__(
-                                        parse_result,
-                                        "short_desc",
-                                        "{}: {}".format(self._test_parser.name, parse_result.short_desc),
+                                    except Exception:  # pylint: diable=bare-except
+                                        parse_result = ParseResult(
+                                            ExecuteTasks.CATASTROPHIC_TASK_FAILURE_RESULT,
+                                            datetime.timedelta(seconds=time.perf_counter() - parse_start_time),
+                                            "The test parser failed spectacularly",
+                                            None,
+                                            None,
+                                        )
+
+                                        test_parser_dm.WriteError(traceback.format_exc())
+
+                                    test_parser_dm.WriteLine(
+                                        textwrap.dedent(
+                                            """\
+                                            Parse Result:           {}
+                                            Parse Time:             {}
+                                            Parse Short Desc:       {}
+
+                                            """,
+                                        ).format(
+                                            parse_result.result,
+                                            parse_result.execution_time,
+                                            parse_result.short_desc or "<None>",
+                                        ),
                                     )
 
-                                test_iteration_results.append(TestIterationResult(execute_result, parse_result))
+                                    if parse_result.short_desc:
+                                        object.__setattr__(
+                                            parse_result,
+                                            "short_desc",
+                                            "{}: {}".format(self._test_parser.name, parse_result.short_desc),
+                                        )
 
-                                if test_iteration_results[-1].result < 0:
-                                    if self._continue_iterations_on_error:
-                                        continue
+                                    test_iteration_results.append(TestIterationResult(execute_result, parse_result))
 
-                                    break
+                                    if test_iteration_results[-1].result < 0:
+                                        if self._continue_iterations_on_error:
+                                            continue
+
+                                        break
 
                         assert test_iteration_results
 
@@ -880,36 +921,49 @@ class ExecuteTests(object):
                                 "Validating Code Coverage...",
                             )
 
-                            code_coverage_result = self._code_coverage_validator.Validate(
-                                log_dm,
-                                config_data.build_result.binary,
-                                test_iteration_results[-1].execute_result.coverage_result.coverage_percentage,
-                            )
-
-                            log_dm.WriteLine(
-                                textwrap.dedent(
-                                    """\
-                                    Code Coverage Result:         {}
-                                    Code Coverage Time:           {}
-                                    Code Coverage Short Desc:     {}
-
-                                    """,
-                                ).format(
-                                    code_coverage_result.result,
-                                    code_coverage_result.execution_time,
-                                    code_coverage_result.short_desc or "<None>",
-                                ),
-                            )
-
-                            if code_coverage_result.short_desc:
-                                object.__setattr__(
-                                    code_coverage_result,
-                                    "short_desc",
-                                    "{}: {}".format(self._code_coverage_validator.name, code_coverage_result.short_desc),
+                            try:
+                                code_coverage_result = self._code_coverage_validator.Validate(
+                                    log_dm,
+                                    config_data.build_result.binary,
+                                    test_iteration_results[-1].execute_result.coverage_result.coverage_percentage,
                                 )
 
-                            # Commit the coverage results
-                            config_data.coverage_result = code_coverage_result
+                                log_dm.WriteLine(
+                                    textwrap.dedent(
+                                        """\
+                                        Code Coverage Result:         {}
+                                        Code Coverage Time:           {}
+                                        Code Coverage Short Desc:     {}
+
+                                        """,
+                                    ).format(
+                                        code_coverage_result.result,
+                                        code_coverage_result.execution_time,
+                                        code_coverage_result.short_desc or "<None>",
+                                    ),
+                                )
+
+                                if code_coverage_result.short_desc:
+                                    object.__setattr__(
+                                        code_coverage_result,
+                                        "short_desc",
+                                        "{}: {}".format(self._code_coverage_validator.name, code_coverage_result.short_desc),
+                                    )
+
+                                for name, coverage_data in (test_iteration_results[-1].execute_result.coverage_result.coverage_percentages or {}).items():
+                                    log_dm.WriteLine(
+                                        "    {:<30} {:.2f}%{}".format(
+                                            "{}:".format(name),
+                                            (coverage_data[0] if isinstance(coverage_data, tuple) else coverage_data) * 100.0,
+                                            "" if not isinstance(coverage_data, tuple) else " ({})".format(coverage_data[1]),
+                                        ),
+                                    )
+
+                                # Commit the coverage results
+                                config_data.coverage_result = code_coverage_result
+
+                            except:  # pylint: disable=bare-except
+                                log_dm.WriteError(traceback.format_exc())
 
                     return config_data.GetResult()
 
@@ -923,10 +977,14 @@ class ExecuteTests(object):
 
         # ----------------------------------------------------------------------
 
+        tasks = self._CreateTasks()
+        if not tasks:
+            return
+
         ExecuteTasks.ExecuteTasks(
             self._dm,
             "Testing",
-            self._CreateTasks(),
+            tasks,
             Step1,
             quiet=self._quiet,
             max_num_threads=1 if self._single_threaded or not self._parallel_tests else None,

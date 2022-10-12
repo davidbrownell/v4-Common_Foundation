@@ -72,8 +72,6 @@ class TestExecutor(TestExecutorImpl):
         context: Dict[str, Any],                        # pylint: disable=unused-argument
         command_line: str,
         on_progress_func: Callable[..., Any],           # pylint: disable=unused-argument
-        includes: Optional[List[str]]=None,             # pylint: disable=unused-argument
-        excludes: Optional[List[str]]=None,             # pylint: disable=unused-argument
     ) -> Tuple[ExecuteResult, str]:
         start_time = time.perf_counter()
 

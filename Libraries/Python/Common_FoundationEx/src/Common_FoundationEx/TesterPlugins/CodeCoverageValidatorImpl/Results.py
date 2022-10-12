@@ -40,7 +40,7 @@ class CodeCoverageResult(object):
         assert self.coverage_percentage >= 0.0 and self.coverage_percentage <= 1.0, self.coverage_percentage
         assert self.minimum_percentage >= 0.0 and self.minimum_percentage <= 1.0, self.minimum_percentage
 
-        result = 0 if self.coverage_percentage > self.minimum_percentage else -1
+        result = 0 if self.coverage_percentage >= self.minimum_percentage else -1
 
         object.__setattr__(self, "result", result)
         object.__setattr__(

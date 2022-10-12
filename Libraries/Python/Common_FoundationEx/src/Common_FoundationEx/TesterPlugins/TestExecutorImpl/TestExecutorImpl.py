@@ -17,7 +17,7 @@
 
 from abc import abstractmethod, ABC
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, Optional, Tuple
 
 from Common_Foundation.Streams.DoneManager import DoneManager
 from Common_Foundation.Types import extensionmethod
@@ -122,8 +122,6 @@ class TestExecutorImpl(ABC):
             ],
             bool,                           # True to continue, False to terminate
         ],
-        includes: Optional[List[str]]=None,
-        excludes: Optional[List[str]]=None,
     ) -> Tuple[
         ExecuteResult,
         str,                                # Execute output

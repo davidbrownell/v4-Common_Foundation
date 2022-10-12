@@ -25,6 +25,30 @@ from .Shell.All import CurrentShell
 
 
 # ----------------------------------------------------------------------
+def EnsureExists(
+    path: Path,
+) -> Path:
+    assert path.exists(), path
+    return path
+
+
+# ----------------------------------------------------------------------
+def EnsureFile(
+    path: Path,
+) -> Path:
+    assert path.is_file(), path
+    return path
+
+
+# ----------------------------------------------------------------------
+def EnsureDir(
+    path: Path,
+) -> Path:
+    assert path.is_dir(), path
+    return path
+
+
+# ----------------------------------------------------------------------
 def IsDescendant(
     query: PurePath,
     root: PurePath,
@@ -168,7 +192,7 @@ def _RemoveImpl(
 
     while True:
         try:
-            shutil.move(path, renamed_path)
+            shutil.move(str(path), renamed_path)
             break
         except:
             time.sleep(iteration * 0.5 + 0.5)  # seconds

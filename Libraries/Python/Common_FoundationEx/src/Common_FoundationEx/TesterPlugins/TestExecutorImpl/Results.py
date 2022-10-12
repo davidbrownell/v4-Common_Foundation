@@ -58,7 +58,7 @@ class CoverageResult(object):
 
         if self.result == 0:
             assert self.coverage_data_filename is not None and self.coverage_data_filename.exists(), self.coverage_data_filename
-            assert self.coverage_percentage is not None and IsValidPercentage(self.coverage_percentage)
+            assert self.coverage_percentage is not None and IsValidPercentage(self.coverage_percentage), self.coverage_percentage
             assert (
                 self.coverage_percentages is None
                 or all(
@@ -87,3 +87,8 @@ class ExecuteResult(object):
     short_desc: Optional[str]
 
     coverage_result: Optional[CoverageResult]
+
+    # ----------------------------------------------------------------------
+    def __post_init__(self):
+        if self.coverage_result and self.coverage_result.result != 0 and self.result == 0:
+            object.__setattr__(self, "result", self.coverage_result.result)

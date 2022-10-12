@@ -168,7 +168,7 @@ class PythonActivateActivity(ActivateActivity):
                     textwrap.dedent(
                         """\
 
-                        The python environment can not be force-created within an activated environment (as it is currently being used to run this script).
+                        The python environment can not be force-created within an activated environment (as it is being used to run this script).
                         To force the creation of a new python virtual environment, run the same activation command within a new terminal window.
 
                         Continuing activation with the existing virtual environment.
