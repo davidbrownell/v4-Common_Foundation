@@ -92,10 +92,15 @@ def Stream(
         env["PYTHONUNBUFFERED"] = "1"       # type: ignore
 
     if convert_newlines is None:
-        # Importing here to avoid circular imports
-        from .Shell.All import CurrentShell
+        try:
+            # Importing here to avoid circular imports
+            from .Shell.All import CurrentShell
 
-        convert_newlines = CurrentShell.family_name == "Windows"
+            convert_newlines = CurrentShell.family_name == "Windows"
+        except:  # pylint: disable=bare-except
+            # This functionality might throw when it is used during the initial setup process.
+            # Don't convert newlines if that is the case.
+            convert_newlines = False
 
     output_func = cast(Callable[[str], None], stream.write)
     flush_func = stream.flush
