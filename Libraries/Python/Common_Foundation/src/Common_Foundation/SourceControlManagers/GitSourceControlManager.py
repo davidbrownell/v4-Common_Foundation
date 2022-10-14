@@ -854,8 +854,7 @@ class Repository(DistributedRepositoryBase):
         assert result.returncode == 0, result.output
 
         for line in result.output.split("\n"):
-            line = line.strip()
-            if line and not line.startswith("Fetching"):
+            if not self.__class__._ShouldIgnoreOutputLine(line):  # pylint: disable=protected-access
                 yield line
 
     # ----------------------------------------------------------------------
@@ -892,8 +891,7 @@ class Repository(DistributedRepositoryBase):
         assert result.returncode == 0, result.output
 
         for line in result.output.split("\n"):
-            line = line.strip()
-            if line and not line.startswith("Fetching"):
+            if not self.__class__._ShouldIgnoreOutputLine(line):  # pylint: disable=protected-access
                 yield line
 
     # ----------------------------------------------------------------------
@@ -1032,3 +1030,17 @@ class Repository(DistributedRepositoryBase):
             result.output = result.output[len("* "):]
 
         return result.output
+
+    # ----------------------------------------------------------------------
+    @staticmethod
+    def _ShouldIgnoreOutputLine(
+        line: str,
+    ) -> bool:
+        line = line.strip()
+
+        return (
+            not line
+            or line.startswith("Fetching")
+            or line.startswith("Auto packing the repository")
+            or line == 'See "git help gc" for manual housekeeping.'
+        )
