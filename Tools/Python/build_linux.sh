@@ -21,7 +21,7 @@ set -x                                      # statements
 #
 # Docker command:
 #
-#   CentOS 7 Image
+#   CentOS 8 Image
 #   --------------
 #       [Linux Host]     docker run -it --rm -v `pwd`/..:/local centos:8 bash /local/Python/build_linux.sh <3.10.6>
 #       [Windows Host]   docker run -it --rm -v %cd%\..:/local  centos:8 bash /local/Python/build_linux.sh <3.10.6>

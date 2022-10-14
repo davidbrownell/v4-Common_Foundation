@@ -25,7 +25,7 @@ from .Impl.SevenZipInstallerArchiveMixin import SevenZipInstallerArchiveMixin
 
 
 # ----------------------------------------------------------------------
-class DownloadZipInstaller(
+class DownloadSevenZipInstaller(
     DownloadSourceMixin,
     SevenZipInstallerArchiveMixin,
 ):
