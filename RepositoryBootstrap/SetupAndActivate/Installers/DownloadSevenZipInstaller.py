@@ -1,9 +1,9 @@
 # ----------------------------------------------------------------------
 # |
-# |  LocalSevenZipInstaller.py
+# |  DownloadSevenZipInstaller.py
 # |
 # |  David Brownell <db@DavidBrownell.com>
-# |      2022-10-10 14:06:54
+# |      2022-10-14 15:45:44
 # |
 # ----------------------------------------------------------------------
 # |
@@ -13,30 +13,31 @@
 # |  http://www.boost.org/LICENSE_1_0.txt.
 # |
 # ----------------------------------------------------------------------
-"""Contains the LocalSevenZipInstaller object"""
+"""Contains the DownloadSevenZipInstaller object"""
 
 from pathlib import Path
-from typing import Union
+from typing import Optional, Union
 
 from semantic_version import Version as SemVer
 
-from .Impl.LocalSourceMixin import LocalSourceMixin
+from .Impl.DownloadSourceMixin import DownloadSourceMixin
 from .Impl.SevenZipInstallerArchiveMixin import SevenZipInstallerArchiveMixin
 
 
 # ----------------------------------------------------------------------
-class LocalSevenZipInstaller(
-    LocalSourceMixin,
+class DownloadZipInstaller(
+    DownloadSourceMixin,
     SevenZipInstallerArchiveMixin,
 ):
-    """Installs local content using 7zip"""
+    """Downloads and installs zip content"""
 
     # ----------------------------------------------------------------------
     def __init__(
         self,
-        install_filename: Path,
+        url: str,
+        sha256: Optional[str],
         tool_dir: Path,
         required_version: Union[None, SemVer, str],
     ):
-        LocalSourceMixin.__init__(self, install_filename)
+        DownloadSourceMixin.__init__(self, url, sha256)
         SevenZipInstallerArchiveMixin.__init__(self, tool_dir, required_version)

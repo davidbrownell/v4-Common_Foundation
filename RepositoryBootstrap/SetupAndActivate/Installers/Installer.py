@@ -65,7 +65,13 @@ class Installer(ABC):
         sentinel_filename = self._GetSentinelFilename(self.tool_dir, sentinel_in_tool_root=self.sentinel_lives_in_tool_root)
 
         if not force and not self._ShouldInstall(dm, sentinel_filename):
-            dm.WriteVerbose("'{}' exists and is up-to-date.\n".format(sentinel_filename))
+            dm.WriteVerbose(
+                "'{}' exists and is up-to-date{}.\n".format(
+                    sentinel_filename,
+                    "" if not self.required_version else " with version '{}'".format(self.required_version),
+                ),
+            )
+
             return
 
         if prompt_for_interactive:

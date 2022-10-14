@@ -13,7 +13,7 @@
 # |  http://www.boost.org/LICENSE_1_0.txt.
 # |
 # ----------------------------------------------------------------------
-"""Contains the SevenZipArchiveMixin object"""
+"""Contains the SevenZipInstallerArchiveMixin object"""
 
 from pathlib import Path
 
@@ -24,7 +24,7 @@ from .ArchiveMixinImpl import ArchiveMixinImpl
 
 
 # ----------------------------------------------------------------------
-class SevenZipArchiveMixin(ArchiveMixinImpl):
+class SevenZipInstallerArchiveMixin(ArchiveMixinImpl):
     """Installs content by extracting a 7zip archive"""
 
     # ----------------------------------------------------------------------

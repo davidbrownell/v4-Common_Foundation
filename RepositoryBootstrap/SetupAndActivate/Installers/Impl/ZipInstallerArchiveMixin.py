@@ -15,8 +15,8 @@
 # ----------------------------------------------------------------------
 """Contains the ZipInstallerArchiveMixin object"""
 
-from .SevenZipArchiveMixin import SevenZipArchiveMixin
+from .SevenZipInstallerArchiveMixin import SevenZipInstallerArchiveMixin
 
 
 # ----------------------------------------------------------------------
-ZipInstallerArchiveMixin                    = SevenZipArchiveMixin
+ZipInstallerArchiveMixin                    = SevenZipInstallerArchiveMixin
