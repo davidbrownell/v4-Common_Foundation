@@ -494,16 +494,15 @@ def _InvokeImpl(
                         else "Succeeded ({})".format(task_data.result)
                 ,
                 str(task_data.execution_time),
-                "{}{}".format(
+                str(task_data.log_filename) if dm.capabilities.is_headless else "{} [View Log]".format(
                     TextwrapEx.GetSizeDisplay(task_data.log_filename.stat().st_size) if task_data.log_filename.is_file() else "",
-                    "" if dm.capabilities.is_headless else " [View Log]",
                 ),
             ]
         )
 
         if add_output_column:
             rows[-1].append(
-                str(task_data.context.output_dir) if not dm.capabilities.is_headless else "{} [View]".format(
+                str(task_data.context.output_dir) if dm.capabilities.is_headless else "{} [View]".format(
                     inflect.no("item", sum(1 for _ in task_data.context.output_dir.iterdir())),
                 ),
             )
