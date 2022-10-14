@@ -27,7 +27,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, List, Optional, Tuple
 
-from rich.progress import Progress, TaskID
+from rich.progress import Progress, TaskID, TimeElapsedColumn
 
 from Common_Foundation.ContextlibEx import ExitStack
 from Common_Foundation.Shell.All import CurrentShell
@@ -134,6 +134,7 @@ def ExecuteTasks(
 
             with Progress(
                 *Progress.get_default_columns(),
+                TimeElapsedColumn(),
                 "{task.fields[status]}",
                 transient=True,
             ) as progress:

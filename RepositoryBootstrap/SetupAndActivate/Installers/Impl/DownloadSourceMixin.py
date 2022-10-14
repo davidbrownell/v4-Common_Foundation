@@ -24,7 +24,7 @@ from typing import Iterator, Optional
 from urllib import request
 from urllib.error import URLError
 
-from rich.progress import Progress
+from rich.progress import Progress, TimeElapsedColumn
 
 from Common_Foundation.ContextlibEx import ExitStack
 from Common_Foundation.Shell.All import CurrentShell
@@ -61,6 +61,7 @@ class DownloadSourceMixin(object):
 
                 with Progress(
                     *Progress.get_default_columns(),
+                    TimeElapsedColumn(),
                     "{task.fields[status]}",
                     transient=True,
                 ) as progress:

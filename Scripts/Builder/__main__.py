@@ -33,7 +33,7 @@ from typing import Dict, Generator, List, Optional, Set, Tuple, Union
 try:
     import typer
 
-    from rich.progress import Progress, TaskID
+    from rich.progress import Progress, TaskID, TimeElapsedColumn
     from typer.core import TyperGroup
 
 except ModuleNotFoundError:
@@ -294,6 +294,7 @@ def Build(
 
                             with Progress(
                                 *Progress.get_default_columns(),
+                                TimeElapsedColumn(),
                                 "{task.fields[status]}",
                                 transient=True,
                             ) as progress:
@@ -873,6 +874,7 @@ def _GetBuildInfos(
 
             with Progress(
                 *Progress.get_default_columns(),
+                TimeElapsedColumn(),
                 "{task.fields[status]}",
                 transient=True,
             ) as progress:

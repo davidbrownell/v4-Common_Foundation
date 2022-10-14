@@ -36,7 +36,7 @@ from typing import Callable, Dict, List, Optional, Pattern, TextIO, Tuple, Union
 try:
     import typer
 
-    from rich.progress import Progress
+    from rich.progress import Progress, TimeElapsedColumn
 
     from typer.core import TyperGroup
     from typer.models import CommandInfo, OptionInfo
@@ -619,6 +619,7 @@ class BuildInfoBase(ABC):
 
                 with Progress(
                     *Progress.get_default_columns(),
+                    TimeElapsedColumn(),
                     "{task.fields[status]}",
                     transient=True,
                 ) as progress:
