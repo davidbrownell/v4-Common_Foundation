@@ -125,7 +125,7 @@ def EntryPoint(
             environ.pop("PYTHONPATH", None)
 
             result = SubprocessEx.Run(
-                "python -m pip list --verbose --format json --require-virtualenv --editable",
+                "python -m pip list --verbose --format json --require-virtualenv --editable --disable-pip-version-check",
                 env=environ,
             )
 

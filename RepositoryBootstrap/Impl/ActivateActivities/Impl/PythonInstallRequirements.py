@@ -78,7 +78,7 @@ def EntryPoint(
 
         with dm.YieldVerboseStream() as verbose_stream:
             dm.result = SubprocessEx.Stream(
-                'python -m pip install --verbose -r "{}"'.format(str(path)),
+                'python -m pip install --verbose --disable-pip-version-check -r "{}"'.format(str(path)),
                 StreamDecorator([sink, verbose_stream]),
             )
 
