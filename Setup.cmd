@@ -33,6 +33,23 @@
 @REM |                                             creation of side-by-side environments that are otherwise identical.
 @REM |                                             It is very rare to setup an environment with a unique name.
 @REM |
+@REM |          --interactive/--no-interactive   : Set the default value for `is_interactive` for those repositories that
+@REM |                                             provide those capabilities during setup.
+@REM |
+@REM |          --search-depth <value>           : Limit searches for other repositories to N levels deep. This value
+@REM |                                             can help to decrease the overall search times when a dependency
+@REM |                                             repository is not on the system. Coversely, this value can be set
+@REM |                                             to a higher value to not artifically limit searches when a dependency
+@REM |                                             repsitory is on the system but not found using default values.
+@REM |          --max-num-searches <value>       : Limits the maximum number of searches performed when looking for
+@REM |                                             dependency repositories.
+@REM |          --required-ancestor-dir <value>  : Restrict searches to this directory when searching for dependency
+@REM |                                             repositories (this value can appear multiple times on the command
+@REM |                                             line).
+@REM |
+@REM |          --no-hooks                       : Do not install Source Control Management (SCM) hooks for this repository
+@REM |                                             (pre-commit, post-commit, etc.).
+@REM |
 @REM ----------------------------------------------------------------------
 
 @REM ----------------------------------------------------------------------

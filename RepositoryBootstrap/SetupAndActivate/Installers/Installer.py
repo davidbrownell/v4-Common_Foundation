@@ -23,7 +23,7 @@ import time
 from abc import ABC, abstractmethod
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Iterator, Optional, Union
+from typing import Callable, Iterator, Optional, Union
 
 from semantic_version import Version as SemVer
 
@@ -55,16 +55,51 @@ class Installer(ABC):
         self.sentinel_lives_in_tool_root                = sentinel_lives_in_tool_root
 
     # ----------------------------------------------------------------------
+    def ShouldInstall(
+        self,
+        sentinel_filename: Optional[Path],
+        on_mismatch_reason_func: Callable[[str], None],
+    ) -> bool:
+        if not sentinel_filename:
+            sentinel_filename = self._GetSentinelFilename(self.tool_dir, sentinel_in_tool_root=self.sentinel_lives_in_tool_root)
+
+        if not sentinel_filename.is_file():
+            on_mismatch_reason_func("'{}' does not exist.\n".format(sentinel_filename))
+            return True
+
+        if self.required_version:
+            with sentinel_filename.open() as f:
+                content = f.read()
+
+            match = RegularExpression.TemplateStringToRegex(self.__class__._versioned_sentinel_content).match(content)  # pylint: disable=protected-access
+            if not match:
+                on_mismatch_reason_func("'{}' was not versioned.\n".format(sentinel_filename))
+                return True
+
+            previous_version = match.group("version")
+
+            if previous_version != self.required_version:
+                on_mismatch_reason_func("The version '{}' does not match the required version '{}'.\n".format(previous_version, self.required_version))
+                return True
+
+        if not self.output_dir.is_dir():
+            on_mismatch_reason_func("'{}' does not exist.\n".format(self.output_dir))
+            return True
+
+        return False
+
+    # ----------------------------------------------------------------------
     def Install(
         self,
         dm: DoneManager,
         *,
         force: bool=False,
         prompt_for_interactive: bool=False,
+        interactive: Optional[bool]=None,
     ) -> None:
         sentinel_filename = self._GetSentinelFilename(self.tool_dir, sentinel_in_tool_root=self.sentinel_lives_in_tool_root)
 
-        if not force and not self._ShouldInstall(dm, sentinel_filename):
+        if not force and not self.ShouldInstall(sentinel_filename, lambda reason: dm.WriteVerbose(reason)):
             dm.WriteVerbose(
                 "'{}' exists and is up-to-date{}.\n".format(
                     sentinel_filename,
@@ -75,7 +110,10 @@ class Installer(ABC):
             return
 
         if prompt_for_interactive:
-            is_interactive = self.__class__._PromptForInteractive(dm)  # pylint: disable=protected-access
+            if interactive is None:
+                is_interactive = self.__class__._PromptForInteractive(dm)  # pylint: disable=protected-access
+            else:
+                is_interactive = interactive
         else:
             is_interactive = False
 
@@ -113,12 +151,16 @@ class Installer(ABC):
         dm: DoneManager,
         *,
         prompt_for_interactive: bool=False,
+        interactive: Optional[bool]=None,
     ) -> None:
         sentinel_filename = self._GetSentinelFilename(self.tool_dir, sentinel_in_tool_root=self.sentinel_lives_in_tool_root)
 
         if sentinel_filename.is_file():
             if prompt_for_interactive:
-                is_interactive = self.__class__._PromptForInteractive(dm)  # pylint: disable=protected-access
+                if interactive is None:
+                    is_interactive = self.__class__._PromptForInteractive(dm)  # pylint: disable=protected-access
+                else:
+                    is_interactive = interactive
             else:
                 is_interactive = False
 
@@ -240,37 +282,6 @@ class Installer(ABC):
             )
 
         return interactive_install
-
-    # ----------------------------------------------------------------------
-    def _ShouldInstall(
-        self,
-        dm: DoneManager,
-        sentinel_filename: Path,
-    ) -> bool:
-        if not sentinel_filename.is_file():
-            dm.WriteVerbose("'{}' does not exist.\n".format(sentinel_filename))
-            return True
-
-        if self.required_version:
-            with sentinel_filename.open() as f:
-                content = f.read()
-
-            match = RegularExpression.TemplateStringToRegex(self.__class__._versioned_sentinel_content).match(content)  # pylint: disable=protected-access
-            if not match:
-                dm.WriteVerbose("'{}' was not versioned.\n".format(sentinel_filename))
-                return True
-
-            previous_version = match.group("version")
-
-            if previous_version != self.required_version:
-                dm.WriteInfo("The version '{}' does not match the required version '{}'.\n".format(previous_version, self.required_version))
-                return True
-
-        if not self.output_dir.is_dir():
-            dm.WriteVerbose("'{}' does not exist.\n".format(self.output_dir))
-            return True
-
-        return False
 
     # ----------------------------------------------------------------------
     def _GetSentinelFilename(
