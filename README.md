@@ -6,7 +6,7 @@ A framework to increase the ease and reliability of development across operating
 
 Cross-platform development requires customizations across operating systems. Cross-language development requires different tool sets. Different repositories require different versions of the same tools and libraries. Continuous Integration / Delivery / Deployment require slightly different tools that do the exact same thing.
 
-This framework was born from those very real and frustrating challenges.
+This framework was born from those very real and frustrating challenges and provides solutions to them all.
 
 Repositories based on `Common_Foundation` provide a consistent set of tools across:
 
@@ -35,9 +35,9 @@ Activation prepares an [environment](#environment) for development activities. O
 
 | Environment | Command                                         |
 |-------------|-------------------------------------------------|
-| Linux       | `. ./Activate.sh <python310\|python310_nolibs>` |
-| MacOS       | `. ./Activate.sh <python310\|python310_nolibs>` |
-| Windows     | `Activate.cmd <python310\|python310_nolibs>`    |
+| Linux       | `. ./Activate.sh <python310|python310_nolibs>` |
+| MacOS       | `. ./Activate.sh <python310|python310_nolibs>` |
+| Windows     | `Activate.cmd <python310|python310_nolibs>`    |
 
 #### Useful Tools Available within an Activated Environment
 
@@ -68,9 +68,17 @@ Tools use to accomplish common tasks are the same:
 - [Builder](#builder) builds things.
 - [Tester](#tester) tests things.
 
+Some programming-language-specific development repositories based on `Common_Foundation`:
+
+| Programming Language | Repository | Operating Systems |
+| - | - | - |
+| Python | [v4-Common_PythonDevelopment](https://github.com/davidbrownell/v4-Common_PythonDevelopment) | Linux, Windows |
+| C++ (using clang) | [v4-Common_cpp_Clang](https://github.com/davidbrownell/v4-Common_cpp_Clang) | Linux, Windows |
+| C++ (using Microsoft Visual Studio Build Tools) | [v4-Common_cpp_MSVC](https://github.com/davidbrownell/v4-Common_cpp_MSVC) | Windows |
+
 ##### Flexibility in Layout
 
-[Repositories](#repository) and their dependencies do not need to conform to a common layout on your system - they can live anywhere. This means that different repositories can easily take a dependency on a common repository without concern of where it lives on your hard drive.
+[Repositories](#repository) and their dependencies do not need to conform to a common layout on your file system system - they can live anywhere and can be reused by any other repository. This means that different repositories can easily take a dependency on a common repository without concern of where it lives on your hard drive.
 
 ##### Side-by-Side Reliability
 
@@ -93,13 +101,6 @@ All tooling is designed to run in different scenarios and will adapt its output 
 ###### Redirected
 
 ![Text Output](docs/ScreenShots/Output%20Redirected.png)
-
-##### Self-Contained
-
-`Common_Foundation` does not have any external dependencies and all [setup](#setup) and [activation](#activation) activities can be completed without a connection to the outside world.
-
-**Note:**
-[ ] Python virtual library installation currently requires an internet connection, but this will hopefully be addressed in the very near future.
 
 ### Supported Environments
 
