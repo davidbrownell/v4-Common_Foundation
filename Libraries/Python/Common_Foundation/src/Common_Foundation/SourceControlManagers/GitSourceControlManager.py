@@ -1040,7 +1040,9 @@ class Repository(DistributedRepositoryBase):
 
         return (
             not line
-            or line.startswith("Fetching")
             or line.startswith("Auto packing the repository")
+            or line.startswith("Fetching")
+            or line.startswith("Nothing new to pack")
+            or line.startswith("warning: ")
             or line == 'See "git help gc" for manual housekeeping.'
         )
