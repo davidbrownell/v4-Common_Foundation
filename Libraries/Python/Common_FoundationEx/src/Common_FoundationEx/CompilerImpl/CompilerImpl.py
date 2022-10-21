@@ -133,6 +133,17 @@ class CompilerImpl(
         raise Exception("Abstract method")
 
     # ----------------------------------------------------------------------
+    @extensionmethod
+    def IsIgnoredDirectory(
+        self,
+        directory: Path,  # pylint: disable=unused-argument
+    ) -> bool:
+        """Return True if the directory and its children should be ignored."""
+
+        # No directories are ignored by default
+        return False
+
+    # ----------------------------------------------------------------------
     @abstractmethod
     def IsSupported(
         self,
@@ -268,6 +279,10 @@ class CompilerImpl(
                     these_inputs: List[Path] = []
 
                     for root, directories, filenames in EnumSource(input_item):
+                        if self.IsIgnoredDirectory(root):
+                            directories[:] = []
+                            continue
+
                         if self.input_type == InputType.Files:
                             for filename in filenames:
                                 fullpath = root / filename

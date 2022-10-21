@@ -81,7 +81,7 @@ def Display(
     ) -> str:
         return "{}{}".format(
             TextwrapEx.GetSizeDisplay(log_filename.stat().st_size),
-            "" if dm.capabilities.is_headless else r" \[[link=file://{}]View Log[/]]".format(
+            "" if dm.capabilities.is_headless else r" \[[link=file:///{}]View Log[/]]".format(
                 log_filename.as_posix(),
             ),
         )
@@ -93,7 +93,7 @@ def Display(
         if dm.capabilities.is_headless:
             return str(output_dir)
 
-        return r"{} \[[link=file://{}]View[/]]".format(
+        return r"{} \[[link=file:///{}]View[/]]".format(
             inflect.no("item", sum(1 for _ in output_dir.iterdir())),
             output_dir.as_posix(),
         )
@@ -358,7 +358,7 @@ def Display(
 
                 data_items["Coverage Data File"] = r"{} \[{}]".format(
                     TextwrapEx.GetSizeDisplay(coverage_execute_result.coverage_data_filename.stat().st_size),
-                    coverage_execute_result.coverage_data_filename if dm.capabilities.is_headless else "[link=file://{}]View[/]".format(
+                    coverage_execute_result.coverage_data_filename if dm.capabilities.is_headless else "[link=file:///{}]View[/]".format(
                         coverage_execute_result.coverage_data_filename.as_posix(),
                     ),
                 )
@@ -451,7 +451,7 @@ def Display(
                     border_style=result_color,
                     expand=not len(results) == 1,
                     padding=(1, 2),
-                    title=str(result.test_item) if dm.capabilities.is_headless else "[link=file://{}]{}[/]".format(
+                    title=str(result.test_item) if dm.capabilities.is_headless else "[link=file:///{}]{}[/]".format(
                         result.test_item.as_posix(),
                         result.test_item,
                     ),
@@ -541,17 +541,17 @@ def DisplayQuiet(
 
         if not dm.capabilities.is_headless:
             values[0] = TextwrapEx.CreateAnsiHyperLinkEx(
-                "file://{}".format(test_item.as_posix()),
+                "file:///{}".format(test_item.as_posix()),
                 values[0],
             )
 
             values[4] = TextwrapEx.CreateAnsiHyperLinkEx(
-                "file://{}".format(result.output_dir.as_posix()),
+                "file:///{}".format(result.output_dir.as_posix()),
                 values[4],
             )
 
             values[5] = TextwrapEx.CreateAnsiHyperLinkEx(
-                "file://{}".format(result.log_filename.as_posix()),
+                "file:///{}".format(result.log_filename.as_posix()),
                 values[5],
             )
 
@@ -582,7 +582,7 @@ def DisplayQuiet(
                     """,
                 ).format(
                     common_path if dm.capabilities.is_headless else TextwrapEx.CreateAnsiHyperLink(
-                        "file://{}".format(common_path.as_posix()),
+                        "file:///{}".format(common_path.as_posix()),
                         str(common_path),
                     ),
                 ),
@@ -695,9 +695,9 @@ def DisplayListResults(
 
         if not dm.capabilities.is_headless:
             if list_result.compiler.name not in compiler_links:
-                compiler_links[list_result.compiler.name] = "link=file://{}".format(Path(inspect.getfile(type(list_result.compiler))).as_posix())
+                compiler_links[list_result.compiler.name] = "link=file:///{}".format(Path(inspect.getfile(type(list_result.compiler))).as_posix())
             if list_result.test_parser.name not in test_parser_links:
-                test_parser_links[list_result.test_parser.name] = "link=file://{}".format(Path(inspect.getfile(type(list_result.test_parser))).as_posix())
+                test_parser_links[list_result.test_parser.name] = "link=file:///{}".format(Path(inspect.getfile(type(list_result.test_parser))).as_posix())
 
         path_info.compilers.add(list_result.compiler.name)
         path_info.test_parsers.add(list_result.test_parser.name)
@@ -749,7 +749,7 @@ def DisplayListResults(
 
             filename = match.group("content")
 
-            return "{}[link=file://{}]{}[/]{}".format(
+            return "{}[link=file:///{}]{}[/]{}".format(
                 match.group("whitespace_prefix"),
                 Path(filename).as_posix(),
                 filename,

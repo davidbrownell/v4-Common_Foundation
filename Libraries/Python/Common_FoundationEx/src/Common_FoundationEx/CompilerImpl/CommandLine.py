@@ -545,18 +545,18 @@ def _InvokeImpl(
 
             if potential_file.is_file():
                 values[0] = TextwrapEx.CreateAnsiHyperLinkEx(
-                    "file://{}".format(potential_file.as_posix()),
+                    "file:///{}".format(potential_file.as_posix()),
                     values[0],
                 )
 
             values[3] = TextwrapEx.CreateAnsiHyperLinkEx(
-                "file://{}".format(task_data.log_filename.as_posix()),
+                "file:///{}".format(task_data.log_filename.as_posix()),
                 values[3],
             )
 
             if add_output_column:
                 values[4] = TextwrapEx.CreateAnsiHyperLinkEx(
-                    "file://{}".format(task_data.context.output_dir.as_posix()),
+                    "file:///{}".format(task_data.context.output_dir.as_posix()),
                     values[4],
                 )
 
@@ -579,7 +579,7 @@ def _InvokeImpl(
                     """,
                 ).format(
                     context_info.common_path if dm.capabilities.is_headless else TextwrapEx.CreateAnsiHyperLink(
-                        "file://{}".format(context_info.common_path.as_posix()),
+                        "file:///{}".format(context_info.common_path.as_posix()),
                         str(context_info.common_path),
                     ),
                 ),

@@ -1647,7 +1647,7 @@ def _MatchTestsImpl(
                 indented_stream.write(
                     "\n\nAll files are relative to '{}'.\n\n".format(
                         common_path if dm.capabilities.is_headless else TextwrapEx.CreateAnsiHyperLink(
-                            "file://{}".format(common_path.as_posix()),
+                            "file:///{}".format(common_path.as_posix()),
                             str(common_path),
                         ),
                     ),
@@ -1662,7 +1662,7 @@ def _MatchTestsImpl(
                         fullpath = display_info[values[0].strip()]
 
                         values[0] = TextwrapEx.CreateAnsiHyperLinkEx(
-                            "file://{}".format(fullpath.as_posix()),
+                            "file:///{}".format(fullpath.as_posix()),
                             values[0],
                         )
 

@@ -579,8 +579,11 @@ class DoneManager(object):
                 if context.stream is sys.stdout:
                     sys.stdout.write("\r")
 
-                    if context.persist_content and self._wrote_content:
-                        sys.stdout.write("\n")
+                    if context.persist_content:
+                        if self._wrote_content:
+                            sys.stdout.write("\n")
+
+                        sys.stdout.write(self._line_prefix)
 
                     elif (
                         not context.persist_content

@@ -29,6 +29,7 @@ from rich.align import Align
 from rich.console import Group
 from rich.panel import Panel
 
+from Common_Foundation.EnumSource import EnumSource
 from Common_Foundation import JsonEx
 from Common_Foundation.Shell import Commands                            # type: ignore
 from Common_Foundation.Shell.All import CurrentShell                    # type: ignore
@@ -272,7 +273,7 @@ class ScriptsActivateActivity(ActivateActivity):
                                 if result.should_recurse:
                                     # ----------------------------------------------------------------------
                                     def EnumFilenamesRecursive():
-                                        for root, _, filenames in os.walk(result.path):
+                                        for root, _, filenames in EnumSource(result.path):
                                             root = Path(root)
 
                                             for filename in filenames:

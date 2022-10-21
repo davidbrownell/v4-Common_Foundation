@@ -391,7 +391,7 @@ def Build(
                                                                         configuration=" ({})".format(configuration_info.configuration) if configuration_info.configuration else "",
                                                                         result=final_info.result,
                                                                         short_desc=" ({})".format(final_info.short_desc) if final_info.short_desc else "",
-                                                                        suffix=final_info.log_file if priority_group_dm.capabilities.is_headless else "[link=file://{}]View Log[/]".format(
+                                                                        suffix=final_info.log_file if priority_group_dm.capabilities.is_headless else "[link=file:///{}]View Log[/]".format(
                                                                             final_info.log_file.as_posix(),
                                                                         ),
                                                                     ),
@@ -412,7 +412,7 @@ def Build(
                                                                         configuration=" ({})".format(configuration_info.configuration) if configuration_info.configuration else "",
                                                                         result=final_info.result,
                                                                         short_desc=" ({})".format(final_info.short_desc) if final_info.short_desc else "",
-                                                                        suffix=final_info.log_file if priority_group_dm.capabilities.is_headless else "[link=file://{}]View Log[/]".format(
+                                                                        suffix=final_info.log_file if priority_group_dm.capabilities.is_headless else "[link=file:///{}]View Log[/]".format(
                                                                             final_info.log_file.as_posix(),
                                                                         ),
                                                                     ),
@@ -609,7 +609,7 @@ def Build(
 
             if not dm.capabilities.is_headless:
                 values[0] = TextwrapEx.CreateAnsiHyperLinkEx(
-                    "file://{}".format(final_info.build_file.as_posix()),
+                    "file:///{}".format(final_info.build_file.as_posix()),
                     values[0],
                 )
 
@@ -624,12 +624,12 @@ def Build(
 
             if not dm.capabilities.is_headless:
                 values[5] = TextwrapEx.CreateAnsiHyperLinkEx(
-                    "file://{}".format(final_info.log_file.as_posix()),
+                    "file:///{}".format(final_info.log_file.as_posix()),
                     values[5],
                 )
 
                 values[6] = TextwrapEx.CreateAnsiHyperLinkEx(
-                    "file://{}".format(final_info.output_dir.as_posix()),
+                    "file:///{}".format(final_info.output_dir.as_posix()),
                     values[6],
                 )
 
@@ -650,7 +650,7 @@ def Build(
                     """,
                 ).format(
                     common_path if dm.capabilities.is_headless else TextwrapEx.CreateAnsiHyperLink(
-                        "file://{}".format(common_path.as_posix()),
+                        "file:///{}".format(common_path.as_posix()),
                         str(common_path),
                     ),
                 )

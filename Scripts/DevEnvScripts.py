@@ -90,7 +90,7 @@ def EntryPoint():
                         (
                             script_info["name"]
                             if dm.capabilities.is_headless
-                            else "[link=file://{}]{}[/]".format(
+                            else "[link=file:///{}]{}[/]".format(
                                 Path(script_info["filename"]).as_posix(),
                                 script_info["name"],
                             )
@@ -113,7 +113,7 @@ def EntryPoint():
                 title=(
                     "{} ({})".format(repo_name, repo_root)
                     if load_dm.capabilities.is_headless
-                    else "[link=file://{}]{}[/]".format(
+                    else "[link=file:///{}]{}[/]".format(
                         Path(repo_root).as_posix(),
                         repo_name,
                     )
