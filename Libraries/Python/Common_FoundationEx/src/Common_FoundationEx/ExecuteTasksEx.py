@@ -15,8 +15,7 @@
 # ----------------------------------------------------------------------
 """Contains functionality to execute multiple tasks in parallel."""
 
-# Note that this file represents a refactor for `ExecuteTasks.py`. Eventually, that file will be
-# removed and this file will be renamed `ExecuteTasks.py`.
+# ************ DO NOT USE THIS FILE, IT WILL BE REMOVED *****************
 
 import datetime
 import multiprocessing
