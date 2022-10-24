@@ -51,7 +51,7 @@ CATASTROPHIC_TASK_FAILURE_RESULT            = -123
 # ----------------------------------------------------------------------
 class TransformException(Exception):
     """Exception raised when the Transform process has errors when processing a task."""
-    pass
+    pass  # pylint: disable=unnecessary-pass
 
 
 # ----------------------------------------------------------------------
