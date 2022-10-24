@@ -37,7 +37,7 @@ from Common_Foundation import TextwrapEx
 from Common_FoundationEx.CompilerImpl.Compiler import Compiler
 from Common_FoundationEx.CompilerImpl.CompilerImpl import CompilerImpl
 from Common_FoundationEx.CompilerImpl.Verifier import Verifier
-from Common_FoundationEx import ExecuteTasks
+from Common_FoundationEx import ExecuteTasksEx
 from Common_FoundationEx.InflectEx import inflect
 from Common_FoundationEx.TesterPlugins.CodeCoverageValidatorImpl import CodeCoverageValidatorImpl
 from Common_FoundationEx.TesterPlugins.TestExecutorImpl import TestExecutorImpl
@@ -433,9 +433,9 @@ class ExecuteTests(object):
     # |  Private Methods
     # |
     # ----------------------------------------------------------------------
-    def _CreateTasks(self) -> List[ExecuteTasks.TaskData]:
-        debug_tasks: List[ExecuteTasks.TaskData] = []
-        release_tasks: List[ExecuteTasks.TaskData] = []
+    def _CreateTasks(self) -> List[ExecuteTasksEx.TaskData]:
+        debug_tasks: List[ExecuteTasksEx.TaskData] = []
+        release_tasks: List[ExecuteTasksEx.TaskData] = []
 
         for test_item_data in self._test_item_data_items:
             if (
@@ -444,7 +444,7 @@ class ExecuteTests(object):
                 and not test_item_data.debug.was_skipped
             ):
                 debug_tasks.append(
-                    ExecuteTasks.TaskData(
+                    ExecuteTasksEx.TaskData(
                         test_item_data.debug.display_name,
                         test_item_data.debug,
                         test_item_data.execution_lock,
@@ -457,7 +457,7 @@ class ExecuteTests(object):
                 and not test_item_data.release.was_skipped
             ):
                 release_tasks.append(
-                    ExecuteTasks.TaskData(
+                    ExecuteTasksEx.TaskData(
                         test_item_data.release.display_name,
                         test_item_data.release,
                         test_item_data.execution_lock,
@@ -470,8 +470,10 @@ class ExecuteTests(object):
     def _Build(self) -> None:
         # ----------------------------------------------------------------------
         def Step1(
-            config_data: ExecuteTests._ConfigurationData,
-        ) -> Tuple[Path, ExecuteTasks.Step2Type]:
+            context: ExecuteTests._ConfigurationData,
+        ) -> Tuple[Path, ExecuteTasksEx.ExecuteTasksStep2FuncType]:
+            config_data = context
+
             total_start_time = time.perf_counter()
             log_filename = config_data.GetLogFilename()
 
@@ -520,9 +522,9 @@ class ExecuteTests(object):
 
             # ----------------------------------------------------------------------
             def Step2(
-                initial_progress_func: Callable[[str], None],
-            ) -> Tuple[int, ExecuteTasks.Step3Type]:
-                initial_progress_func("Configuring...")
+                on_simple_status_func: Callable[[str], None],
+            ) -> Tuple[Optional[int], ExecuteTasksEx.ExecuteTasksStep3FuncType]:
+                on_simple_status_func("Configuring...")
 
                 with YieldLogDM() as log_dm:
                     # Create the metadata used to create the compiler context
@@ -555,7 +557,7 @@ class ExecuteTests(object):
 
                 # ----------------------------------------------------------------------
                 def Step3(
-                    progress_func: Callable[[int, str], bool],
+                    status: ExecuteTasksEx.Status,
                 ) -> Tuple[int, Optional[str]]:
                     with YieldLogDM() as log_dm:
                         build_start_time = time.perf_counter()
@@ -574,7 +576,7 @@ class ExecuteTests(object):
                                     result = getattr(self._compiler, self._compiler.invocation_method_name)(
                                         compiler_context,
                                         stream,
-                                        lambda step, status: progress_func(step + 1, status),
+                                        lambda step, value: status.OnProgress(step + 1, value),
                                         verbose=True,
                                     )
 
@@ -614,7 +616,7 @@ class ExecuteTests(object):
         if not tasks:
             return
 
-        ExecuteTasks.ExecuteTasks(
+        ExecuteTasksEx.ExecuteTasks(
             self._dm,
             "Building",
             tasks,
@@ -637,8 +639,10 @@ class ExecuteTests(object):
 
         # ----------------------------------------------------------------------
         def Step1(
-            config_data: ExecuteTests._ConfigurationData,
-        ) -> Tuple[Path, ExecuteTasks.Step2Type]:
+            context: ExecuteTests._ConfigurationData,
+        ) -> Tuple[Path, ExecuteTasksEx.ExecuteTasksStep2FuncType]:
+            config_data = context
+
             log_filename = config_data.GetLogFilename()
 
             # ----------------------------------------------------------------------
@@ -679,12 +683,12 @@ class ExecuteTests(object):
 
             # ----------------------------------------------------------------------
             def Step2(
-                initial_progress_func: Callable[[str], None],
-            ) -> Tuple[int, ExecuteTasks.Step3Type]:
+                on_simple_status_func: Callable[[str], None],
+            ) -> Tuple[int, ExecuteTasksEx.ExecuteTasksStep3FuncType]:
                 assert config_data.compiler_context is not None
 
                 with YieldLogDM() as log_dm:
-                    initial_progress_func("Creating command line...")
+                    on_simple_status_func("Creating command line...")
 
                     command_line = self._test_parser.CreateInvokeCommandLine(
                         self._compiler,
@@ -706,7 +710,7 @@ class ExecuteTests(object):
 
                 # ----------------------------------------------------------------------
                 def Step3(
-                    progress_func: Callable[[int, str], bool],
+                    status: ExecuteTasksEx.Status,
                 ) -> Tuple[int, Optional[str]]:
                     assert config_data.compiler_context is not None
 
@@ -716,17 +720,17 @@ class ExecuteTests(object):
                             def SingleExecutorProgressAdapter(
                                 iteration: int,  # pylint: disable=unused-argument
                                 step: int,
-                                status: str,
+                                value: str,
                             ) -> bool:
-                                return progress_func(step + 1, status)
+                                return status.OnProgress(step + 1, value)
 
                             # ----------------------------------------------------------------------
                             def SingleParserProgressAdapter(
                                 iteration: int,  # pylint: disable=unused-argument
                                 step: int,
-                                status: str,
+                                value: str,
                             ) -> bool:
-                                return progress_func(len(IterationSteps) + num_executor_steps + step + 1, status)
+                                return status.OnProgress(len(IterationSteps) + num_executor_steps + step + 1, value)
 
                             # ----------------------------------------------------------------------
 
@@ -738,22 +742,22 @@ class ExecuteTests(object):
                             def MultipleExecutorProgressAdapter(
                                 iteration: int,
                                 step: int,
-                                status: str,
+                                value: str,
                             ) -> bool:
-                                return progress_func(
+                                return status.OnProgress(
                                     iteration * steps_per_iteration + step + 1,
-                                    "Iteration #{}: {}".format(iteration + 1, status),
+                                    "Iteration #{}: {}".format(iteration + 1, value),
                                 )
 
                             # ----------------------------------------------------------------------
                             def MultipleParserProgressAdapter(
                                 iteration: int,
                                 step: int,
-                                status: str,
+                                value: str,
                             ) -> bool:
-                                return progress_func(
+                                return status.OnProgress(
                                     iteration * steps_per_iteration + len(IterationSteps) + num_executor_steps + step + 1,
-                                    "Iteration #{}: {}".format(iteration + 1, status),
+                                    "Iteration #{}: {}".format(iteration + 1, value),
                                 )
 
                             # ----------------------------------------------------------------------
@@ -794,7 +798,7 @@ class ExecuteTests(object):
 
                                     except:  # pylint: disable=bare-except
                                         execute_result = ExecuteResult(
-                                            ExecuteTasks.CATASTROPHIC_TASK_FAILURE_RESULT,
+                                            ExecuteTasksEx.CATASTROPHIC_TASK_FAILURE_RESULT,
                                             datetime.timedelta(seconds=time.perf_counter() - execute_start_time),
                                             "The test executor failed spectacularly",
                                             None,
@@ -847,9 +851,9 @@ class ExecuteTests(object):
                                             lambda step, status: parser_progress_func(iteration, step, status),
                                         )
 
-                                    except Exception:  # pylint: diable=bare-except
+                                    except Exception:  # pylint: disable=bare-except
                                         parse_result = ParseResult(
-                                            ExecuteTasks.CATASTROPHIC_TASK_FAILURE_RESULT,
+                                            ExecuteTasksEx.CATASTROPHIC_TASK_FAILURE_RESULT,
                                             datetime.timedelta(seconds=time.perf_counter() - parse_start_time),
                                             "The test parser failed spectacularly",
                                             None,
@@ -916,7 +920,7 @@ class ExecuteTests(object):
                                     """,
                                 ).format(self._code_coverage_validator.name),
                             )
-                            progress_func(
+                            status.OnProgress(
                                 steps_per_iteration * self._iterations + CodeCoverageSteps.Validating.value + 1,
                                 "Validating Code Coverage...",
                             )
@@ -981,7 +985,7 @@ class ExecuteTests(object):
         if not tasks:
             return
 
-        ExecuteTasks.ExecuteTasks(
+        ExecuteTasksEx.ExecuteTasks(
             self._dm,
             "Testing",
             tasks,

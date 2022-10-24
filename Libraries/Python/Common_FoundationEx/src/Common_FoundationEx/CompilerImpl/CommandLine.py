@@ -30,12 +30,12 @@ from typer.models import OptionInfo
 
 from Common_Foundation.ContextlibEx import ExitStack
 from Common_Foundation import PathEx
-from Common_Foundation.Shell.All import CurrentShell                                # pylint: disable=unused-import
-from Common_Foundation.Streams.DoneManager import DoneManager, DoneManagerFlags     # pylint: disable=unused-import
+from Common_Foundation.Shell.All import CurrentShell
+from Common_Foundation.Streams.DoneManager import DoneManager
 from Common_Foundation.Streams.StreamDecorator import StreamDecorator
 from Common_Foundation import TextwrapEx
 
-from Common_FoundationEx import ExecuteTasks
+from Common_FoundationEx import ExecuteTasksEx
 from Common_FoundationEx.InflectEx import inflect
 
 from .CompilerImpl import CompilerImpl, InputType
@@ -430,18 +430,18 @@ def _InvokeImpl(
         context.output_dir.mkdir(parents=True, exist_ok=True)
 
         # ----------------------------------------------------------------------
-        def Step2(*args, **kwargs) -> Tuple[int, ExecuteTasks.Step3Type]:
+        def Step2(*args, **kwargs) -> Tuple[int, ExecuteTasksEx.ExecuteTasksStep3FuncType]:  # pylint: disable=unused-argument
             return compiler.GetNumSteps(context.compiler_context), Step3
 
         # ----------------------------------------------------------------------
         def Step3(
-            progress_func: Callable[[int, str], bool],
+            status: ExecuteTasksEx.Status,
         ) -> Tuple[int, Optional[str]]:
             with open(context.log_filename, "w") as f:
                 result = getattr(compiler, compiler.invocation_method_name)(
                     context.compiler_context,
                     f,
-                    progress_func,
+                    status.OnProgress,
                     verbose=dm.is_verbose,
                 )
 
@@ -459,19 +459,18 @@ def _InvokeImpl(
 
     # ----------------------------------------------------------------------
 
-    tasks: List[ExecuteTasks.TaskData] = [
-        ExecuteTasks.TaskData(
+    tasks: List[ExecuteTasksEx.TaskData] = [
+        ExecuteTasksEx.TaskData(
             context["display_name"],
             TaskDataContext(
                 output_dir / "{:06}".format(index),
                 context,
             ),
-            None,
         )
         for index, context in enumerate(context_info.contexts)
     ]
 
-    ExecuteTasks.ExecuteTasks(
+    ExecuteTasksEx.ExecuteTasks(
         dm,
         "Executing",
         tasks,
