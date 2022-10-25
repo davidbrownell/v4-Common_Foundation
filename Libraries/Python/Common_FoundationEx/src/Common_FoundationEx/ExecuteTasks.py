@@ -478,37 +478,45 @@ def _GenerateStatusInfo(
                 nonlocal warning_count
                 nonlocal success_count
 
-                if task_data.result < 0 and not quiet:
-                    progress_bar.print(
-                        r"{prefix}[bold red]ERROR:[/] {name}: {result}{short_desc} \[{suffix}]".format(
-                            prefix=stdout_context.line_prefix,
-                            name=task_data.display,
-                            result=task_data.result,
-                            short_desc=" ({})".format(task_data.short_desc) if task_data.short_desc else "",
-                            suffix=str(task_data.log_filename) if execute_dm.capabilities.is_headless else "[link=file:///{}]View Log[/]".format(
-                                task_data.log_filename.as_posix(),
+                if task_data.result < 0:
+                    if dm.result >= 0:
+                        dm.result = task_data.result
+
+                    if not quiet:
+                        progress_bar.print(
+                            r"{prefix}[bold red]ERROR:[/] {name}: {result}{short_desc} \[{suffix}]".format(
+                                prefix=stdout_context.line_prefix,
+                                name=task_data.display,
+                                result=task_data.result,
+                                short_desc=" ({})".format(task_data.short_desc) if task_data.short_desc else "",
+                                suffix=str(task_data.log_filename) if execute_dm.capabilities.is_headless else "[link=file:///{}]View Log[/]".format(
+                                    task_data.log_filename.as_posix(),
+                                ),
                             ),
-                        ),
-                        highlight=False,
-                    )
+                            highlight=False,
+                        )
 
-                    stdout_context.persist_content = True
+                        stdout_context.persist_content = True
 
-                if task_data.result > 0 and not quiet:
-                    progress_bar.print(
-                        r"{prefix}[bold yellow]WARNING:[/] {name}: {result}{short_desc} \[{suffix}]".format(
-                            prefix=stdout_context.line_prefix,
-                            name=task_data.display,
-                            result=task_data.result,
-                            short_desc=" ({})".format(task_data.short_desc) if task_data.short_desc else "",
-                            suffix=str(task_data.log_filename) if execute_dm.capabilities.is_headless else "[link=file:///{}]View Log[/]".format(
-                                task_data.log_filename.as_posix(),
+                if task_data.result > 0:
+                    if dm.result == 0:
+                        dm.result = task_data.result
+
+                    if not quiet:
+                        progress_bar.print(
+                            r"{prefix}[bold yellow]WARNING:[/] {name}: {result}{short_desc} \[{suffix}]".format(
+                                prefix=stdout_context.line_prefix,
+                                name=task_data.display,
+                                result=task_data.result,
+                                short_desc=" ({})".format(task_data.short_desc) if task_data.short_desc else "",
+                                suffix=str(task_data.log_filename) if execute_dm.capabilities.is_headless else "[link=file:///{}]View Log[/]".format(
+                                    task_data.log_filename.as_posix(),
+                                ),
                             ),
-                        ),
-                        highlight=False,
-                    )
+                            highlight=False,
+                        )
 
-                    stdout_context.persist_content = True
+                        stdout_context.persist_content = True
 
                 with count_lock:
                     if task_data.result < 0:
