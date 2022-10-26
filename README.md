@@ -35,9 +35,9 @@ Activation prepares an [environment](#environment) for development activities. O
 
 | Environment | Command                                         |
 |-------------|-------------------------------------------------|
-| Linux       | `. ./Activate.sh <python310|python310_nolibs>` |
-| MacOS       | `. ./Activate.sh <python310|python310_nolibs>` |
-| Windows     | `Activate.cmd <python310|python310_nolibs>`    |
+| Linux       | `. ./Activate.sh <python310\|python310_nolibs>` |
+| MacOS       | `. ./Activate.sh <python310\|python310_nolibs>` |
+| Windows     | `Activate.cmd <python310\|python310_nolibs>`    |
 
 #### Useful Tools Available within an Activated Environment
 
