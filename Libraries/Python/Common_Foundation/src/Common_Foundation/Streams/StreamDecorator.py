@@ -208,7 +208,7 @@ class StreamDecorator(TextWriter):
         if not self.isatty():
             try:
                 self.write("\n")
-                yield StreamDecorator.YieldStdoutContext(self, line_prefix, persist_content=True)
+                yield StreamDecorator.YieldStdoutContext(sys.stdout, line_prefix, persist_content=True)
 
             finally:
                 self.write("\n")

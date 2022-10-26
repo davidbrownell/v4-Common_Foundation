@@ -27,8 +27,18 @@ from . import Configuration as ConfigurationMod
 
 
 # ----------------------------------------------------------------------
+# ----------------------------------------------------------------------
+# ----------------------------------------------------------------------
 # |
 # |  Public Types
+# |
+# ----------------------------------------------------------------------
+# ----------------------------------------------------------------------
+# ----------------------------------------------------------------------
+
+# ----------------------------------------------------------------------
+# |
+# |  Setup and Activate Types
 # |
 # ----------------------------------------------------------------------
 @dataclass(frozen=True)
@@ -147,3 +157,55 @@ class EnhancedRepoData(RepoData):
 
     dependencies: Dict[Optional[str], List[ConfiguredRepoData]]
     dependents: Dict[Optional[str], List[ConfiguredRepoData]]
+
+
+# ----------------------------------------------------------------------
+# |
+# |  SCM Hook Types
+# |
+# ----------------------------------------------------------------------
+@dataclass(frozen=True)
+class CommitInfo(object):
+    """Information about a commit"""
+
+    # ----------------------------------------------------------------------
+    id: str
+    author: str
+    description: str
+    files_added: Optional[List[Path]]
+    files_modified: Optional[List[Path]]
+    files_removed: Optional[List[Path]]
+
+    # ----------------------------------------------------------------------
+    def __post_init__(self):
+        assert self.files_added is None or self.files_added
+        assert self.files_modified is None or self.files_modified
+        assert self.files_removed is None or self.files_removed
+
+
+# ----------------------------------------------------------------------
+@dataclass(frozen=True)
+class PrePushInfo(object):
+    """Information about changes to be pushed to a remote repository."""
+
+    # ----------------------------------------------------------------------
+    remote_name: str
+    changes: List[str]
+
+    # ----------------------------------------------------------------------
+    def __post_init__(self):
+        assert self.changes
+
+
+# ----------------------------------------------------------------------
+@dataclass(frozen=True)
+class PreIntegrateInfo(object):
+    """Information about changes to be integrated from a remote repository."""
+
+    # ----------------------------------------------------------------------
+    remote_name: str
+    changes: List[str]
+
+    # ----------------------------------------------------------------------
+    def __post_init__(self):
+        assert self.changes

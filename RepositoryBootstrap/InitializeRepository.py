@@ -232,9 +232,9 @@ def Execute(
                 """\
                 "{}"
 
-                Edit this file and add any custom Commit, Push, or Pull validations event. Repositories will
-                rarely need to modify this file; therefore, the template is not designed to raise exceptions
-                when invoked.
+                Edit this file and add any custom Commit, Push, or Pull validations event. The template copied is designed to
+                raise exceptions when these methods are first invoked to ensure that they are customized. Remove these
+                exceptions once you have implemented all the hooks.
                 """,
             ).format(
                 str(config.root / files_to_copy[-1]),

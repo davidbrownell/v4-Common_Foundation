@@ -16,6 +16,7 @@
 """One-time environment preparation for a repository."""
 
 import os
+import shutil
 import sys
 import textwrap
 import traceback
@@ -32,13 +33,15 @@ import typer
 
 from typer.core import TyperGroup
 
-from Common_Foundation.ContextlibEx import ExitStack  # type: ignore
+from Common_Foundation.ContextlibEx import ExitStack
 from Common_Foundation.DynamicFunctions import CreateInvocationWrapper
-from Common_Foundation.Shell.All import CurrentShell  # type: ignore
-from Common_Foundation.Shell import Commands  # type: ignore
-from Common_Foundation.Streams.DoneManager import DoneManager, DoneManagerFlags  # type: ignore
-from Common_Foundation.Streams.StreamDecorator import StreamDecorator  # type: ignore
-from Common_Foundation import TextwrapEx  # type: ignore
+from Common_Foundation.Shell.All import CurrentShell
+from Common_Foundation.Shell import Commands
+from Common_Foundation.SourceControlManagers.All import ALL_SCMS
+from Common_Foundation.SourceControlManagers.SourceControlManager import SourceControlManager
+from Common_Foundation.Streams.DoneManager import DoneManager, DoneManagerFlags
+from Common_Foundation.Streams.StreamDecorator import StreamDecorator
+from Common_Foundation import TextwrapEx
 from Common_Foundation import Types
 
 from .EnvironmentBootstrap import EnvironmentBootstrap
@@ -882,21 +885,127 @@ def _SetupScmHooks(
     force: bool,                            # pylint: disable=unused-argument
     interactive: Optional[bool],            # pylint: disable=unused-argument
 ) -> None:
+
+    if dm.is_verbose:
+        dm.WriteLine("")
+
+    scm: Optional[SourceControlManager] = None
+    working_directory: Optional[Path] = None
+
+    with dm.VerboseNested("Detecting SCM...") as detect_dm:
+        for potential_scm in ALL_SCMS:
+            for working_directory_name in (potential_scm.working_directories or []):
+                potential_working_directory = repository_root / working_directory_name
+
+                if potential_working_directory.is_dir():
+                    scm = potential_scm
+                    working_directory = potential_working_directory
+
+                    break
+
+            if scm is not None:
+                break
+
+        if scm is None:
+            return
+
+        detect_dm.WriteLine("SCM is '{}'.".format(scm.name))
+
+    assert scm is not None
+    assert working_directory is not None
+
     # ----------------------------------------------------------------------
     def Mercurial() -> None:
         pass # raise NotImplementedError("TODO: Mercurial hooks are not implemented yet")
 
     # ----------------------------------------------------------------------
     def Git() -> None:
-        pass # raise NotImplementedError("TODO: Git hooks are not implemented yet")
+        with dm.VerboseNested("Creating 'Git' hooks...") as verbose_dm:
+            foundation_root = os.getenv(Constants.DE_FOUNDATION_ROOT_NAME)
+            if foundation_root:
+                foundation_root = Path(foundation_root)
+            else:
+                foundation_root = repository_root
+
+            assert foundation_root.is_dir(), foundation_root
+
+            python_activate_name = (
+                foundation_root
+                / Constants.GENERATED_DIRECTORY_NAME
+                / CurrentShell.family_name
+                / Types.EnsureValid(os.getenv(Constants.DE_ENVIRONMENT_NAME))
+                / "python310"
+                / "Python"
+            )
+
+            if CurrentShell.family_name == "Windows":
+                python_activate_name /= "Scripts"
+            else:
+                python_activate_name /= "bin"
+
+            python_activate_name /= "activate"
+            assert python_activate_name.is_file() or foundation_root == repository_root, python_activate_name
+
+            # Note that git uses bash on Windows, so the generated scripts are the same on all operating systems
+            for script_name in [
+                "commit-msg",
+                # TODO (This functionality is not implemented yet; See ./Hooks/GitHooks.py): "pre-push",
+                # TODO (This functionality is not implemented yet; See ./Hooks/GitHooks.py): "pre-receive",
+            ]:
+                dest_filename = working_directory / "hooks" / script_name
+
+                # Create a backup
+                if dest_filename.is_file():
+                    backup_filename = dest_filename.parent / "{}.bak".format(dest_filename.name)
+
+                    if not backup_filename.is_file():
+                        with verbose_dm.Nested("Creating backup of '{}'...".format(dest_filename)):
+                            shutil.copyfile(dest_filename, backup_filename)
+
+                with verbose_dm.Nested("Writing '{}'...".format(script_name)):
+                    with dest_filename.open(
+                        "w",
+                        newline="\n",
+                    ) as f:
+                        f.write(
+                            textwrap.dedent(
+                                """\
+                                #!/bin/bash
+
+                                name=`git config --global --get user.name`
+                                email=`git config --global --get user.email`
+
+                                cwd=`pwd`
+
+                                . "{activate}"
+
+                                pushd "{foundation_root}" > /dev/null
+
+                                PYTHONIOENCODING=UTF-8 python -m RepositoryBootstrap.Impl.Hooks.GitHooks {function} "${{cwd}}" "${{name}}" "${{email}}" "$*"
+                                error=$?
+
+                                popd > /dev/null
+
+                                exit ${{error}}
+                                """,
+                            ).format(
+                                activate=python_activate_name.as_posix(),
+                                foundation_root=foundation_root.as_posix(),
+                                function=script_name.replace("-", "_"),
+
+                            ),
+                        )
+
+                CurrentShell.MakeFileExecutable(dest_filename)
 
     # ----------------------------------------------------------------------
 
-    if (repository_root / ".hg").exists():
-        return Mercurial()
-
-    if (repository_root / ".git").exists():
-        return Git()
+    if scm.name == "Git":
+        Git()
+    elif scm.name == "Mercurial":
+        Mercurial()
+    else:
+        assert False, scm.name  # pragma: no cover
 
 
 # ----------------------------------------------------------------------

@@ -15,6 +15,7 @@
 # ----------------------------------------------------------------------
 """Contains abstract objects used in the creation of Source Control Managers (SCMs)"""
 
+import itertools
 import sys
 import textwrap
 
@@ -105,6 +106,20 @@ class SourceControlManager(ABC):
             (directory / working_directory).is_dir()
             for working_directory in (self.working_directories or [])
         )
+
+    # ----------------------------------------------------------------------
+    def GetRoot(
+        self,
+        current_directory: Path,
+    ) -> Path:
+        assert current_directory.is_dir(), current_directory
+
+        for directory in itertools.chain([current_directory, ], current_directory.parents):
+            if self.IsRoot(directory):
+                return directory
+
+        # If here, we didn't find one
+        raise Exception("Could not find a repository root in '{}' or its ancestors.".format(current_directory))
 
     # ----------------------------------------------------------------------
     @abstractmethod
