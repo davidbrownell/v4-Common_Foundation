@@ -22,6 +22,7 @@ from typing import List, Optional
 from Common_Foundation.ContextlibEx import ExitStack
 from Common_Foundation.Shell import Commands  # type: ignore
 from Common_Foundation.Shell.All import CurrentShell  # type: ignore
+from Common_Foundation.SourceControlManagers.GitSourceControlManager import GitSourceControlManager
 from Common_Foundation.Streams.DoneManager import DoneManager  # type: ignore
 from Common_Foundation import SubprocessEx  # type: ignore
 from Common_Foundation import TextwrapEx  # type: ignore
@@ -213,9 +214,9 @@ def GetCustomActions(
             pass
 
     # Check to see if git is installed and if its settings are set to the best defaults
-    if SubprocessEx.Run("git rev-parse --show-toplevel").returncode == 0:
+    if GitSourceControlManager.Execute("git rev-parse --show-toplevel").returncode == 0:
         # core.autocrlf
-        git_output = SubprocessEx.Run("git config --get core.autocrlf").output.strip()
+        git_output = GitSourceControlManager.Execute("git config --get core.autocrlf").output.strip()
         if git_output != "false":
             commands.append(
                 Commands.Message(
@@ -239,7 +240,7 @@ def GetCustomActions(
             )
 
         # init.defaultBranch
-        git_output = SubprocessEx.Run("git config --get init.defaultBranch").output.strip()
+        git_output = GitSourceControlManager.Execute("git config --get init.defaultBranch").output.strip()
         if git_output != "main":
             commands.append(
                 Commands.Message(

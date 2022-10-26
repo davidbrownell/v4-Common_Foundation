@@ -22,11 +22,11 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Generator, Optional, Union
 
-from .SourceControlManager import DistributedRepository as DistributedRepositoryBase, SourceControlManager, UpdateMergeArgs
-
-from ..ContextlibEx import ExitStack
-from .. import RegularExpression
-from ..Shell.All import CurrentShell
+from Common_Foundation.ContextlibEx import ExitStack
+from Common_Foundation import RegularExpression
+from Common_Foundation.Shell.All import CurrentShell
+from Common_Foundation.SourceControlManagers.SourceControlManager import DistributedRepository as DistributedRepositoryBase, SourceControlManager, UpdateMergeArgs
+from Common_Foundation import SubprocessEx
 
 
 # ----------------------------------------------------------------------
@@ -67,9 +67,47 @@ class GitSourceControlManager(SourceControlManager):
     # |  Public Methods
     # |
     # ----------------------------------------------------------------------
+    @staticmethod
+    def Execute(
+        command_line: str,
+        *,
+        strip: bool=False,
+        add_newline: bool=False,
+    ) -> SubprocessEx.RunResult:
+        result = SubprocessEx.Run(command_line)
+
+        # Sanitize the output
+        output: List[str] = []
+
+        for line in result.output.split("\n"):
+            stripped_line = line.strip()
+
+            if (
+                not stripped_line
+                or "trace: " in stripped_line
+                or stripped_line.startswith("Auto packing the repository")
+                or stripped_line.startswith("Fetching")
+                or stripped_line.startswith("Nothing new to pack")
+                or stripped_line.startswith("warning: ")
+                or stripped_line == 'See "git help gc" for manual housekeeping.'
+            ):
+                continue
+
+            output.append(line)
+
+        result.output = "\n".join(output)
+
+        if strip:
+            result.output = result.output.strip()
+        if add_newline:
+            result.output += "\n"
+
+        return result
+
+    # ----------------------------------------------------------------------
     def IsAvailable(self) -> bool:
         if self._is_available is None:
-            result = self._Execute("git")
+            result = self.__class__.Execute("git")
             self._is_available = "usage: git" in result.output
 
         assert self._is_available is not None
@@ -88,7 +126,7 @@ class GitSourceControlManager(SourceControlManager):
         # hg automatically traverses ancestors, so we don't need to do anything special to
         # implement that functionality.
 
-        result = self._Execute('git -C "{}" rev-parse --show-toplevel'.format(str(directory)), strip=True)
+        result = self.__class__.Execute('git -C "{}" rev-parse --show-toplevel'.format(str(directory)), strip=True)
 
         if result.returncode == 0:
             result = Path(result.output)
@@ -105,7 +143,7 @@ class GitSourceControlManager(SourceControlManager):
     ) -> "Repository":
         output_dir.mkdir(parents=True, exist_ok=True)
 
-        result = self._Execute('git init "{}"'.format(str(output_dir)))
+        result = self.__class__.Execute('git init "{}"'.format(str(output_dir)))
 
         if result.returncode != 0:
             raise Exception(result.output)
@@ -126,7 +164,7 @@ class GitSourceControlManager(SourceControlManager):
 
         temp_clone_dir = Path("{}.tmp".format(output_dir))
 
-        result = self._Execute(
+        result = self.__class__.Execute(
             'git -C "{dir}" clone{branch} "{uri}" "{name}"'.format(
                 dir=str(output_dir.parent),
                 branch= ' --branch "{}"'.format(branch) if branch is not None else "",
@@ -170,7 +208,7 @@ class Repository(DistributedRepositoryBase):
 
     # ----------------------------------------------------------------------
     def GetUniqueName(self) -> str:
-        result = self._Execute(self.GetGetUniqueNameCommandLine())
+        result = GitSourceControlManager.Execute(self.GetGetUniqueNameCommandLine())
         assert result.returncode == 0, result.output
 
         regex = re.compile(r"origin\s+(?P<url>.+?)\s+\(fetch\)")
@@ -190,7 +228,7 @@ class Repository(DistributedRepositoryBase):
 
     # ----------------------------------------------------------------------
     def Who(self) -> str:
-        result = self._Execute(self.GetWhoCommandLine(), strip=True)
+        result = GitSourceControlManager.Execute(self.GetWhoCommandLine(), strip=True)
         assert result.returncode == 0, result.output
 
         output = result.output.split("\n")
@@ -217,7 +255,7 @@ class Repository(DistributedRepositoryBase):
 
     # ----------------------------------------------------------------------
     def EnumBranches(self) -> Generator[str, None, None]:
-        result = self._Execute(self.GetEnumBranchesCommandLine())
+        result = GitSourceControlManager.Execute(self.GetEnumBranchesCommandLine())
         assert result.returncode == 0, result.output
 
         regex = re.compile(r"^\*?\s*\[(origin/)?(?P<name>\S+?)\]\s+.+?")
@@ -233,7 +271,7 @@ class Repository(DistributedRepositoryBase):
 
     # ----------------------------------------------------------------------
     def GetCurrentBranch(self) -> str:
-        result = self._Execute(self.GetGetCurrentBranchCommandLine())
+        result = GitSourceControlManager.Execute(self.GetGetCurrentBranchCommandLine())
         assert result.returncode == 0, result.output
 
         if result.output:
@@ -252,7 +290,7 @@ class Repository(DistributedRepositoryBase):
 
     # ----------------------------------------------------------------------
     def GetMostRecentBranch(self) -> str:
-        result = self._Execute(self.GetGetMostRecentBranchCommandLine())
+        result = GitSourceControlManager.Execute(self.GetGetMostRecentBranchCommandLine())
         assert result.returncode == 0, result.output
 
         for line in result.output.split("\n"):
@@ -289,7 +327,7 @@ class Repository(DistributedRepositoryBase):
         self,
         filename: Path,
     ) -> bool:
-        result = self._Execute(self.GetGetExecutePermissionCommandLine(filename))
+        result = GitSourceControlManager.Execute(self.GetGetExecutePermissionCommandLine(filename))
         assert result.returncode == 0, result.output
 
         # The first N chars are digits
@@ -347,7 +385,7 @@ class Repository(DistributedRepositoryBase):
 
     # ----------------------------------------------------------------------
     def EnumUntrackedWorkingChanges(self) -> Generator[Path, None, None]:
-        result = self._Execute(self.GetEnumUntrackedWorkingChangesCommandLine())
+        result = GitSourceControlManager.Execute(self.GetEnumUntrackedWorkingChangesCommandLine())
         assert result.returncode == 0, result.output
 
         for line in result.output.split("\n"):
@@ -374,7 +412,7 @@ class Repository(DistributedRepositoryBase):
 
     # ----------------------------------------------------------------------
     def EnumWorkingChanges(self) -> Generator[Path, None, None]:
-        result = self._Execute(self.GetEnumWorkingChangesCommandLine())
+        result = GitSourceControlManager.Execute(self.GetEnumWorkingChangesCommandLine())
         assert result.returncode == 0, result.output
 
         regex = re.compile(r"^(?P<type>..)\s+(?P<filename>.+)$")
@@ -401,7 +439,7 @@ class Repository(DistributedRepositoryBase):
         self,
         change: str,
     ) -> Dict[str, Any]:
-        result = self._Execute(self.GetGetChangeInfoCommandLine(change))
+        result = GitSourceControlManager.Execute(self.GetGetChangeInfoCommandLine(change))
         assert result.returncode == 0, result.output
 
         lines = result.output.split("\n")
@@ -599,7 +637,7 @@ class Repository(DistributedRepositoryBase):
             UpdateMergeArgs.BranchAndDate,
         ],
     ) -> Generator[str, None, None]:
-        result = self._Execute(self.GetEnumChangesSinceMergeCommandLine(dest_branch, source_merge_arg))
+        result = GitSourceControlManager.Execute(self.GetEnumChangesSinceMergeCommandLine(dest_branch, source_merge_arg))
         assert result.returncode == 0, result.output
 
         changes = [line.strip() for line in result.output.split("\n") if line.strip()]
@@ -635,7 +673,7 @@ class Repository(DistributedRepositoryBase):
         self,
         change: str,
     ) -> Generator[Path, None, None]:
-        result = self._Execute(self.GetEnumChangedFilesCommandLine(change))
+        result = GitSourceControlManager.Execute(self.GetEnumChangedFilesCommandLine(change))
         assert result.returncode == 0, result.output
 
         for line in result.output.split("\n"):
@@ -657,7 +695,7 @@ class Repository(DistributedRepositoryBase):
         self,
         filename: Path,
     ) -> Generator[DistributedRepositoryBase.EnumBlameInfoResult, None, None]:
-        result = self._Execute(self.GetEnumBlameInfoCommandLine(filename))
+        result = GitSourceControlManager.Execute(self.GetEnumBlameInfoCommandLine(filename))
 
         if result.returncode != 0:
             # Don't produce an error if we are looking at a file that has been removed/renamed.
@@ -693,7 +731,7 @@ class Repository(DistributedRepositoryBase):
     def EnumTrackedFiles(self) -> Generator[Path, None, None]:
         temp_filename = CurrentShell.CreateTempFilename()
 
-        result = self._Execute(
+        result = GitSourceControlManager.Execute(
             '{} > "{}"'.format(self.GetEnumTrackedFilesCommandLine(), str(temp_filename)),
         )
         assert result.returncode == 0, result.output
@@ -777,7 +815,7 @@ class Repository(DistributedRepositoryBase):
 
     # ----------------------------------------------------------------------
     def HasUpdateChanges(self) -> bool:
-        result = self._Execute(self.GetHasUpdateChangesCommandLine())
+        result = GitSourceControlManager.Execute(self.GetHasUpdateChangesCommandLine())
         assert result.returncode == 0, result.output
 
         return "->" not in result.output
@@ -798,7 +836,7 @@ class Repository(DistributedRepositoryBase):
 
     # ----------------------------------------------------------------------
     def EnumUpdateChanges(self) -> Generator[str, None, None]:
-        result = self._Execute(self.GetEnumUpdateChangesCommandLine())
+        result = GitSourceControlManager.Execute(self.GetEnumUpdateChangesCommandLine())
         assert result.returncode == 0, result.output
 
         for line in result.output.split("\n"):
@@ -836,7 +874,10 @@ class Repository(DistributedRepositoryBase):
 
     # ----------------------------------------------------------------------
     def EnumLocalChanges(self) -> Generator[str, None, None]:
-        result = self._Execute(self.GetEnumLocalChangesCommandLine())
+        result = GitSourceControlManager.Execute(
+            self.GetEnumLocalChangesCommandLine(),
+            strip=True,
+        )
         if result.returncode != 0 and "unknown revision" in result.output:
             raise NotImplementedError(
                 textwrap.dedent(
@@ -853,8 +894,8 @@ class Repository(DistributedRepositoryBase):
 
         assert result.returncode == 0, result.output
 
-        for line in result.output.split("\n"):
-            if not self.__class__._ShouldIgnoreOutputLine(line):  # pylint: disable=protected-access
+        if result.output:
+            for line in result.output.split("\n"):
                 yield line
 
     # ----------------------------------------------------------------------
@@ -881,7 +922,10 @@ class Repository(DistributedRepositoryBase):
 
     # ----------------------------------------------------------------------
     def EnumRemoteChanges(self) -> Generator[str, None, None]:
-        result = self._Execute(self.GetEnumRemoteChangesCommandLine())
+        result = GitSourceControlManager.Execute(
+            self.GetEnumRemoteChangesCommandLine(),
+            strip=True,
+        )
         if result.returncode != 0 and "unknown revision" in result.output:
             # There aren't going to be any remote changes on this branch if the remote doesn't
             # know about it.
@@ -890,8 +934,8 @@ class Repository(DistributedRepositoryBase):
 
         assert result.returncode == 0, result.output
 
-        for line in result.output.split("\n"):
-            if not self.__class__._ShouldIgnoreOutputLine(line):  # pylint: disable=protected-access
+        if result.output:
+            for line in result.output.split("\n"):
                 yield line
 
     # ----------------------------------------------------------------------
@@ -937,6 +981,10 @@ class Repository(DistributedRepositoryBase):
     # ----------------------------------------------------------------------
     # ----------------------------------------------------------------------
     # ----------------------------------------------------------------------
+    def _Execute(self, *args, **kwargs) -> SubprocessEx.RunResult:
+        return GitSourceControlManager.Execute(*args, **kwargs)
+
+    # ----------------------------------------------------------------------
     def _GetCommandLine(
         self,
         command_line: str,
@@ -979,7 +1027,7 @@ class Repository(DistributedRepositoryBase):
                     ),
                 )
 
-                result = self._Execute(command_line, strip=True)
+                result = GitSourceControlManager.Execute(command_line, strip=True)
                 if result.returncode == 0 and result.output:
                     return result.output
 
@@ -991,7 +1039,7 @@ class Repository(DistributedRepositoryBase):
             return ""
 
         if isinstance(update_arg, UpdateMergeArgs.Change):
-            result = self._Execute(
+            result = GitSourceControlManager.Execute(
                 self._GetCommandLine(
                     'git --no-pager log {} -n 1 --format="%H"'.format(update_arg.change),
                 ),
@@ -1020,7 +1068,7 @@ class Repository(DistributedRepositoryBase):
         self,
         change: str,
     ) -> str:
-        result = self._Execute(
+        result = GitSourceControlManager.Execute(
             self._GetCommandLine('git branch --contains "{}"'.format(change)),
             strip=True,
         )
@@ -1030,19 +1078,3 @@ class Repository(DistributedRepositoryBase):
             result.output = result.output[len("* "):]
 
         return result.output
-
-    # ----------------------------------------------------------------------
-    @staticmethod
-    def _ShouldIgnoreOutputLine(
-        line: str,
-    ) -> bool:
-        line = line.strip()
-
-        return (
-            not line
-            or line.startswith("Auto packing the repository")
-            or line.startswith("Fetching")
-            or line.startswith("Nothing new to pack")
-            or line.startswith("warning: ")
-            or line == 'See "git help gc" for manual housekeeping.'
-        )
