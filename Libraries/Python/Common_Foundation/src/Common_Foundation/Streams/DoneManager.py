@@ -54,7 +54,7 @@ try:
     # ----------------------------------------------------------------------
 
     OnExit                                  = OnExitWithTyper
-    ShouldRaiseException                     = ShouldRaiseExceptionWithTyper
+    ShouldRaiseException                    = ShouldRaiseExceptionWithTyper
 
 except ImportError:
     # ----------------------------------------------------------------------

@@ -33,12 +33,12 @@ from .Streams.Capabilities import Capabilities
 # ----------------------------------------------------------------------
 # Normally, I'd use colorama for these values, but this package cannot have any
 # external dependencies.
-BRIGHT_RED_COLOR_ON                         = "\033[31m\033[1m"  # Red / Bright
-BRIGHT_GREEN_COLOR_ON                       = "\033[32m\033[1m"  # Green / Bright
-BRIGHT_YELLOW_COLOR_ON                      = "\033[33m\033[1m"  # Yellow / Bright
+BRIGHT_RED_COLOR_ON                         = "\033[31;1m"  # Red / Bright
+BRIGHT_GREEN_COLOR_ON                       = "\033[32;1m"  # Green / Bright
+BRIGHT_YELLOW_COLOR_ON                      = "\033[33;1m"  # Yellow / Bright
 
-BRIGHT_WHITE_COLOR_ON                       = "\033[37m\033[1m"  # White / Bright
-DIM_WHITE_COLOR_ON                          = "\033[37m\033[2m"  # White / Dim
+BRIGHT_WHITE_COLOR_ON                       = "\033[37;1m"  # White / Bright
+DIM_WHITE_COLOR_ON                          = "\033[;7m"    # Inverse video
 
 # ----------------------------------------------------------------------
 ERROR_COLOR_ON                              = BRIGHT_RED_COLOR_ON

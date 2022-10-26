@@ -283,7 +283,7 @@ def ListConfigurations(
     for config_name, configuration in repo_info.configurations.items():
         content.append(
             "{0:<{1}}{2}".format(
-                config_name,
+                config_name or "",
                 max_config_name_length,
                 " : {}\n".format(configuration.description),
             ),

@@ -264,6 +264,8 @@ class ActivationData(object):
         # - the activation script invoking this functionality has been updated since the cached file was created (this can happen when Setup is run)
 
         environment_name = os.getenv(Constants.DE_ENVIRONMENT_NAME)
+        if environment_name is None:
+            environment_name = Constants.DEFAULT_ENVIRONMENT_NAME
 
         activation_script = repository_root / "{}{}{}".format(
             Constants.ACTIVATE_ENVIRONMENT_NAME,
