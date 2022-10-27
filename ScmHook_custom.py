@@ -317,7 +317,7 @@ def EnsureCommitMessage(
 
 
 # ----------------------------------------------------------------------
-def CreateEmojiTable() -> Table:
+def CreateEmojiTable() -> Group:
     """Creates a `rich` `Table` instance of all emojis suitable for display."""
 
     table = Table(
@@ -360,7 +360,11 @@ def CreateEmojiTable() -> Table:
             ", ".join(info.aliases),
         )
 
-    return table
+    return Group(
+        table,
+        "",
+        "This table is based on a more complete list available at https://gist.github.com/georgekrax/dfeb283f714c722ca28b4e98ada29d1c.",
+    )
 
 
 # ----------------------------------------------------------------------
@@ -405,8 +409,6 @@ def EnsureCommitEmoji(
                                 "If this change is a change within a working branch that will be squashed when merged into the mainline branch, consider using the 'construction' (:construction:) emoji value.",
                                 "",
                                 CreateEmojiTable(),
-                                "",
-                                "This table is based on a more complete list available at https://gist.github.com/georgekrax/dfeb283f714c722ca28b4e98ada29d1c.",
                             ),
                             padding=(1, 2),
                             title="[bold white]Consider[/]",
