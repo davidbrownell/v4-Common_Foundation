@@ -88,7 +88,7 @@ def _Impl(
     function_name: str,
 ) -> None:
     for customization in _EnumerateScmCustomizations(dm, repository.repo_root):
-        func = getattr(customization.mod, function_name)
+        func = getattr(customization.mod, function_name, None)
         if func is None:
             continue
 

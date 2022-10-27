@@ -21,13 +21,16 @@ import re
 import textwrap
 
 from contextlib import contextmanager
+from dataclasses import dataclass
+from enum import Enum
 from pathlib import Path
-from typing import Dict, Iterator, List, Optional
+from typing import Dict, Iterator, List, Match, Optional
 
 from rich import get_console
 from rich.console import Console, Group
 from rich.panel import Panel
 from rich.table import Table
+from rich.text import Text
 
 from Common_Foundation.SourceControlManagers.SourceControlManager import Repository
 from Common_Foundation.Streams.DoneManager import DoneManager
@@ -40,6 +43,9 @@ from RepositoryBootstrap.DataTypes import CommitInfo, PreIntegrateInfo, PrePushI
 
 
 # ----------------------------------------------------------------------
+DISABLE_DECORATE_COMMIT_MESSAGE_COMMIT_MESSAGE          = "Do not decorate commit message"
+DISABLE_DECORATE_COMMIT_MESSAGE_ENV_VAR                 = "DEVELOPMENT_ENVIRONMENT_NO_COMMIT_MESSAGE_DECORATION"
+
 DISABLE_EMPTY_MESSAGE_CHECK_COMMIT_MESSAGE  = "No empty message check"
 DISABLE_EMPTY_MESSAGE_CHECK_ENV_VAR         = "DEVELOPMENT_ENVIRONMENT_NO_EMPTY_MESSAGE_CHECK"
 
@@ -54,13 +60,249 @@ DISABLE_BANNED_TEXT_ENV_VAR                 = "DEVELOPMENT_ENVIRONMENT_NO_BANNED
 
 
 # ----------------------------------------------------------------------
+class EmojiCategory(Enum):
+    """Emoji classification"""
+
+    Functionality                           = "Functionality"
+    Design                                  = "Design"
+    Perf                                    = "Performance & Correctness"
+    Refactor                                = "Refactor"
+    Misc                                    = "Miscellaneous"
+
+@dataclass
+class EmojiInfo(object):
+    """Information about an emoji that can be embedded within a commit message"""
+
+    cat: EmojiCategory
+    desc: str
+    emoji: str
+    aliases: List[str]
+
+
+EMOJIS: List[EmojiInfo]                     = [
+    EmojiInfo(
+        EmojiCategory.Functionality,
+        "Added a feature or features",
+        "tada",
+        ["+feature", "+features", "added_feature", "added_features"],
+    ),
+    EmojiInfo(
+        EmojiCategory.Functionality,
+        "Removed a feature or features",
+        "heavy_minus_sign",
+        ["-feature", "-features", "removed_feature", "removed_features"],
+    ),
+    EmojiInfo(
+        EmojiCategory.Design,
+        "New idea or ideas",
+        "bulb",
+        ["idea", "ideas"],
+    ),
+    EmojiInfo(
+        EmojiCategory.Design,
+        "New storybook",
+        "book",
+        ["story", "stories", "book", "books"],
+    ),
+    EmojiInfo(
+        EmojiCategory.Perf,
+        "Improved performance",
+        "zap",
+        ["perf", "performance"],
+    ),
+    EmojiInfo(
+        EmojiCategory.Perf,
+        "Improved automation",
+        "robot",
+        ["auto", "automation", "CI"],
+    ),
+    EmojiInfo(
+        EmojiCategory.Perf,
+        "Added tests",
+        "white_check_mark",
+        ["test", "tests"],
+    ),
+    EmojiInfo(
+        EmojiCategory.Perf,
+        "Fixed bug",
+        "muscle",
+        ["bug", "bugs", "fix", "fixes"],
+    ),
+    EmojiInfo(
+        EmojiCategory.Perf,
+        "Addressed security concern",
+        "closed_lock_with_key",
+        ["security"],
+    ),
+    EmojiInfo(
+        EmojiCategory.Perf,
+        "Added logging",
+        "loudspeaker",
+        ["+log", "+logs", "+logging", "added_log", "added_logs", "added_logging"],
+    ),
+    EmojiInfo(
+        EmojiCategory.Perf,
+        "Removed logging",
+        "mute",
+        ["-log", "-logs", "-logging", "removed_log", "removed_logs", "removed_logging"],
+    ),
+    EmojiInfo(
+        EmojiCategory.Perf,
+        "Reverted change",
+        "skull",
+        ["revert", "-change", "rollback"],
+    ),
+    EmojiInfo(
+        EmojiCategory.Refactor,
+        "Refactored code",
+        "triangular_ruler",
+        ["refactor"],
+    ),
+    EmojiInfo(
+        EmojiCategory.Refactor,
+        "Added file(s)",
+        "bookmark",
+        ["+file", "+files", "added_file", "added_files"],
+    ),
+    EmojiInfo(
+        EmojiCategory.Refactor,
+        "Removed file(s)",
+        "fire",
+        ["-file", "-files", "removed_file", "removed_files"],
+    ),
+    EmojiInfo(
+        EmojiCategory.Refactor,
+        "Renamed file(s)/directory(s)",
+        "pencil2",
+        ["rename", "renames"],
+    ),
+    EmojiInfo(
+        EmojiCategory.Refactor,
+        "Upgraded dependency(s)",
+        "arrow_heading_up",
+        ["upgraded_dependency", "upgraded_dependencies"],
+    ),
+    EmojiInfo(
+        EmojiCategory.Refactor,
+        "Downgraded dependency(s)",
+        "arrow_heading_down",
+        ["downgraded_dependency", "downgraded_dependencies"],
+    ),
+    EmojiInfo(
+        EmojiCategory.Misc,
+        "Added documentation",
+        "memo",
+        ["+doc", "+docs", "+documentation", "added_doc", "added_docs", "added_documentation"]
+    ),
+    EmojiInfo(
+        EmojiCategory.Misc,
+        "Work in progress",
+        "construction",
+        ["wip", "work_in_progress"],
+    ),
+]
+
+
+# ----------------------------------------------------------------------
+def DecorateCommitMessage(
+    dm: DoneManager,
+    commit_message: str,
+) -> str:
+    env_disable_value = os.getenv(DISABLE_DECORATE_COMMIT_MESSAGE_ENV_VAR)
+    if env_disable_value is not None and env_disable_value != "0":
+        dm.WriteVerbose("Skipping commit message decoration due to the '{}' environment variable.\n".format(DISABLE_DECORATE_COMMIT_MESSAGE_ENV_VAR))
+        return commit_message
+
+    if DISABLE_DECORATE_COMMIT_MESSAGE_COMMIT_MESSAGE.lower() in commit_message.lower():
+        dm.WriteVerbose("Skipping commit message decoration due to '{}' in the commit message.\n".format(DISABLE_DECORATE_COMMIT_MESSAGE_COMMIT_MESSAGE))
+        return commit_message
+
+    replaced_content = False
+
+    with dm.Nested(
+        "Decorating the commit message...",
+        suffix=lambda: "\n" if replaced_content else "",
+    ) as this_dm:
+        # Create an alias map
+        aliases: Dict[str, str] = {}
+
+        for emoji_info in EMOJIS:
+            for alias in emoji_info.aliases:
+                assert alias not in aliases, alias
+                aliases[alias] = emoji_info.emoji
+
+        # Decorate the message
+        # ----------------------------------------------------------------------
+        def ReplaceAlias(
+            match: Match,
+        ) -> str:
+            alias = match.group("alias")
+
+            emoji = aliases.get(alias, None)
+            if emoji is None:
+                return match.group("whole_value")
+
+            return r":{}: [{}]".format(emoji, alias)
+
+        # ----------------------------------------------------------------------
+
+        new_commit_message = re.sub(
+            textwrap.dedent(
+                r"""(?#
+                Whole match [begin]             )(?P<whole_value>(?#
+                Prefix                          ):(?#
+                Alias                           )(?P<alias>[^:]+)(?#
+                Suffix                          ):(?#
+                Whole match [end]               ))(?#
+                )""",
+            ),
+            ReplaceAlias,
+            commit_message,
+        )
+
+        if new_commit_message != commit_message:
+            with _YieldRichConsole(this_dm) as console:
+                console.print(
+                    Group(
+                        Panel(
+                            Group(
+                                "The commit message has been changed from:",
+                                "",
+                                TextwrapEx.Indent(commit_message, 4).replace("[", "\\["),
+                                "\nto:\n",
+                                TextwrapEx.Indent(new_commit_message, 4).replace("[", "\\["),
+                            ),
+                            padding=(1, 2),
+                            title="[bold white]INFO[/]",
+                            title_align="left",
+                        ),
+                        Panel(
+                            Group(
+                                "To disable this decoration, include the text '{}' in the commit message.".format(DISABLE_DECORATE_COMMIT_MESSAGE_COMMIT_MESSAGE),
+                                "",
+                                "To permanently disable this decoration for your repository, set the environment value '{}' to a non-zero value during your repository's activation (this is not recommended).".format(DISABLE_DECORATE_COMMIT_MESSAGE_ENV_VAR),
+                            ),
+                            padding=(1, 2),
+                            title="[bold yellow]Disabling this Check[/]",
+                            title_align="left",
+                        ),
+                    ),
+                )
+
+            commit_message = new_commit_message
+            replaced_content = True
+
+        return commit_message
+
+
+# ----------------------------------------------------------------------
 def EnsureCommitMessage(
     dm: DoneManager,
     commit_message: str,
 ) -> None:
     env_disable_value = os.getenv(DISABLE_EMPTY_MESSAGE_CHECK_ENV_VAR)
     if env_disable_value is not None and env_disable_value != "0":
-        dm.WriteVerbose("Skipping empty message check to to the '{}' environment variable.\n".format(DISABLE_EMPTY_MESSAGE_CHECK_ENV_VAR))
+        dm.WriteVerbose("Skipping empty message check due to the '{}' environment variable.\n".format(DISABLE_EMPTY_MESSAGE_CHECK_ENV_VAR))
         return
 
     if DISABLE_EMPTY_MESSAGE_CHECK_COMMIT_MESSAGE.lower() in commit_message.lower():
@@ -72,6 +314,53 @@ def EnsureCommitMessage(
         suffix=lambda: "\n" if dm.result != 0 else "",
     ) as this_dm:
         _EnsureCommitMessageImpl(this_dm, commit_message)
+
+
+# ----------------------------------------------------------------------
+def CreateEmojiTable() -> Table:
+    """Creates a `rich` `Table` instance of all emojis suitable for display."""
+
+    table = Table(
+        show_footer=True,
+    )
+
+    for col_name, justify, footer in [
+        ("Emoji", "center", None),
+        (
+            "Emoji Name",
+            "center",
+            Text(
+                'add ":<name>:" to the commit message (e.g. ":tada:")',
+                style="italic",
+            ),
+        ),
+        ("Category", "left", None),
+        ("Description", "left", None),
+        (
+            "Aliases",
+            "left",
+            Text(
+                'add ":<name>:" to the commit message (e.g. ":+feature:")',
+                style="italic",
+            ),
+        ),
+    ]:
+        table.add_column(
+            col_name,
+            footer or "",
+            justify=justify,
+        )
+
+    for info in EMOJIS:
+        table.add_row(
+            ":{}:".format(info.emoji),
+            info.emoji,
+            info.cat.value,
+            info.desc,
+            ", ".join(info.aliases),
+        )
+
+    return table
 
 
 # ----------------------------------------------------------------------
@@ -92,50 +381,11 @@ def EnsureCommitEmoji(
         "Checking for a commit message that begins with an emoji...",
         suffix=lambda: "\n" if dm.result != 0 else "",
     ) as this_dm:
+        # Validate that the commit message starts with an emoji
         regex = re.compile(r"^(?P<emoji>:\S+:)(?P<message>.*)")
 
         match = regex.match(commit_message)
         if not match:
-            table = Table()
-
-            for col_name, justify in [
-                ("Emoji", "center"),
-                ("Emoji Name", "center"),
-                ("Category", "left"),
-                ("Description", "left"),
-            ]:
-                table.add_column(
-                    col_name,
-                    justify=justify,
-                )
-
-            for category, emoji, description in [
-                ("Functionality", "tada", "Added feature"),
-                ("Functionality", "heavy_minus_sign", "Removed a feature"),
-
-                ("Design", "bulb", "New idea"),
-                ("Design", "book", "New storybook"),
-
-                ("Performance & Correctness", "zap", "Improved performance"),
-                ("Performance & Correctness", "robot", "Improved automation"),
-                ("Performance & Correctness", "white_check_mark", "Added tests"),
-                ("Performance & Correctness", "muscle", "Fixed bug"),
-                ("Performance & Correctness", "closed_lock_with_key", "Addressed security concern"),
-                ("Performance & Correctness", "loudspeaker", "Added logging"),
-                ("Performance & Correctness", "mute", "Removed logging"),
-
-                ("Refactor", "triangular_ruler", "Refactored code"),
-                ("Refactor", "bookmark", "Added file(s)"),
-                ("Refactor", "fire", "Removed file(s)"),
-                ("Refactor", "pencil2", "Renamed file(s)/directory(s)"),
-                ("Refactor", "arrow_heading_up", "Upgraded dependency(s)"),
-                ("Refactor", "arrow_heading_down", "Downgraded dependency(s)"),
-
-                ("Miscellaneous", "memo", "Added documentation"),
-                ("Miscellaneous", "construction", "Work in progress"),
-            ]:
-                table.add_row(":{}:".format(emoji), emoji, category, description)
-
             # Write this error with rich so that we display inline emojis
             with _YieldRichConsole(this_dm) as console:
                 console.print(
@@ -154,7 +404,7 @@ def EnsureCommitEmoji(
                             Group(
                                 "If this change is a change within a working branch that will be squashed when merged into the mainline branch, consider using the 'construction' (:construction:) emoji value.",
                                 "",
-                                table,
+                                CreateEmojiTable(),
                                 "",
                                 "This table is based on a more complete list available at https://gist.github.com/georgekrax/dfeb283f714c722ca28b4e98ada29d1c.",
                             ),
@@ -192,7 +442,7 @@ def EnsureCommitTitleLength(
 ) -> None:
     env_disable_value = os.getenv(DISABLE_TITLE_LENGTH_CHECK_ENV_VAR)
     if env_disable_value is not None and env_disable_value != "0":
-        dm.WriteVerbose("Skipping empty message check to to the '{}' environment variable.\n".format(DISABLE_TITLE_LENGTH_CHECK_ENV_VAR))
+        dm.WriteVerbose("Skipping empty message check due to the '{}' environment variable.\n".format(DISABLE_TITLE_LENGTH_CHECK_ENV_VAR))
         return
 
     if DISABLE_TITLE_LENGTH_CHECK_COMMIT_MESSAGE.lower() in commit_message.lower():
@@ -259,7 +509,7 @@ def CheckBannedText(
 
     env_disable_value = os.getenv(DISABLE_BANNED_TEXT_ENV_VAR)
     if env_disable_value is not None and env_disable_value != "0":
-        dm.WriteVerbose("Skipping empty message check to to the '{}' environment variable.\n".format(DISABLE_EMPTY_MESSAGE_CHECK_ENV_VAR))
+        dm.WriteVerbose("Skipping empty message check due to the '{}' environment variable.\n".format(DISABLE_EMPTY_MESSAGE_CHECK_ENV_VAR))
         return
 
     if DISABLE_BANNED_TEXT_COMMIT_MESSAGE.lower() in commit_message.lower():
@@ -397,6 +647,8 @@ def OnCommit(
     # We don't care about configuration, so bail if we have already performed the validation
     if not first_configuration_in_repo:
         return
+
+    commit_info.description = DecorateCommitMessage(dm, commit_info.description)
 
     EnsureCommitMessage(dm, commit_info.description)
     EnsureCommitEmoji(dm, commit_info.description)

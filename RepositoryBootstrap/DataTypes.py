@@ -164,13 +164,13 @@ class EnhancedRepoData(RepoData):
 # |  SCM Hook Types
 # |
 # ----------------------------------------------------------------------
-@dataclass(frozen=True)
+@dataclass
 class CommitInfo(object):
     """Information about a commit"""
 
     # ----------------------------------------------------------------------
-    id: str
-    author: str
+    id: str                                 # immutable
+    author: str                             # immutable
     description: str
     files_added: Optional[List[Path]]
     files_modified: Optional[List[Path]]
