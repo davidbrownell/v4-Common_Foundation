@@ -2,6 +2,8 @@
 
 A framework to increase the ease and reliability of development across operating systems, programming languages, and systems.
 
+[![main](https://github.com/davidbrownell/v4-Common_Foundation/actions/workflows/main.yaml/badge.svg)](https://github.com/davidbrownell/v4-Common_Foundation/actions/workflows/main.yaml)
+
 ## Overview
 
 Cross-platform development requires customizations across operating systems. Cross-language development requires different tool sets. Different repositories require different versions of the same tools and libraries. Continuous Integration / Delivery / Deployment require slightly different tools that do the exact same thing.

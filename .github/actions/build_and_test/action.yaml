@@ -1,0 +1,83 @@
+# ----------------------------------------------------------------------
+# |
+# |  action.yaml
+# |
+# |  David Brownell <db@DavidBrownell.com>
+# |      2022-10-27 14:01:55
+# |
+# ----------------------------------------------------------------------
+# |
+# |  Copyright David Brownell 2022
+# |  Distributed under the Boost Software License, Version 1.0. See
+# |  accompanying file LICENSE_1_0.txt or copy at
+# |  http://www.boost.org/LICENSE_1_0.txt.
+# |
+# ----------------------------------------------------------------------
+name: "Build and Test"
+description: "Builds and Tests the repository."
+
+# Note that it is a bit wonky that this script requires all of these things as inputs, but
+# it is a way to workaround limitations in GitHub action conditions (conditionals don't seem
+# work) by using strategy.matrix.include.
+
+inputs:
+  configuration:      {description: "", required: true}
+  local_dir:          {description: "", required: true}
+  os:                 {description: "", required: true}
+  output_dir:         {description: "", required: true}
+  script_extension:   {description: "", required: true}
+  shell_name:         {description: "", required: true}
+  source_command:     {description: "", required: true}
+  sudo:               {description: "", required: true}
+
+runs:
+  using: composite
+  steps:
+    - name: Setup
+      run: ${{ inputs.sudo }}${{ inputs.local_dir }}Setup${{ inputs.script_extension }} --debug
+      shell: ${{ inputs.shell_name }}
+
+    - name: Activate
+      run: ${{ inputs.source_command }}${{ inputs.local_dir }}Activate${{ inputs.script_extension }} ${{ inputs.configuration }} --debug
+      shell: ${{ inputs.shell_name }}
+
+    - name: Builder
+      run: ${{ inputs.source_command }}${{ inputs.local_dir }}Activate${{ inputs.script_extension }} ${{ inputs.configuration }} && Builder${{ inputs.script_extension }} Build . ${{ inputs.output_dir }}/Builder --debug
+      shell: ${{ inputs.shell_name }}
+
+    - name: Builder [Upload]
+      uses: actions/upload-artifact@v3.1.1
+      with:
+        name: "Builder Artifacts [${{ inputs.os }}]"
+        path: ${{ inputs.output_dir }}/Builder
+
+    - name: "Tester (UnitTests)"
+      run: ${{ inputs.source_command }}${{ inputs.local_dir }}Activate${{ inputs.script_extension }} ${{ inputs.configuration }} && Tester${{ inputs.script_extension }} TestAll . "${{ inputs.output_dir }}/TesterUnitTests" UnitTests --debug
+      shell: ${{ inputs.shell_name }}
+
+    - name: "Tester (UnitTests) [Upload]"
+      uses: actions/upload-artifact@v3.1.1
+      with:
+        name: "Tester (UnitTests) [${{ inputs.os }}]"
+        path: "${{ inputs.output_dir }}/TesterUnitTests"
+
+    - name: "Tester (IntegrationTests)"
+      run: ${{ inputs.source_command }}${{ inputs.local_dir }}Activate${{ inputs.script_extension }} ${{ inputs.configuration }} && Tester${{ inputs.script_extension }} TestAll . "${{ inputs.output_dir }}/TesterIntegrationTests" IntegrationTests --debug
+      shell: ${{ inputs.shell_name }}
+
+    - name: "Tester (IntegrationTests) [Upload]"
+      uses: actions/upload-artifact@v3.1.1
+      with:
+        name: "Tester (IntegrationTests) [${{ inputs.os }}]"
+        path: "${{ inputs.output_dir }}/TesterIntegrationTests"
+
+    - name: "Tester (LocalEndToEndTests)"
+      run: ${{ inputs.source_command }}${{ inputs.local_dir }}Activate${{ inputs.script_extension }} ${{ inputs.configuration }} && Tester${{ inputs.script_extension }} TestAll . "${{ inputs.output_dir }}/TesterLocalEndToEndTests" LocalEndToEndTests --debug
+      shell: ${{ inputs.shell_name }}
+
+    - name: "Tester (LocalEndToEndTests) [Upload]"
+      uses: actions/upload-artifact@v3.1.1
+      with:
+        name: "Tester (LocalEndToEndTests) [${{ inputs.os }}]"
+        path: "${{ inputs.output_dir }}/TesterLocalEndToEndTests"
+        if-no-files-found: ignore
