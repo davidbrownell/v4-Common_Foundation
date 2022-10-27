@@ -17,6 +17,9 @@ name: main
 run-name: ${{ github.run_number }} [${{ github.actor }}] on ${{ github.ref_name }}
 
 on:
+  pull_request:
+    branches:
+      - main
   push:
     branches:
       - main
