@@ -113,7 +113,30 @@ def Stream(
         def NewlineOutput(
             content: str,
         ) -> None:
-            newline_original_output_func(content.replace("\r\n", "\n"))
+            try:
+                updated_content = content.replace("\r\n", "\n")
+            except UnicodeEncodeError as ex:
+                was_successful = False
+
+                for decode_error_method in [
+                    "surrogateescape",
+                    "replace",
+                    "backslashreplace",
+                    "ignore",
+                ]:
+                    try:
+                        updated_content = content.encode("utf-8").decode("ascii", decode_error_method)
+                        updated_content = updated_content.replace("\r\n", "\n")
+
+                        was_successful = True
+                        break
+                    except UnicodeEncodeError:
+                        pass
+
+                if not was_successful:
+                    raise ex
+
+            newline_original_output_func(updated_content)
 
         # ----------------------------------------------------------------------
 
