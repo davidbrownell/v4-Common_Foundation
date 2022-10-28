@@ -386,8 +386,11 @@ def Setup(
     search_depth: int=typer.Option(6, min=1, help="Limit searches to N path-levels deep."),
     max_num_searches: Optional[int]=typer.Option(None, min=1, help="Limit the number of directories searched when looking for dependencies; this value can be used to reduce the overall time it takes to search for dependencies that ultimately can't be found."),
     working_directory: Path=typer.Option(Path.cwd(), exists=True, file_okay=False, resolve_path=True, help="The working directory used to resolve path arguments."),
-    debug: bool=typer.Option(False, "--debug", help="Write additional debug information to the terminal."),
+    no_hooks: bool=typer.Option(False, "--no-hooks", help="Do not setup SCM hooks."),
+    force: bool=typer.Option(False, "--force", help="Force the setup of environment data; if not specified."),
+    interactive: Optional[bool]=typer.Option(None, help="Force/Prevent an interactive experience (if any)."),
     verbose: bool=typer.Option(False, "--verbose", help= "Write verbose information to the terminal."),
+    debug: bool=typer.Option(False, "--debug", help="Write additional debug information to the terminal."),
 ):
     """Invokes Setup for a repository and its dependencies."""
 
@@ -511,22 +514,35 @@ def Setup(
             )
 
             for setup_path, setup_configurations in setup_info.items():
-                if traverse_all or not setup_configurations:
-                    commands_suffix = ""
-                else:
-                    commands_suffix = " {}".format(
-                        " ".join(
-                            '--configuration "{}"'.format(configuration)
-                            for configuration in setup_configurations
-                        )
-                    )
+                command_suffixes: List[str] = []
+
+                if not traverse_all and setup_configurations:
+                    command_suffixes += [
+                        '--configuration "{}"'.format(configuration)
+                        for configuration in setup_configurations
+                    ]
+
+                if no_hooks:
+                    command_suffixes.append("--no-hooks")
+                if force:
+                    command_suffixes.append("--force")
+
+                if interactive is True:
+                    command_suffixes.append("--interactive")
+                elif interactive is False:
+                    command_suffixes.append("--no-interactive")
+
+                if verbose:
+                    command_suffixes.append("--verbose")
+                if debug:
+                    command_suffixes.append("--debug")
 
                 setup_commands[setup_path] = '"{}"{}'.format(
                     setup_path / "{}{}".format(
                         Constants.SETUP_ENVIRONMENT_NAME,
                         CurrentShell.script_extensions[0],
                     ),
-                    commands_suffix,
+                    " ".join(command_suffixes),
                 )
 
         # Setup the repositories
