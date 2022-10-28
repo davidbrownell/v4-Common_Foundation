@@ -967,7 +967,7 @@ class Repository(DistributedRepositoryBase):
                 branches = [branch_or_branches, ]
 
             commands += [
-                'git checkout -b "{name}" "origin/{name}"'.format(name=branch)
+                'git checkout -B "{name}" "origin/{name}"'.format(name=branch)
                 for branch in branches
             ]
 
