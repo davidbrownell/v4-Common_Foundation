@@ -90,6 +90,7 @@ def Stream(
     if env is None:
         env = copy.deepcopy(os.environ)     # type: ignore
         env["PYTHONUNBUFFERED"] = "1"       # type: ignore
+        env["PYTHONIOENCODING"] = "UTF-8"   # type: ignore
 
     if convert_newlines is None:
         try:
