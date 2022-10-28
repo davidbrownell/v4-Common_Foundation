@@ -62,7 +62,7 @@ def Run(
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         cwd=cwd,
-        env=env,
+        env=_SetEnvironment(env),
     )
 
     content = result.stdout.decode("utf-8")
@@ -87,11 +87,6 @@ def Stream(
     convert_newlines: Optional[bool]=None,              # Convert '\r\n' to '\n'
     line_delimited_output: bool=False,                  # Buffer lines
 ) -> int:
-    if env is None:
-        env = copy.deepcopy(os.environ)     # type: ignore
-        env["PYTHONUNBUFFERED"] = "1"       # type: ignore
-        env["PYTHONIOENCODING"] = "UTF-8"   # type: ignore
-
     if convert_newlines is None:
         try:
             # Importing here to avoid circular imports
@@ -113,30 +108,7 @@ def Stream(
         def NewlineOutput(
             content: str,
         ) -> None:
-            try:
-                updated_content = content.replace("\r\n", "\n")
-            except UnicodeEncodeError as ex:
-                was_successful = False
-
-                for decode_error_method in [
-                    "surrogateescape",
-                    "replace",
-                    "backslashreplace",
-                    "ignore",
-                ]:
-                    try:
-                        updated_content = content.encode("utf-8").decode("ascii", decode_error_method)
-                        updated_content = updated_content.replace("\r\n", "\n")
-
-                        was_successful = True
-                        break
-                    except UnicodeEncodeError:
-                        pass
-
-                if not was_successful:
-                    raise ex
-
-            newline_original_output_func(updated_content)
+            newline_original_output_func(content.replace("\r\n", "\n"))
 
         # ----------------------------------------------------------------------
 
@@ -186,7 +158,7 @@ def Stream(
         stderr=subprocess.STDOUT,
         stdin=subprocess.PIPE,
         cwd=cwd,
-        env=env,
+        env=_SetEnvironment(env),
     ) as result:
         try:
             with ExitStack(flush_func):
@@ -403,6 +375,25 @@ class _ReadStateMachine(object):
 # |
 # |  Private Functions
 # |
+# ----------------------------------------------------------------------
+def _SetEnvironment(
+    env: Optional[Dict[str, str]],
+) -> Dict[str, str]:
+    if env is None:
+        env = copy.deepcopy(os.environ)
+
+    for key, value in {
+        "PYTHONUNBUFFERED": "1",
+        "PYTHONIOENCODING": "UTF-8",
+        "FORCE_COLOR": "1",
+        "COLUMNS": "200",
+    }.items():
+        if key not in env:
+            env[key] = value
+
+    return env
+
+
 # ----------------------------------------------------------------------
 def _PostprocessReturnCode(
     value: int,

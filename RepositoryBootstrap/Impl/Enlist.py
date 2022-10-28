@@ -537,7 +537,7 @@ def Setup(
                 if debug:
                     command_suffixes.append("--debug")
 
-                setup_commands[setup_path] = '"{}"{}'.format(
+                setup_commands[setup_path] = '"{}" {}'.format(
                     setup_path / "{}{}".format(
                         Constants.SETUP_ENVIRONMENT_NAME,
                         CurrentShell.script_extensions[0],
