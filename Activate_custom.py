@@ -245,7 +245,7 @@ def GetCustomActions(
             commands.append(
                 Commands.Message(
                     TextwrapEx.Indent(
-                        TextwrapEx.CreateErrorText(
+                        TextwrapEx.CreateWarningText(
                             textwrap.dedent(
                                 """\
                                 The git default branch is {}, but needs to be set to 'main'.
