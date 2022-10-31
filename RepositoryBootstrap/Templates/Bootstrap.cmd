@@ -46,24 +46,13 @@ if "%DEVELOPMENT_ENVIRONMENT_REPOSITORY_ACTIVATED_KEY%" NEQ "" (
     goto Exit
 )
 
-REM Enlist and setup Common_Foundation
+@REM ----------------------------------------------------------------------
+@REM Parse the args
 
-if not exist "%_COMMON_CODE_DIR%\Common\Foundation" (
-    echo Enlisting in Common_Fundation...
-    echo.
-
-    git clone -b release https://github.com/davidbrownell/v4-Common_Foundation.git "%_COMMON_CODE_DIR%\Common\Foundation.tmp"
-    if %ERRORLEVEL% NEQ 0 (
-        set _ERRORLEVEL=%ERRORLEVEL%
-        goto Exit
-    )
-
-    move "%_COMMON_CODE_DIR%\Common\Foundation.tmp" "%_COMMON_CODE_DIR%\Common\Foundation"
-
-    echo.
-    echo DONE!
-    echo.
-)
+set _NO_HOOKS_ARG=
+set _FORCE_ARG=
+set _VERBOSE_ARG=
+set _DEBUG_ARG=
 
 @REM Note that the following loop has been crafted to work around batch's crazy
 @REM expansion rules. Modify at your own risk!
@@ -75,6 +64,19 @@ set _ARG=%~1
 
 if "%_ARG:~,6%"=="--name" goto GetRemainingArgs_Name
 
+if "%_ARG%"=="--no_hooks" (
+    set _NO_HOOKS_ARG=%_ARG%
+)
+if "%_ARG%"=="--force" (
+    set _FORCE_ARG=%_ARG%
+)
+if "%_ARG%"=="--verbose" (
+    set _VERBOSE_ARG=%_ARG%
+)
+if "%_ARG%"=="--debug" (
+    set _DEBUG_ARG=%_ARG%
+)
+
 @REM If here, we are looking at an arg that should be passed to the script
 set _BOOTSTRAP_CLA=%_BOOTSTRAP_CLA% "%_ARG%"
 goto GetRemainingArgs_Continue
@@ -83,7 +85,12 @@ goto GetRemainingArgs_Continue
 @REM If here, we are looking at a name argument
 shift /1
 set _BOOTSTRAP_NAME=%1
+goto GetRemainingArgs_Continue
+
+:GetRemainingArgs_Branch
+@REM If here, we are looking at a branch argument
 shift /1
+set _CUSTOM_BRANCH=%1
 goto GetRemainingArgs_Continue
 
 :GetRemainingArgs_Continue
@@ -92,19 +99,42 @@ goto GetRemainingArgs_Begin
 
 :GetRemainingArgs_End
 
-REM This works around a strange problem when attempting to invoke a command file using
-REM a relative path.
-pushd "%_COMMON_CODE_DIR%"
-set _COMMON_CODE_ABSOLUTE_DIR=%CD%
-popd
-
 set _BOOTSTRAP_NAME_ARG=
 if "%_BOOTSTRAP_NAME%" NEQ "" (
     set _BOOTSTRAP_NAME_ARG=--name "%_BOOTSTRAP_NAME%"
 )
 
+REM This works around a strange problem when attempting to invoke a command file using
+REM a relative path.
+if not exist "%_COMMON_CODE_DIR%" (
+    mkdir "%_COMMON_CODE_DIR%"
+)
+
+pushd "%_COMMON_CODE_DIR%"
+set _COMMON_CODE_ABSOLUTE_DIR=%CD%
+popd
+
 @REM ----------------------------------------------------------------------
-call "%_COMMON_CODE_ABSOLUTE_DIR%\Common\Foundation\Setup.cmd" %_BOOTSTRAP_NAME_ARG% %_BOOTSTRAP_CLA%
+REM Enlist and setup Common_Foundation
+if not exist "%_COMMON_CODE_ABSOLUTE_DIR%\Common\Foundation" (
+    echo Enlisting in Common_Fundation...
+    echo.
+
+    git clone -b release https://github.com/davidbrownell/v4-Common_Foundation.git "%_COMMON_CODE_ABSOLUTE_DIR%\Common\Foundation.tmp"
+    if %ERRORLEVEL% NEQ 0 (
+        set _ERRORLEVEL=%ERRORLEVEL%
+        goto Exit
+    )
+
+    move "%_COMMON_CODE_ABSOLUTE_DIR%\Common\Foundation.tmp" "%_COMMON_CODE_ABSOLUTE_DIR%\Common\Foundation"
+
+    echo.
+    echo DONE!
+    echo.
+)
+
+@REM ----------------------------------------------------------------------
+call "%_COMMON_CODE_ABSOLUTE_DIR%\Common\Foundation\Setup.cmd" %_BOOTSTRAP_NAME_ARG% %_NO_HOOKS_ARG% %_FORCE_ARG% %_VERBOSE_ARG% %_DEBUG_ARG%
 if %ERRORLEVEL% NEQ 0 (
     set _ERRORLEVEL=%ERRORLEVEL%
     goto Exit
@@ -126,13 +156,10 @@ set _BOOTSTRAP_THIS_DIR=%_BOOTSTRAP_THIS_DIR:~0,-1%
 (
     echo @echo off
     echo.
-    echo call "%_COMMON_CODE_DIR%\Common\Foundation\%_BOOTSTRAP_ACTIVATE_CMD%" python310
+    echo call "%_COMMON_CODE_ABSOLUTE_DIR%\Common\Foundation\%_BOOTSTRAP_ACTIVATE_CMD%" python310
     echo if %%ERRORLEVEL%% NEQ 0 exit /B %%ERRORLEVEL%%
     echo.
-    echo call Enlist.cmd Enlist "%_BOOTSTRAP_THIS_DIR%" "%_COMMON_CODE_ABSOLUTE_DIR%"
-    echo if %%ERRORLEVEL%% NEQ 0 exit /B %%ERRORLEVEL%%
-    echo.
-    echo call Enlist.cmd Setup "%_BOOTSTRAP_THIS_DIR%" "%_COMMON_CODE_ABSOLUTE_DIR%" %_BOOTSTRAP_CLA%
+    echo call Enlist.cmd EnlistAndSetup "%_BOOTSTRAP_THIS_DIR%" "%_COMMON_CODE_ABSOLUTE_DIR%" %_BOOTSTRAP_CLA%
     echo if %%ERRORLEVEL%% NEQ 0 exit /B %%ERRORLEVEL%%
     echo.
 ) >..\Bootstrap.tmp.cmd
@@ -143,13 +170,17 @@ del ..\Bootstrap.tmp.cmd
 
 @REM ----------------------------------------------------------------------
 :Exit
-set _COMMON_CODE_DIR=
 set _ARG=
+set _DEBUG_ARG=
+set _VERBOSE_ARG=
+set _FORCE_ARG=
+set _NO_HOOKS_ARG=
 set _BOOTSTRAP_CLA=
 set _BOOTSTRAP_NAME=
 set _BOOTSTRAP_NAME_ARG=
 set _BOOTSTRAP_THIS_DIR=
 set _BOOTSTRAP_ACTIVATE_CMD=
 set _COMMON_CODE_ABSOLUTE_DIR=
+set _COMMON_CODE_DIR=
 
 exit /B %_ERRORLEVEL%

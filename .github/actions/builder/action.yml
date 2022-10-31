@@ -1,0 +1,42 @@
+# ----------------------------------------------------------------------
+# |
+# |  action.yml
+# |
+# |  David Brownell <db@DavidBrownell.com>
+# |      2022-10-28 10:56:32
+# |
+# ----------------------------------------------------------------------
+# |
+# |  Copyright David Brownell 2022
+# |  Distributed under the Boost Software License, Version 1.0. See
+# |  accompanying file LICENSE_1_0.txt or copy at
+# |  http://www.boost.org/LICENSE_1_0.txt.
+# |
+# ----------------------------------------------------------------------
+name: Builder
+description: Runs `Builder` on the repository.
+
+inputs:
+  os:                                       {type: string, required: true}
+  configuration:                            {type: string, required: true}
+
+  script_extension:                         {type: string, required: true}
+  shell_name:                               {type: string, required: true}
+  working_dir:                              {type: string, required: true}
+
+  activate_statement:                       {type: string, required: true}
+
+runs:
+  using: composite
+  steps:
+    - name: Builder
+      run: ${{ inputs.activate_statement }} && Builder${{ inputs.script_extension }} Build . ${{ inputs.working_dir }}/Builder --debug
+      shell: ${{ inputs.shell_name }}
+
+    - name: Builder [Upload]
+      if: always()
+      uses: actions/upload-artifact@v3.1.1
+      with:
+        name: "Builder Artifacts [${{ inputs.os }}, ${{ inputs.configuration }}]"
+        path: ${{ inputs.working_dir }}/Builder
+        if-no-files-found: ignore

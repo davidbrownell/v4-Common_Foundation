@@ -15,6 +15,7 @@
 # ----------------------------------------------------------------------
 """Information about the capabilities of streams"""
 
+import os
 import sys
 import textwrap
 
@@ -49,6 +50,9 @@ class Capabilities(object):
     ) -> "Capabilities":
         is_interactive = stream.isatty()
         supports_colors = is_interactive
+
+        if os.getenv("FORCE_COLOR"):
+            supports_colors = True
 
         try:
             from ..Shell.All import CurrentShell

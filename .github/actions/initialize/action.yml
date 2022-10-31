@@ -1,0 +1,122 @@
+# ----------------------------------------------------------------------
+# |
+# |  action.yml
+# |
+# |  David Brownell <db@DavidBrownell.com>
+# |      2022-10-31 11:22:35
+# |
+# ----------------------------------------------------------------------
+# |
+# |  Copyright David Brownell 2022
+# |  Distributed under the Boost Software License, Version 1.0. See
+# |  accompanying file LICENSE_1_0.txt or copy at
+# |  http://www.boost.org/LICENSE_1_0.txt.
+# |
+# ----------------------------------------------------------------------
+name: Initialize
+description: Initializes OS-Specific Variables used by other composable actions.
+
+inputs:
+  os:                                       {type: string, required: true}
+
+outputs:
+  local_script_prefix:
+    description: "Prefix used when invoking a script in the current directory."
+    value: ${{ steps.set_statements.outputs.local_script_prefix }}
+
+  script_extension:
+    description: "File extension used for scripts."
+    value: ${{ steps.set_statements.outputs.script_extension }}
+
+  shell_name:
+    description: "Name of shell used to invoke GitHub actions."
+    value: ${{ steps.set_statements.outputs.shell_name }}
+
+  source_command:
+    description: "Command used when invoking a script that changes the state of the current environment."
+    value: ${{ steps.set_statements.outputs.source_command }}
+
+  sudo_command:
+    description: "Common used to invoke privileged operations."
+    value: ${{ steps.set_statements.outputs.sudo_command }}
+
+  working_dir:
+    description: "Working directory."
+    value: ${{ steps.set_statements.outputs.working_dir }}
+
+runs:
+  using: composite
+  steps:
+    # This code is attempting to create the activate command given the following constraints:
+    #   - These steps must work on both Windows and Linux
+    #   - GitHub actions don't support multiple steps with the same id (meaning we can't conditionally execute one technique or the other)
+
+    - name: "[Impl] Set Statement Variables (ubuntu)"
+      if: ${{ startsWith(inputs.os, 'ubuntu') }}
+      run: |
+        echo "_local_script_prefix=./" >> $GITHUB_ENV
+        echo "_script_extension=.sh" >> $GITHUB_ENV
+        echo "_shell_name=bash" >> $GITHUB_ENV
+        echo "_source_command=. " >> $GITHUB_ENV
+        echo "_sudo_command=sudo " >> $GITHUB_ENV
+        echo "_working_dir=/tmp/working_dir" >> $GITHUB_ENV
+
+      shell: bash
+
+    - name: "[Impl] Set Statement Variables (windows)"
+      if: ${{ startsWith(inputs.os, 'windows') }}
+      run: |
+        echo "_local_script_prefix=" >> $env:GITHUB_ENV
+        echo "_script_extension=.cmd" >> $env:GITHUB_ENV
+        echo "_shell_name=cmd" >> $env:GITHUB_ENV
+        echo "_source_command=" >> $env:GITHUB_ENV
+        echo "_sudo_command=" >> $env:GITHUB_ENV
+        echo "_working_dir=C:/Temp/tmp/working_dir" >> $env:GITHUB_ENV
+
+      shell: powershell
+
+    - name: Set Statements
+      id: set_statements
+      # [[[cog
+      # import textwrap
+      #
+      # statement_values = [
+      #     "local_script_prefix",
+      #     "script_extension",
+      #     "shell_name",
+      #     "source_command",
+      #     "sudo_command",
+      #     "working_dir",
+      # ]
+      #
+      # cog.outl(
+      #     textwrap.dedent(
+      #         '''\
+      #         run: |
+      #           python -c "import os; f = open(os.getenv('GITHUB_OUTPUT'), 'a+'); f.write('{output_template}'.format({output_format})); f.close();"
+      #           python -c "import os; f = open(os.getenv('GITHUB_ENV'), 'a+'); f.write('{env_template}'); f.close();"
+      #         ''',
+      #     ).format(
+      #         output_template="".join("{}={{}}\\n".format(statement_value) for statement_value in statement_values),
+      #         output_format=", ".join("os.getenv('_{}')".format(statement_value) for statement_value in statement_values),
+      #         env_template="".join("{}=\\n".format(statement_value) for statement_value in statement_values),
+      #     ),
+      # )
+      # ]]]
+      run: |
+        python -c "import os; f = open(os.getenv('GITHUB_OUTPUT'), 'a+'); f.write('local_script_prefix={}\nscript_extension={}\nshell_name={}\nsource_command={}\nsudo_command={}\nworking_dir={}\n'.format(os.getenv('_local_script_prefix'), os.getenv('_script_extension'), os.getenv('_shell_name'), os.getenv('_source_command'), os.getenv('_sudo_command'), os.getenv('_working_dir'))); f.close();"
+        python -c "import os; f = open(os.getenv('GITHUB_ENV'), 'a+'); f.write('local_script_prefix=\nscript_extension=\nshell_name=\nsource_command=\nsudo_command=\nworking_dir=\n'); f.close();"
+
+      # [[[end]]]
+
+      shell: ${{ env._shell_name }}
+
+    - name: Validate
+      run: |
+        echo "local_script_prefix=${{ steps.set_statements.outputs.local_script_prefix }}"
+        echo "script_extension=${{ steps.set_statements.outputs.script_extension }}"
+        echo "shell_name=${{ steps.set_statements.outputs.shell_name }}"
+        echo "source_command=${{ steps.set_statements.outputs.source_command }}"
+        echo "sudo_command=${{ steps.set_statements.outputs.sudo_command }}"
+        echo "working_dir=${{ steps.set_statements.outputs.working_dir }}"
+      shell: ${{ steps.set_statements.outputs.shell_name }}

@@ -3,7 +3,7 @@
 # |  main.yaml
 # |
 # |  David Brownell <db@DavidBrownell.com>
-# |      2022-10-27 13:55:11
+# |      2022-10-31 14:30:18
 # |
 # ----------------------------------------------------------------------
 # |
@@ -37,36 +37,27 @@ jobs:
           - python310
           # - python310_nolibs
 
-        include:
-          - local_dir:        ./
-            os:               ubuntu-latest
-            output_dir:       /tmp
-            script_extension: .sh
-            shell_name:       bash
-            source_command:   ". "
-            sudo:             "sudo "
+    uses: ./.github/workflows/callable_main.yaml
+    with:
+      os:                                   ${{ matrix.os }}
+      configuration:                        ${{ matrix.configuration }}
 
-          - local_dir:        ""
-            os:               windows-latest
-            output_dir:       "C:/Temp"
-            script_extension: .cmd
-            shell_name:       cmd
-            source_command:   ""
-            sudo:             ""
+      checkout_source:                      true
 
-    runs-on: ${{ matrix.os }}
+      run_Builder:                          true
 
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v3
+      # Use the following values to control how different test types are run:
+      #
+      #   0: Do not run these test types
+      #   1: Run these test types without code coverage
+      #   2: Run these test types with code coverage
+      #   3: Run these test types with and without code coverage
 
-      - uses: ./.github/actions/build_and_test
-        with:
-          configuration:    ${{ matrix.configuration }}
-          local_dir:        ${{ matrix.local_dir }}
-          os:               ${{ matrix.os }}
-          output_dir:       ${{ matrix.output_dir }}
-          script_extension: ${{ matrix.script_extension }}
-          shell_name:       ${{ matrix.shell_name }}
-          source_command:   ${{ matrix.source_command }}
-          sudo:             ${{ matrix.sudo }}
+      execute_UnitTests:                    1
+      execute_FunctionalTests:              1
+      execute_IntegrationTests:             1
+      execute_SystemTests:                  1
+      execute_LocalEndToEndTests:           1
+      execute_EndToEndTests:                0
+      execute_BuildVerificationTests:       0
+      execute_PerformanceTests:             0
