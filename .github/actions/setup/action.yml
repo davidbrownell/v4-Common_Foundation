@@ -1,0 +1,54 @@
+# ----------------------------------------------------------------------
+# |
+# |  action.yml
+# |
+# |  David Brownell <db@DavidBrownell.com>
+# |      2022-10-28 10:31:11
+# |
+# ----------------------------------------------------------------------
+# |
+# |  Copyright David Brownell 2022
+# |  Distributed under the Boost Software License, Version 1.0. See
+# |  accompanying file LICENSE_1_0.txt or copy at
+# |  http://www.boost.org/LICENSE_1_0.txt.
+# |
+# ----------------------------------------------------------------------
+name: Setup
+description: Runs `Setup` or `Bootstrap` on the repository.
+
+inputs:
+  os:                                       {type: string, required: true}
+  configuration:                            {type: string, required: true}
+
+  local_script_prefix:                      {type: string, required: true}
+  script_extension:                         {type: string, required: true}
+  shell_name:                               {type: string, required: true}
+  sudo_command:                             {type: string, required: true}
+  working_dir:                              {type: string, required: true}
+
+runs:
+  using: composite
+  steps:
+    - name: Setup (No Configuration)
+      if: ${{ github.event.repository.name == 'v4-Common_Foundation' && inputs.configuration == 'None' }}
+      run: |
+        ${{ inputs.sudo_command }}${{ inputs.local_script_prefix }}Setup${{ inputs.script_extension }} --no-interactive --debug
+      shell: ${{ inputs.shell_name }}
+
+    - name: Setup (with Configuration)
+      if: ${{ github.event.repository.name == 'v4-Common_Foundation' && inputs.configuration != 'None' }}
+      run: |
+        ${{ inputs.sudo_command }}${{ inputs.local_script_prefix }}Setup${{ inputs.script_extension }} --configuration ${{ inputs.configuration }} --no-interactive --debug
+      shell: ${{ inputs.shell_name }}
+
+    - name: Bootstrap (No Configuration)
+      if: ${{ github.event.repository.name != 'v4-Common_Foundation' && inputs.configuration == 'None' }}
+      run: |
+        ${{ inputs.sudo_command }}${{ inputs.local_script_prefix }}Bootstrap${{ inputs.script_extension }} ${{ inputs.working_dir }}/code --no-interactive --debug
+      shell: ${{ inputs.shell_name }}
+
+    - name: Bootstrap (with Configuration)
+      if: ${{ github.event.repository.name != 'v4-Common_Foundation' && inputs.configuration != 'None' }}
+      run: |
+        ${{ inputs.sudo_command }}${{ inputs.local_script_prefix }}Bootstrap${{ inputs.script_extension }} ${{ inputs.working_dir }}/code --configuration ${{ inputs.configuration }} --no-interactive --debug
+      shell: ${{ inputs.shell_name }}

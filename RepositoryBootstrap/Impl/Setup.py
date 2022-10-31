@@ -595,23 +595,24 @@ def _SetupBootstrap(
                 repositories_pending: int,
                 current_path: Optional[Path],
             ) -> None:
-                nested_dm.WriteStatus(
-                    textwrap.dedent(
-                        """\
-                        Directories searched:   {}
-                        Directories pending:    {}
-                        Repositories found:     {}
-                        Repositories pending:   {}
-                        Searching:              {}
-                        """,
-                    ).format(
-                        directories_searched,
-                        directories_pending,
-                        repositories_found,
-                        repositories_pending,
-                        current_path or "<None>",
-                    ).rstrip(),
-                )
+                if nested_dm.capabilities.is_interactive:
+                    nested_dm.WriteStatus(
+                        textwrap.dedent(
+                            """\
+                            Directories searched:   {}
+                            Directories pending:    {}
+                            Repositories found:     {}
+                            Repositories pending:   {}
+                            Searching:              {}
+                            """,
+                        ).format(
+                            directories_searched,
+                            directories_pending,
+                            repositories_found,
+                            repositories_pending,
+                            current_path or "<None>",
+                        ).rstrip(),
+                    )
 
         # ----------------------------------------------------------------------
 

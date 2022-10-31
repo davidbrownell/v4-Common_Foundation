@@ -380,13 +380,15 @@ def _SetEnvironment(
     env: Optional[Dict[str, str]],
 ) -> Dict[str, str]:
     if env is None:
-        env = copy.deepcopy(os.environ)
+        env = copy.deepcopy(os.environ)  # type: ignore
+
+    assert env is not None
 
     for key, value in {
         "PYTHONUNBUFFERED": "1",
         "PYTHONIOENCODING": "UTF-8",
-        "FORCE_COLOR": "1",
         "COLUMNS": "200",
+        "FORCE_COLOR": "1",
     }.items():
         if key not in env:
             env[key] = value

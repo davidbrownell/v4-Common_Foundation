@@ -1,0 +1,96 @@
+# ----------------------------------------------------------------------
+# |
+# |  action.yml
+# |
+# |  David Brownell <db@DavidBrownell.com>
+# |      2022-10-28 10:56:24
+# |
+# ----------------------------------------------------------------------
+# |
+# |  Copyright David Brownell 2022
+# |  Distributed under the Boost Software License, Version 1.0. See
+# |  accompanying file LICENSE_1_0.txt or copy at
+# |  http://www.boost.org/LICENSE_1_0.txt.
+# |
+# ----------------------------------------------------------------------
+name: Activate
+description: Runs `Activate` on the repository.
+
+inputs:
+  os:                                       {type: string, required: true}
+  configuration:                            {type: string, required: true}
+  shell_name:                               {type: string, required: true}
+
+outputs:
+  activate_statement:
+    description: The command to activate the environment that can be used by other composite actions.
+    value: ${{ steps.activate_statement.outputs.activate_statement }}
+
+runs:
+  using: composite
+  steps:
+    # This code is attempting to create the activate command given the following constraints:
+    #   - These steps must work on both Windows and Linux
+    #   - GitHub actions don't support multiple steps with the same id (meaning we can't conditionally execute one technique or the other)
+
+    - name: "[Impl] Set Activate Statement Variables (ubuntu)"
+      if: ${{ startsWith(inputs.os, 'ubuntu') }}
+      run: |
+        if [[ "${{ inputs.configuration }}" == "None" ]]; then
+          export _activate_statement=". ./Activate.sh --debug"
+        else
+          export _activate_statement=". ./Activate.sh ${{ inputs.configuration }} --debug"
+        fi
+
+        echo "_activate_statement=${_activate_statement}" >> $GITHUB_ENV
+
+      shell: ${{ inputs.shell_name }}
+
+    - name: "[Impl] Set Activate Statement Variables (windows)"
+      if: ${{ startsWith(inputs.os, 'windows') }}
+      run: |
+        if ( "${{ inputs.configuration }}" -eq "None" ) {
+          $env:_activate_statement="Activate.cmd --debug"
+        }
+        else {
+          $env:_activate_statement="Activate.cmd ${{ inputs.configuration }} --debug"
+        }
+
+        echo "_activate_statement=$env:_activate_statement" >> $env:GITHUB_ENV
+
+      shell: powershell
+
+    - name: Activate Statement
+      id: activate_statement
+      # [[[cog
+      # import textwrap
+      #
+      # statement_values = [
+      #     "activate_statement",
+      # ]
+      #
+      # cog.outl(
+      #     textwrap.dedent(
+      #         '''\
+      #         run: |
+      #           python -c "import os; f = open(os.getenv('GITHUB_OUTPUT'), 'a+'); f.write('{output_template}'.format({output_format})); f.close();"
+      #           python -c "import os; f = open(os.getenv('GITHUB_ENV'), 'a+'); f.write('{env_template}'); f.close();"
+      #         ''',
+      #     ).format(
+      #         output_template="".join("{}={{}}\\n".format(statement_value) for statement_value in statement_values),
+      #         output_format=", ".join("os.getenv('_{}')".format(statement_value) for statement_value in statement_values),
+      #         env_template="".join("{}=\\n".format(statement_value) for statement_value in statement_values),
+      #     ),
+      # )
+      # ]]]
+      run: |
+        python -c "import os; f = open(os.getenv('GITHUB_OUTPUT'), 'a+'); f.write('activate_statement={}\n'.format(os.getenv('_activate_statement'))); f.close();"
+        python -c "import os; f = open(os.getenv('GITHUB_ENV'), 'a+'); f.write('activate_statement=\n'); f.close();"
+
+      # [[[end]]]
+
+      shell: ${{ inputs.shell_name }}
+
+    - name: Activate
+      run: ${{ steps.activate_statement.outputs.activate_statement }}
+      shell: ${{ inputs.shell_name }}

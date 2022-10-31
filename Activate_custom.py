@@ -104,6 +104,7 @@ def GetCustomActions(
 
                                             1) Launch 'Developer settings'
                                             2) Select 'Developer mode'
+
                                         """,
                                     ),
                                 ),
@@ -142,6 +143,7 @@ def GetCustomActions(
                                             2) Navigate to 'HKEY_LOCAL_MACHINE\\SYSTEM\\ControlSet001\\Control\\FileSystem'
                                             3) Edit the value 'LongPathsEnabled'
                                             4) Set the value to 1
+
                                         """,
                                     ),
                                 ),
@@ -202,6 +204,7 @@ def GetCustomActions(
                                                 3) Create the DWORD value 'VirtualTerminalLevel'
                                                 4) Set the value to 1
                                                 5) Open a new terminal window.
+
                                             """,
                                         ),
                                     ),
@@ -231,6 +234,7 @@ def GetCustomActions(
                                 It is recommended that you change this setting to not modify line endings:
 
                                     1) `git config --global core.autocrlf false`
+
                                 """,
                             ),
                         ),
@@ -245,7 +249,7 @@ def GetCustomActions(
             commands.append(
                 Commands.Message(
                     TextwrapEx.Indent(
-                        TextwrapEx.CreateErrorText(
+                        TextwrapEx.CreateWarningText(
                             textwrap.dedent(
                                 """\
                                 The git default branch is {}, but needs to be set to 'main'.
@@ -253,6 +257,7 @@ def GetCustomActions(
                                 To change the default branch for this repository:
 
                                     1) `git config init.defaultBranch main`
+
                                 """,
                             ).format(
                                 "empty" if not git_output else "set to '{}'".format(git_output),

@@ -96,21 +96,8 @@ def Enlist(
     # changes the working directory to ensure that relative imports in the Python script work. This
     # is why Path-based arguments (other than working_directory) are provided as Paths without
     # validation.
-    source_repository = (working_directory / source_repository).resolve()
-    if not source_repository.is_dir():
-        raise typer.BadParameter("Directory '{}' does not exist.".format(source_repository))
-
-    all_repositories_root = (working_directory / all_repositories_root).resolve()
-    if all_repositories_root.is_file():
-        raise typer.BadParameter("'{}' is a file.".format(all_repositories_root))
-
-    all_repositories_root.mkdir(parents=True, exist_ok=True)
-
-    scm = next(scm for scm in ALL_SCMS if scm.name == scm_name.value)
-    configurations = Types.EnsurePopulatedList(configurations)
-
-    if PathEx.IsDescendant(all_repositories_root, source_repository):
-        raise typer.BadParameter("The path for all repositories cannot be a descendant of the path for the source repository.")
+    source_repository = _InitalizeSourceRepository(working_directory, source_repository)
+    all_repositories_root = _InitializeAllRepositoriesRoot(working_directory, all_repositories_root)
 
     # TODO: Save the value of all_repositories_root after successful enlistment.
     #       Generate a warning if someone runs enlistment again with a different value.
@@ -122,258 +109,17 @@ def Enlist(
             debug=debug,
         ),
     ) as dm:
-        for iteration in itertools.count(1):
-            with dm.Nested(
-                "\nIteration {}...".format(iteration),
-                display_exceptions=False,
-                suffix="\n",
-            ) as iteration_dm:
-                # Calculate the map
-                calculator = _CreateRepositoryMapCalculator(
-                    iteration_dm,
-                    source_repository,
-                    all_repositories_root,
-                    search_depth,
-                    max_num_searches,
-                    required_ancestor_dirs=[
-                        source_repository,
-                        all_repositories_root,
-                    ],
-                    explicit_configurations=configurations,
-                )
-
-                # Print the tree
-                root: Optional[Tree] = None
-                tree_stack: List[
-                    Tuple[
-                        Tree,
-                        Optional[RepositoryMapCalculator.EncounteredRepoData],
-                    ],
-                ] = []
-
-                # ----------------------------------------------------------------------
-                @contextmanager
-                def OnWalkItem(
-                    item: Union[
-                        RepositoryMapCalculator.EncounteredRepoData,
-                        RepositoryMapCalculator.PendingRepoData,
-                        Optional[str],
-                    ],
-                    is_being_used: bool,
-                ) -> Iterator[None]:
-                    if isinstance(item, RepositoryMapCalculator.EncounteredRepoData):
-                        nonlocal root
-                        item_text = r"{}{} <{}> \[{}]".format(
-                            "" if is_being_used else "Not Used: ",
-                            item.name,
-                            str(item.id),
-                            str(item.root),
-                        )
-
-                        if not tree_stack:
-                            assert root is None
-
-                            root = Tree(item_text)
-                            tree_item = root
-                        else:
-                            assert root is not None
-                            tree_item = tree_stack[-1][0].add(item_text)
-
-                        tree_stack.append((tree_item, item))
-                        with ExitStack(tree_stack.pop):
-                            yield
-
-                        return
-
-                    assert tree_stack
-
-                    if isinstance(item, RepositoryMapCalculator.PendingRepoData):
-                        tree_stack[-1][0].add(
-                            r"{}{} <{}> \[{}]".format(
-                                item.friendly_name,
-                                " {}".format(item.configuration) if item.configuration else "",
-                                str(item.repository_id),
-                                _GetCloneUri(item, scm),
-                            ),
-                        )
-
-                        yield
-
-                    elif isinstance(item, Optional[str]):
-                        parent_data = tree_stack[-1][1]
-                        assert isinstance(parent_data, RepositoryMapCalculator.EncounteredRepoData), parent_data
-
-                        stack_cleanup_func = lambda: None
-
-                        if parent_data.has_configurations:
-                            item = item or "<None>"
-
-                            if not is_being_used:
-                                tree_stack[-1][0].add("Not Used: {}".format(item))
-                            else:
-                                tree_stack.append(
-                                    (
-                                        tree_stack[-1][0].add(item),
-                                        None,
-                                    ),
-                                )
-
-                                stack_cleanup_func = tree_stack.pop
-
-                        with ExitStack(stack_cleanup_func):
-                            yield
-
-                    else:
-                        assert False, item  # pragma: no cover
-
-                # ----------------------------------------------------------------------
-
-                calculator.Walk(
-                    source_repository,
-                    OnWalkItem,
-                    traverse_all=traverse_all,
-                )
-
-                assert root is not None
-                assert not tree_stack, tree_stack
-
-                with iteration_dm.YieldStream() as stream:
-                    stream.write("\n")
-
-                    rich_print(
-                        root,
-                        file=stream,  # type: ignore
-                    )
-
-                    stream.write("\n")
-
-                # Update encountered repositories
-
-                # ----------------------------------------------------------------------
-                def GetUpdateName(
-                    item: Tuple[uuid.UUID, RepositoryMapCalculator.EncounteredRepoData],
-                ) -> str:
-                    return str(item[1].root)
-
-                # ----------------------------------------------------------------------
-                def OnUpdateItem(
-                    item: Tuple[uuid.UUID, RepositoryMapCalculator.EncounteredRepoData],
-                ) -> str:
-                    data = item[1]
-
-                    this_scm = next(
-                        (
-                            scm
-                            for scm in ALL_SCMS
-                            if scm.IsAvailable() and scm.IsActive(data.root)
-                        ),
-                        None,
-                    )
-
-                    if this_scm is None:
-                        raise Exception("No SCM was found for '{}'.".format(str(data.root)))
-
-                    repo = this_scm.Open(data.root)
-
-                    if repo.HasWorkingChanges() or repo.HasUntrackedWorkingChanges():
-                        raise Exception(
-                            "This repository has working changes and will not be processed by '{}'.".format(
-                                this_scm.name,
-                            ),
-                        )
-
-                    output: List[str] = []
-
-                    if isinstance(repo, DistributedRepository):
-                        result = repo.Pull(branch)
-                        result.RaiseOnError()
-
-                        output.append(result.output)
-
-                    update_arg = None
-
-                    if branch is not None:
-                        update_arg = UpdateMergeArgs.Branch(branch)
-
-                    result = repo.Update(update_arg)
-                    result.RaiseOnError()
-
-                    output.append(result.output)
-
-                    return "\n".join(output).rstrip()
-
-                # ----------------------------------------------------------------------
-
-                _ProcessItems(
-                    iteration_dm,
-                    "Updating {}...".format(inflect.no("repository", len(calculator.encountered_repos))),
-                    list(calculator.encountered_repos.items()),
-                    GetUpdateName,
-                    OnUpdateItem,
-                )
-
-                iteration_dm.ExitOnError()
-
-                if not calculator.pending_repos:
-                    break
-
-                # Enlist in pending repos
-
-                # ----------------------------------------------------------------------
-                def GetPendingName(
-                    item: Tuple[uuid.UUID, RepositoryMapCalculator.PendingRepoData],
-                ) -> str:
-                    return _GetCloneUri(item[1], scm)
-
-                # ----------------------------------------------------------------------
-                def OnPendingItem(
-                    item: Tuple[uuid.UUID, RepositoryMapCalculator.PendingRepoData],
-                ) -> None:
-                    data = item[1]
-
-                    if data.clone_uri is None:
-                        assert calculator is not None
-
-                        referencing_repo = calculator.encountered_repos[data.source_id]
-
-                        raise Exception(
-                            textwrap.dedent(
-                                """\
-                                The repo '{} <{}>' does not have a clone uri and cannot be processed.
-
-                                    Referenced by: {}{} <{}> [{}]
-                                """,
-                            ).format(
-                                str(data.repository_id),
-                                data.friendly_name,
-                                referencing_repo.name,
-                                " ({})".format(data.source_configuration) if data.source_configuration else "",
-                                str(referencing_repo.id),
-                                str(referencing_repo.root),
-                            ),
-                        )
-
-                    clone_uri = _GetCloneUri(data, scm)
-                    this_output_dir = all_repositories_root.joinpath(*data.friendly_name.split("_"))
-
-                    scm.Clone(
-                        clone_uri,
-                        this_output_dir,
-                        branch,
-                    )
-
-                # ----------------------------------------------------------------------
-
-                _ProcessItems(
-                    iteration_dm,
-                    "Cloning {}...".format(inflect.no("repository", len(calculator.pending_repos))),
-                    list(calculator.pending_repos.items()),
-                    GetPendingName,
-                    OnPendingItem,
-                )
-
-                if iteration_dm.result != 0:
-                    break
+        _EnlistImpl(
+            dm,
+            source_repository,
+            all_repositories_root,
+            scm_name.value,
+            branch,
+            configurations,
+            traverse_all=traverse_all,
+            search_depth=search_depth,
+            max_num_searches=max_num_searches,
+        )
 
 
 # ----------------------------------------------------------------------
@@ -396,13 +142,8 @@ def Setup(
 
     # See the notes in Enlist as to why the source_repository, all_repositories_root, and working_directory
     # parameters are unusual.
-    source_repository = (working_directory / source_repository).resolve()
-    if not source_repository.is_dir():
-        raise typer.BadParameter("Directory '{}' does not exist.".format(source_repository))
-
-    all_repositories_root = (working_directory / all_repositories_root).resolve()
-    if not all_repositories_root.is_dir():
-        raise typer.BadParameter("Directory '{}' does not exist.".format(all_repositories_root))
+    source_repository = _InitalizeSourceRepository(working_directory, source_repository)
+    all_repositories_root = _InitializeAllRepositoriesRoot(working_directory, all_repositories_root)
 
     configurations = Types.EnsurePopulatedList(configurations)
 
@@ -415,62 +156,169 @@ def Setup(
             debug=debug,
         ),
     ) as dm:
-        calculator = _CreateRepositoryMapCalculator(
+        _SetupImpl(
             dm,
             source_repository,
             all_repositories_root,
-            search_depth,
-            max_num_searches,
-            required_ancestor_dirs=[
-                source_repository,
-                all_repositories_root,
-            ],
-            explicit_configurations=configurations,
+            configurations,
+            traverse_all=traverse_all,
+            search_depth=search_depth,
+            max_num_searches=max_num_searches,
+            no_hooks=no_hooks,
+            force=force,
+            interactive=interactive,
         )
 
-        assert calculator is not None
 
-        if calculator.pending_repos:
-            errors: List[str] = []
+# ----------------------------------------------------------------------
+@app.command("EnlistAndSetup", no_args_is_help=True)
+def EnlistAndSetup(
+    source_repository: Path=typer.Argument(..., help="Path to a repository with dependencies that must be enlisted."),
+    all_repositories_root: Path=typer.Argument(..., help="Root path to a directory where all dependencies are enlisted; this path may be shared by multiple repositories, each with their own set of dependencies."),
+    scm_name: Scm=typer.Option(next(iter(Scm)).value, case_sensitive=False, help="Name of the SCM to use for enlistment."),  # type: ignore
+    branch: Optional[str]=typer.Option(None, help="Name of branch to enlist in; the default branch associated with the SCM will be used if a branch is not provided."),
+    configurations: Optional[List[str]]=typer.Option(None, "--configuration", help="Configurations to determine dependencies for enlistment; all configurations will be used if explicit values are not provided."),
+    traverse_all: bool=typer.Option(False, "--traverse-all", help="Traverse all dependencies, not just those that relate to the source repository; enable this flag if the all repositories root is shared by multiple repositories (not just this one)."),
+    search_depth: int=typer.Option(6, min=1, help="Limit searches to N path-levels deep."),
+    max_num_searches: Optional[int]=typer.Option(None, min=1, help="Limit the number of directories searched when looking for dependencies; this value can be used to reduce the overall time it takes to search for dependencies that ultimately can't be found."),
+    working_directory: Path=typer.Option(Path.cwd(), exists=True, file_okay=False, resolve_path=True, help="The working directory used to resolve path arguments."),
+    no_hooks: bool=typer.Option(False, "--no-hooks", help="Do not setup SCM hooks."),
+    force: bool=typer.Option(False, "--force", help="Force the setup of environment data; if not specified."),
+    interactive: Optional[bool]=typer.Option(None, help="Force/Prevent an interactive experience (if any)."),
+    verbose: bool=typer.Option(False, "--verbose", help= "Write verbose information to the terminal."),
+    debug: bool=typer.Option(False, "--debug", help="Write additional debug information to the terminal."),
+):
+    """Enlists in a repository and its dependencies and then invokes Setup on each of them."""
 
-            for pending_data in calculator.pending_repos.values():
-                referencing_repo = calculator.encountered_repos[pending_data.source_id]
+    # See the notes in Enlist as to why the source_repository, all_repositories_root, and working_directory
+    # parameters are unusual.
+    source_repository = _InitalizeSourceRepository(working_directory, source_repository)
+    all_repositories_root = _InitializeAllRepositoriesRoot(working_directory, all_repositories_root)
 
-                errors.append(
-                    "- {} <{}>, requested by {}{} <{}> [{}]".format(
-                        pending_data.friendly_name,
-                        str(pending_data.repository_id),
-                        referencing_repo.name,
-                        " ({})".format(pending_data.source_configuration),
-                        str(referencing_repo.id),
-                        str(referencing_repo.root),
-                    ),
-                )
+    configurations = Types.EnsurePopulatedList(configurations)
 
-            dm.WriteError(
-                textwrap.dedent(
-                    """\
-
-                    Setup cannot continue while required repositories are missing:
-
-                    {}
-
-                    """,
-                ).format("\n".join(errors)),
+    with DoneManager.CreateCommandLine(
+        output_flags=DoneManagerFlags.Create(verbose=verbose, debug=debug),
+    ) as dm:
+        with dm.Nested(
+            "Enlisting...",
+            suffix="\n",
+        ) as enlist_dm:
+            _EnlistImpl(
+                enlist_dm,
+                source_repository,
+                all_repositories_root,
+                scm_name.value,
+                branch,
+                configurations,
+                traverse_all=traverse_all,
+                search_depth=search_depth,
+                max_num_searches=max_num_searches,
             )
 
-            dm.ExitOnError()
-
-        # Get the setup commands
-        setup_commands: Dict[Path, str] = {}
+            if enlist_dm.result != 0:
+                return
 
         with dm.Nested(
-            "\nOrganizing repositories....",
-            lambda: "{} found".format(inflect.no("repository", len(calculator.encountered_repos))),
+            "Setting up...",
             suffix="\n",
-        ):
-            setup_info: Dict[Path, List[Optional[str]]] = {}
-            commands_stack: List[List[Optional[str]]] = []
+        ) as setup_dm:
+            _SetupImpl(
+                setup_dm,
+                source_repository,
+                all_repositories_root,
+                configurations,
+                traverse_all=traverse_all,
+                search_depth=search_depth,
+                max_num_searches=max_num_searches,
+                no_hooks=no_hooks,
+                force=force,
+                interactive=interactive,
+            )
+
+            if setup_dm.result != 0:
+                return
+
+
+# ----------------------------------------------------------------------
+# ----------------------------------------------------------------------
+# ----------------------------------------------------------------------
+def _InitalizeSourceRepository(
+    working_directory: Path,
+    source_repository: Path,
+) -> Path:
+    source_repository = (working_directory / source_repository).resolve()
+    if not source_repository.is_dir():
+        raise typer.BadParameter("Directory '{}' does not exist.".format(source_repository))
+
+    return source_repository
+
+
+# ----------------------------------------------------------------------
+def _InitializeAllRepositoriesRoot(
+    working_directory: Path,
+    all_repositories_root: Path,
+) -> Path:
+    all_repositories_root = (working_directory / all_repositories_root).resolve()
+
+    if all_repositories_root.is_file():
+        raise typer.BadParameter("'{}' is a file.".format(all_repositories_root))
+
+    if not all_repositories_root.is_dir():
+        raise typer.BadParameter("Directory '{}' does not exist.".format(all_repositories_root))
+
+    return all_repositories_root
+
+
+# ----------------------------------------------------------------------
+def _EnlistImpl(
+    dm: DoneManager,
+    source_repository: Path,
+    all_repositories_root: Path,
+    scm_name: str,
+    branch: Optional[str],
+    configurations: Optional[List[str]],
+    *,
+    traverse_all: bool,
+    search_depth: int,
+    max_num_searches: Optional[int],
+) -> None:
+    scm = next(scm for scm in ALL_SCMS if scm.name == scm_name)
+    configurations = Types.EnsurePopulatedList(configurations)
+
+    if PathEx.IsDescendant(all_repositories_root, source_repository):
+        raise typer.BadParameter("The path for all repositories cannot be a descendant of the path for the source repository.")
+
+    all_repositories_root.mkdir(parents=True, exist_ok=True)
+
+    for iteration in itertools.count(1):
+        with dm.Nested(
+            "\nIteration {}...".format(iteration),
+            display_exceptions=False,
+            suffix="\n",
+        ) as iteration_dm:
+            # Calculate the map
+            calculator = _CreateRepositoryMapCalculator(
+                iteration_dm,
+                source_repository,
+                all_repositories_root,
+                search_depth,
+                max_num_searches,
+                required_ancestor_dirs=[
+                    source_repository,
+                    all_repositories_root,
+                ],
+                explicit_configurations=configurations,
+            )
+
+            # Print the tree
+            root: Optional[Tree] = None
+            tree_stack: List[
+                Tuple[
+                    Tree,
+                    Optional[RepositoryMapCalculator.EncounteredRepoData],
+                ],
+            ] = []
 
             # ----------------------------------------------------------------------
             @contextmanager
@@ -483,101 +331,392 @@ def Setup(
                 is_being_used: bool,
             ) -> Iterator[None]:
                 if isinstance(item, RepositoryMapCalculator.EncounteredRepoData):
-                    setup_info[item.root] = []
+                    nonlocal root
+                    item_text = r"{}{} <{}> \[{}]".format(
+                        "" if is_being_used else "Not Used: ",
+                        item.name,
+                        str(item.id),
+                        str(item.root),
+                    )
 
-                    commands_stack.append(setup_info[item.root])
-                    with ExitStack(commands_stack.pop):
+                    if not tree_stack:
+                        assert root is None
+
+                        root = Tree(item_text)
+                        tree_item = root
+                    else:
+                        assert root is not None
+                        tree_item = tree_stack[-1][0].add(item_text)
+
+                    tree_stack.append((tree_item, item))
+                    with ExitStack(tree_stack.pop):
                         yield
 
                     return
 
-                elif isinstance(item, RepositoryMapCalculator.PendingRepoData):
-                    assert False, item  # pragma: no cover
+                assert tree_stack
+
+                if isinstance(item, RepositoryMapCalculator.PendingRepoData):
+                    tree_stack[-1][0].add(
+                        r"{}{} <{}> \[{}]".format(
+                            item.friendly_name,
+                            " {}".format(item.configuration) if item.configuration else "",
+                            str(item.repository_id),
+                            _GetCloneUri(item, scm),
+                        ),
+                    )
+
+                    yield
 
                 elif isinstance(item, Optional[str]):
-                    if is_being_used:
-                        assert commands_stack
-                        commands_stack[-1].append(item)
+                    parent_data = tree_stack[-1][1]
+                    assert isinstance(parent_data, RepositoryMapCalculator.EncounteredRepoData), parent_data
+
+                    stack_cleanup_func = lambda: None
+
+                    if parent_data.has_configurations:
+                        item = item or "<None>"
+
+                        if not is_being_used:
+                            tree_stack[-1][0].add("Not Used: {}".format(item))
+                        else:
+                            tree_stack.append(
+                                (
+                                    tree_stack[-1][0].add(item),
+                                    None,
+                                ),
+                            )
+
+                            stack_cleanup_func = tree_stack.pop
+
+                    with ExitStack(stack_cleanup_func):
+                        yield
 
                 else:
                     assert False, item  # pragma: no cover
-
-                yield
 
             # ----------------------------------------------------------------------
 
             calculator.Walk(
                 source_repository,
                 OnWalkItem,
-                configurations,  # type: ignore
                 traverse_all=traverse_all,
             )
 
-            for setup_path, setup_configurations in setup_info.items():
-                command_suffixes: List[str] = []
+            assert root is not None
+            assert not tree_stack, tree_stack
 
-                if not traverse_all and setup_configurations:
-                    command_suffixes += [
-                        '--configuration "{}"'.format(configuration)
-                        for configuration in setup_configurations
-                    ]
+            with iteration_dm.YieldStream() as stream:
+                stream.write("\n")
 
-                if no_hooks:
-                    command_suffixes.append("--no-hooks")
-                if force:
-                    command_suffixes.append("--force")
-
-                if interactive is True:
-                    command_suffixes.append("--interactive")
-                elif interactive is False:
-                    command_suffixes.append("--no-interactive")
-
-                if verbose:
-                    command_suffixes.append("--verbose")
-                if debug:
-                    command_suffixes.append("--debug")
-
-                setup_commands[setup_path] = '"{}" {}'.format(
-                    setup_path / "{}{}".format(
-                        Constants.SETUP_ENVIRONMENT_NAME,
-                        CurrentShell.script_extensions[0],
-                    ),
-                    " ".join(command_suffixes),
+                rich_print(
+                    root,
+                    file=stream,  # type: ignore
                 )
 
-        # Setup the repositories
+                stream.write("\n")
 
-        # ----------------------------------------------------------------------
-        def GetSetupName(
-            item: Tuple[Path, str],
-        ) -> str:
-            return str(item[0])
+            # Update encountered repositories
 
-        # ----------------------------------------------------------------------
-        def OnSetupItem(
-            item: Tuple[Path, str],
-        ) -> str:
-            result = SubprocessEx.Run(item[1])
-            result.RaiseOnError()
+            # ----------------------------------------------------------------------
+            def GetUpdateName(
+                item: Tuple[uuid.UUID, RepositoryMapCalculator.EncounteredRepoData],
+            ) -> str:
+                return str(item[1].root)
 
-            return result.output.rstrip()
+            # ----------------------------------------------------------------------
+            def OnUpdateItem(
+                item: Tuple[uuid.UUID, RepositoryMapCalculator.EncounteredRepoData],
+            ) -> str:
+                data = item[1]
 
-        # ----------------------------------------------------------------------
+                this_scm = next(
+                    (
+                        scm
+                        for scm in ALL_SCMS
+                        if scm.IsAvailable() and scm.IsActive(data.root)
+                    ),
+                    None,
+                )
 
-        _ProcessItems(
+                if this_scm is None:
+                    raise Exception("No SCM was found for '{}'.".format(str(data.root)))
+
+                repo = this_scm.Open(data.root)
+
+                if repo.HasWorkingChanges() or repo.HasUntrackedWorkingChanges():
+                    raise Exception(
+                        "This repository has working changes and will not be processed by '{}'.".format(
+                            this_scm.name,
+                        ),
+                    )
+
+                output: List[str] = []
+
+                if isinstance(repo, DistributedRepository):
+                    result = repo.Pull(branch)
+                    result.RaiseOnError()
+
+                    output.append(result.output)
+
+                update_arg = None
+
+                if branch is not None:
+                    update_arg = UpdateMergeArgs.Branch(branch)
+
+                result = repo.Update(update_arg)
+                result.RaiseOnError()
+
+                output.append(result.output)
+
+                return "\n".join(output).rstrip()
+
+            # ----------------------------------------------------------------------
+
+            _ProcessItems(
+                iteration_dm,
+                "Updating {}...".format(inflect.no("repository", len(calculator.encountered_repos))),
+                list(calculator.encountered_repos.items()),
+                GetUpdateName,
+                OnUpdateItem,
+            )
+
+            iteration_dm.ExitOnError()
+
+            if not calculator.pending_repos:
+                break
+
+            # Enlist in pending repos
+
+            # ----------------------------------------------------------------------
+            def GetPendingName(
+                item: Tuple[uuid.UUID, RepositoryMapCalculator.PendingRepoData],
+            ) -> str:
+                return _GetCloneUri(item[1], scm)
+
+            # ----------------------------------------------------------------------
+            def OnPendingItem(
+                item: Tuple[uuid.UUID, RepositoryMapCalculator.PendingRepoData],
+            ) -> None:
+                data = item[1]
+
+                if data.clone_uri is None:
+                    assert calculator is not None
+
+                    referencing_repo = calculator.encountered_repos[data.source_id]
+
+                    raise Exception(
+                        textwrap.dedent(
+                            """\
+                            The repo '{} <{}>' does not have a clone uri and cannot be processed.
+
+                                Referenced by: {}{} <{}> [{}]
+                            """,
+                        ).format(
+                            str(data.repository_id),
+                            data.friendly_name,
+                            referencing_repo.name,
+                            " ({})".format(data.source_configuration) if data.source_configuration else "",
+                            str(referencing_repo.id),
+                            str(referencing_repo.root),
+                        ),
+                    )
+
+                clone_uri = _GetCloneUri(data, scm)
+                this_output_dir = all_repositories_root.joinpath(*data.friendly_name.split("_"))
+
+                scm.Clone(
+                    clone_uri,
+                    this_output_dir,
+                    branch,
+                )
+
+            # ----------------------------------------------------------------------
+
+            _ProcessItems(
+                iteration_dm,
+                "Cloning {}...".format(inflect.no("repository", len(calculator.pending_repos))),
+                list(calculator.pending_repos.items()),
+                GetPendingName,
+                OnPendingItem,
+            )
+
+            if iteration_dm.result != 0:
+                break
+
+
+# ----------------------------------------------------------------------
+def _SetupImpl(
+    dm: DoneManager,
+    source_repository: Path,
+    all_repositories_root: Path,
+    configurations: Optional[List[str]],
+    *,
+    traverse_all: bool,
+    search_depth: int,
+    max_num_searches: Optional[int],
+    no_hooks: bool,
+    force: bool,
+    interactive: Optional[bool],
+) -> None:
+    calculator = _CreateRepositoryMapCalculator(
             dm,
-            "Setting up {}...".format(inflect.no("repository", len(setup_commands))),
-            list(setup_commands.items()),
-            GetSetupName,
-            OnSetupItem,
+            source_repository,
+            all_repositories_root,
+            search_depth,
+            max_num_searches,
+            required_ancestor_dirs=[
+                source_repository,
+                all_repositories_root,
+            ],
+            explicit_configurations=configurations,
         )
 
-        if dm.result != 0:
-            raise typer.Exit(dm.result)
+    assert calculator is not None
+
+    if calculator.pending_repos:
+        errors: List[str] = []
+
+        for pending_data in calculator.pending_repos.values():
+            referencing_repo = calculator.encountered_repos[pending_data.source_id]
+
+            errors.append(
+                "- {} <{}>, requested by {}{} <{}> [{}]".format(
+                    pending_data.friendly_name,
+                    str(pending_data.repository_id),
+                    referencing_repo.name,
+                    " ({})".format(pending_data.source_configuration),
+                    str(referencing_repo.id),
+                    str(referencing_repo.root),
+                ),
+            )
+
+        dm.WriteError(
+            textwrap.dedent(
+                """\
+
+                Setup cannot continue while required repositories are missing:
+
+                {}
+
+                """,
+            ).format("\n".join(errors)),
+        )
+
+        dm.ExitOnError()
+
+    # Get the setup commands
+    setup_commands: Dict[Path, str] = {}
+
+    with dm.Nested(
+        "\nOrganizing repositories....",
+        lambda: "{} found".format(inflect.no("repository", len(calculator.encountered_repos))),
+        suffix="\n",
+    ):
+        setup_info: Dict[Path, List[Optional[str]]] = {}
+        commands_stack: List[List[Optional[str]]] = []
+
+        # ----------------------------------------------------------------------
+        @contextmanager
+        def OnWalkItem(
+            item: Union[
+                RepositoryMapCalculator.EncounteredRepoData,
+                RepositoryMapCalculator.PendingRepoData,
+                Optional[str],
+            ],
+            is_being_used: bool,
+        ) -> Iterator[None]:
+            if isinstance(item, RepositoryMapCalculator.EncounteredRepoData):
+                setup_info[item.root] = []
+
+                commands_stack.append(setup_info[item.root])
+                with ExitStack(commands_stack.pop):
+                    yield
+
+                return
+
+            elif isinstance(item, RepositoryMapCalculator.PendingRepoData):
+                assert False, item  # pragma: no cover
+
+            elif isinstance(item, Optional[str]):
+                if is_being_used:
+                    assert commands_stack
+                    commands_stack[-1].append(item)
+
+            else:
+                assert False, item  # pragma: no cover
+
+            yield
+
+        # ----------------------------------------------------------------------
+
+        calculator.Walk(
+            source_repository,
+            OnWalkItem,
+            configurations,  # type: ignore
+            traverse_all=traverse_all,
+        )
+
+        for setup_path, setup_configurations in setup_info.items():
+            command_suffixes: List[str] = []
+
+            if not traverse_all and setup_configurations:
+                command_suffixes += [
+                    '--configuration "{}"'.format(configuration)
+                    for configuration in setup_configurations
+                ]
+
+            if no_hooks:
+                command_suffixes.append("--no-hooks")
+            if force:
+                command_suffixes.append("--force")
+
+            if interactive is True:
+                command_suffixes.append("--interactive")
+            elif interactive is False:
+                command_suffixes.append("--no-interactive")
+
+            if dm.is_verbose:
+                command_suffixes.append("--verbose")
+            if dm.is_debug:
+                command_suffixes.append("--debug")
+
+            setup_commands[setup_path] = '"{}" {}'.format(
+                setup_path / "{}{}".format(
+                    Constants.SETUP_ENVIRONMENT_NAME,
+                    CurrentShell.script_extensions[0],
+                ),
+                " ".join(command_suffixes),
+            )
+
+    # Setup the repositories
+
+    # ----------------------------------------------------------------------
+    def GetSetupName(
+        item: Tuple[Path, str],
+    ) -> str:
+        return str(item[0])
+
+    # ----------------------------------------------------------------------
+    def OnSetupItem(
+        item: Tuple[Path, str],
+    ) -> str:
+        result = SubprocessEx.Run(item[1])
+        result.RaiseOnError()
+
+        return result.output.rstrip()
+
+    # ----------------------------------------------------------------------
+
+    _ProcessItems(
+        dm,
+        "Setting up {}...".format(inflect.no("repository", len(setup_commands))),
+        list(setup_commands.items()),
+        GetSetupName,
+        OnSetupItem,
+    )
 
 
-# ----------------------------------------------------------------------
-# ----------------------------------------------------------------------
 # ----------------------------------------------------------------------
 def _CreateRepositoryMapCalculator(
     dm: DoneManager,
@@ -660,23 +799,24 @@ def _CreateRepositoryMapCalculator(
                 repositories_pending: int,
                 current_path: Optional[Path],
             ) -> None:
-                nested_dm.WriteStatus(
-                    textwrap.dedent(
-                        """\
-                        Directories searched:   {}
-                        Directories pending:    {}
-                        Repositories found:     {}
-                        Repositories pending:   {}
-                        Searching:              {}
-                        """,
-                    ).format(
-                        directories_searched,
-                        directories_pending,
-                        repositories_found,
-                        repositories_pending,
-                        current_path or "<None>",
-                    ),
-                )
+                if nested_dm.capabilities.is_interactive:
+                    nested_dm.WriteStatus(
+                        textwrap.dedent(
+                            """\
+                            Directories searched:   {}
+                            Directories pending:    {}
+                            Repositories found:     {}
+                            Repositories pending:   {}
+                            Searching:              {}
+                            """,
+                        ).format(
+                            directories_searched,
+                            directories_pending,
+                            repositories_found,
+                            repositories_pending,
+                            current_path or "<None>",
+                        ),
+                    )
 
         # ----------------------------------------------------------------------
 
