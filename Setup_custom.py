@@ -41,7 +41,7 @@ def GetConfigurations() -> Union[Configuration.Configuration, Dict[str, Configur
         Configuration.VersionInfo("colorama", SemVer("0.4.5")),
         Configuration.VersionInfo("inflect", SemVer("6.0.0")),
         Configuration.VersionInfo("requests", SemVer("2.28.1")),
-        Configuration.VersionInfo("rich", SemVer("12.5.1")),
+        Configuration.VersionInfo("rich", SemVer("12.6.0")),
         Configuration.VersionInfo("semantic_version", SemVer("2.10.0")),
         Configuration.VersionInfo("typer", SemVer("0.6.1")),
         Configuration.VersionInfo("wrapt", SemVer("1.14.1")),
