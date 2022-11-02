@@ -20,6 +20,7 @@ import itertools
 import json
 import os
 import sys
+import textwrap
 import traceback
 
 from collections import namedtuple
@@ -33,6 +34,7 @@ from Common_Foundation.Shell.All import CurrentShell
 from Common_Foundation.SourceControlManagers.SourceControlManager import Repository
 from Common_Foundation.Streams.DoneManager import DoneManager
 from Common_Foundation import SubprocessEx
+from Common_Foundation import TextwrapEx
 
 from RepositoryBootstrap import Constants
 from RepositoryBootstrap.DataTypes import CommitInfo, PreIntegrateInfo, PrePushInfo
@@ -55,9 +57,29 @@ reconfigure(
 def Commit(
     dm: DoneManager,
     repository: Repository,
-    commit_info: CommitInfo,
+    commits: List[CommitInfo],
 ) -> None:
-    _Impl(dm, repository, commit_info, "OnCommit")
+    with dm.YieldVerboseStream() as stream:
+        stream.write("HookImpl.py - Commit\n\n")
+
+        for commit_index, commit in enumerate(commits):
+            stream.write(
+                textwrap.dedent(
+                    """\
+                    {} ) {}
+
+                    """,
+                ).format(
+                    commit_index + 1,
+                    TextwrapEx.Indent(
+                        str(commit),
+                        len(str(commit_index + 1)) + 3,
+                        skip_first_line=True,
+                    ),
+                ),
+            )
+
+    _Impl(dm, repository, commits, "OnCommit")
 
 
 # ----------------------------------------------------------------------
@@ -66,6 +88,9 @@ def PrePush(
     repository: Repository,
     pre_push_info: PrePushInfo,
 ) -> None:
+    with dm.YieldVerboseStream() as stream:
+        stream.write("HookImpl.py - PrePush\n\n{}\n\n".format(pre_push_info))
+
     _Impl(dm, repository, pre_push_info, "OnPrePush")
 
 
@@ -75,6 +100,9 @@ def PreIntegrate(
     repository: Repository,
     pre_integrate_info: PreIntegrateInfo,
 ) -> None:
+    with dm.YieldVerboseStream() as stream:
+        stream.write("HookImpl.py - PreIntegrate\n\n{}\n\n".format(pre_integrate_info))
+
     _Impl(dm, repository, pre_integrate_info, "OnPreIntegrate")
 
 
@@ -84,7 +112,7 @@ def PreIntegrate(
 def _Impl(
     dm: DoneManager,
     repository: Repository,
-    info: Union[CommitInfo, PreIntegrateInfo, PrePushInfo],
+    info: Union[List[CommitInfo], PreIntegrateInfo, PrePushInfo],
     function_name: str,
 ) -> None:
     for customization in _EnumerateScmCustomizations(dm, repository.repo_root):
