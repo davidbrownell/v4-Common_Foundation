@@ -1,9 +1,9 @@
 # ----------------------------------------------------------------------
 # |
-# |  CommitEmojis.py
+# |  update_data.py
 # |
 # |  David Brownell <db@DavidBrownell.com>
-# |      2022-10-27 06:40:09
+# |      2022-11-01 09:59:32
 # |
 # ----------------------------------------------------------------------
 # |
@@ -13,27 +13,17 @@
 # |  http://www.boost.org/LICENSE_1_0.txt.
 # |
 # ----------------------------------------------------------------------
-"""Displays emojis that can be used in commit messages."""
-
-import os
-import sys
+"""Updates the Gitmoji data"""
 
 from pathlib import Path
+from typing import List
 
+import requests
 import typer
 
-from rich import print as rich_print
 from typer.core import TyperGroup
 
-from Common_Foundation.ContextlibEx import ExitStack
-from Common_Foundation import PathEx
 from Common_Foundation.Streams.DoneManager import DoneManager, DoneManagerFlags
-from Common_Foundation import Types
-
-# ----------------------------------------------------------------------
-sys.path.insert(0, str(PathEx.EnsureDir(Path(Types.EnsureValid(os.getenv("DEVELOPMENT_ENVIRONMENT_FOUNDATION"))))))
-with ExitStack(lambda: sys.path.pop(0)):
-    from ScmHook_custom import CreateEmojiTable
 
 
 # ----------------------------------------------------------------------
@@ -46,27 +36,45 @@ class NaturalOrderGrouper(TyperGroup):
 # ----------------------------------------------------------------------
 app                                         = typer.Typer(
     cls=NaturalOrderGrouper,
+    no_args_is_help=True,
     pretty_exceptions_show_locals=False,
     pretty_exceptions_enable=False,
 )
 
 
 # ----------------------------------------------------------------------
-@app.command("EntryPoint")
-def EntryPoint(
+@app.command("Update", no_args_is_help=False)
+def Update(
+    url_base: str=typer.Option("https://raw.githubusercontent.com/carloscuesta/gitmoji/master/src/data", "--url-base", help="Base url of the gitmoji data."),
+    filenames: List[str]=typer.Option(["gitmojis.json", "schema.json"], "--filename", help="gitmoji files to download."),
     verbose: bool=typer.Option(False, "--verbose", help="Write verbose information to the terminal."),
     debug: bool=typer.Option(False, "--debug", help="Write debug information to the terminal."),
 ) -> None:
-    """Displays emojis that can be used in commit messages."""
+    """Updates the Gitmoji data."""
 
     with DoneManager.CreateCommandLine(
         output_flags=DoneManagerFlags.Create(verbose=verbose, debug=debug),
     ) as dm:
-        with dm.YieldStream() as stream:
-            rich_print(
-                CreateEmojiTable(),
-                file=stream,  # type: ignore
-            )
+        this_dir = Path(__file__).parent
+
+        for filename_index, filename in enumerate(filenames):
+            with dm.Nested(
+                "Downloading '{}' ({} of {})...".format(
+                    filename,
+                    filename_index + 1,
+                    len(filenames),
+                ),
+            ):
+                response = requests.get("{}/{}".format(url_base, filename))
+                response.raise_for_status()
+
+                content = response.text
+
+                with (this_dir / filename).open(
+                    "w",
+                    encoding="UTF-8",
+                ) as f:
+                    f.write(content)
 
 
 # ----------------------------------------------------------------------

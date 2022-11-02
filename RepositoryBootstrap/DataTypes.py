@@ -18,6 +18,7 @@
 import uuid
 
 from dataclasses import dataclass, field
+from enum import auto, Enum
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -169,12 +170,26 @@ class CommitInfo(object):
     """Information about a commit"""
 
     # ----------------------------------------------------------------------
+    class CommitType(Enum):
+        Standard                            = auto()
+        Amend                               = auto()
+        Squash                              = auto()
+
+    # ----------------------------------------------------------------------
+    commit_type: "CommitInfo.CommitType"    # immutable
     id: str                                 # immutable
     author: str                             # immutable
-    description: str
+
+    title: str
+    description: Optional[str]
+
     files_added: Optional[List[Path]]
     files_modified: Optional[List[Path]]
     files_removed: Optional[List[Path]]
+
+    # True if this commit has been created by the user. Allows the differentiation between
+    # validation invoked by `prepare-commit-msg` and `commit-msg`.
+    is_user_authored: bool                  = field(kw_only=True)
 
     # ----------------------------------------------------------------------
     def __post_init__(self):

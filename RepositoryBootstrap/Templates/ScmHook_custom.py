@@ -1,6 +1,6 @@
 # pylint: disable=missing-module-docstring
 
-from typing import Optional
+from typing import List, Optional
 
 from Common_Foundation.SourceControlManagers.SourceControlManager import Repository
 from Common_Foundation.Streams.DoneManager import DoneManager
@@ -13,7 +13,7 @@ def OnCommit(
     dm: DoneManager,                        # pylint: disable=unused-argument
     configuration: Optional[str],           # pylint: disable=unused-argument
     repository: Repository,                 # pylint: disable=unused-argument
-    commit_info: CommitInfo,                # pylint: disable=unused-argument
+    commits: List[CommitInfo],              # pylint: disable=unused-argument
     *,
     first_configuration_in_repo: bool,      # True when this function is called for this first time with this repository
 ) -> Optional[bool]:                        # Return False to prevent the execution of other hooks

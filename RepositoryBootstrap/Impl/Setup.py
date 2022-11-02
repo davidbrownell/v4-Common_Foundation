@@ -949,6 +949,7 @@ def _SetupScmHooks(
 
             # Note that git uses bash on Windows, so the generated scripts are the same on all operating systems
             for script_name in [
+                "prepare-commit-msg",
                 "commit-msg",
                 # TODO (This functionality is not implemented yet; See ./Hooks/GitHooks.py): "pre-push",
                 # TODO (This functionality is not implemented yet; See ./Hooks/GitHooks.py): "pre-receive",
@@ -973,16 +974,29 @@ def _SetupScmHooks(
                                 """\
                                 #!/bin/bash
 
+                                # Auto
                                 name=`git config --global --get user.name`
                                 email=`git config --global --get user.email`
 
                                 cwd=`pwd`
 
-                                . "{activate}"
+                                VIRTUAL_ENV_DISABLE_PROMPT=1 . "{activate}"
 
                                 pushd "{foundation_root}" > /dev/null
 
-                                PYTHONIOENCODING=UTF-8 python -m RepositoryBootstrap.Impl.Hooks.GitHooks {function} "${{cwd}}" "${{name}}" "${{email}}" "$*"
+                                if [[ -z ${{GIT_HOOKS_VERBOSE}} ]]; then
+                                    verbose_flag=""
+                                else
+                                    verbose_flag=" --verbose"
+                                fi
+
+                                if [[ -z ${{GIT_HOOKS_DEBUG}} ]]; then
+                                    debug_flag=""
+                                else
+                                    debug_flag=" --debug"
+                                fi
+
+                                PYTHONIOENCODING=UTF-8 python -m RepositoryBootstrap.Impl.Hooks.GitHooks {function} "${{cwd}}" "${{name}}" "${{email}}" "$@" ${{verbose_flag}} ${{debug_flag}}
                                 error=$?
 
                                 popd > /dev/null
