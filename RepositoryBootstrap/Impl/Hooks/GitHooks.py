@@ -18,6 +18,7 @@
 import copy
 import re
 import textwrap
+import sys
 
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -222,13 +223,17 @@ def _YieldCommandLineDoneManager(
     verbose: bool,
     debug: bool,
 ) -> Iterator[DoneManager]:
+    Capabilities.Create(
+        sys.stdout,
+        is_headless=False,
+        supports_colors=True,
+        # Make this look reasonable for most terminals
+        columns=140,
+        no_column_warning=True,
+    )
+
     with DoneManager.CreateCommandLine(
         output_flags=DoneManagerFlags.Create(verbose=verbose, debug=debug),
-        capabilities=Capabilities(
-            is_interactive=False,
-            is_headless=False,
-            supports_colors=True,
-        ),
     ) as dm:
         yield dm
 

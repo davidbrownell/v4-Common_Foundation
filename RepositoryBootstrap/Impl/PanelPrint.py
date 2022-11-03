@@ -17,11 +17,18 @@
 
 import sys
 
-from rich import print as rich_print
+from rich.console import Console
 from rich.panel import Panel
 from rich.text import Text
 
-rich_print(
+Console(
+    file=sys.stdout,  # type: ignore
+    color_system="standard",
+    force_terminal=True,
+    force_interactive=False,
+    legacy_windows=False,
+    no_color=False,
+).print(
     Panel(
         Text(sys.argv[1]),
         expand=False,

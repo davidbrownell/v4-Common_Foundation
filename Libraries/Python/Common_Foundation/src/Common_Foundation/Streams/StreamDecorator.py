@@ -22,6 +22,7 @@ from dataclasses import dataclass, field
 from enum import auto, Enum
 from typing import Callable, Generator, Iterator, List, Optional, TextIO, Union
 
+from .Capabilities import Capabilities
 from .TextWriter import TextWriter
 
 
@@ -102,6 +103,19 @@ class StreamDecorator(TextWriter):
         )
 
         self._isatty                        = any(getattr(stream, "isatty", lambda: False)() for stream in self._streams)
+
+        # Set the capabilities for this stream
+        lowest_capabilities: Optional[Capabilities] = None
+
+        if self._streams:
+            for stream in self._streams:
+                capabilities = Capabilities.Get(stream)
+
+                if lowest_capabilities is None or capabilities < lowest_capabilities:
+                    lowest_capabilities = capabilities
+
+            assert lowest_capabilities is not None
+            Capabilities.Set(self, lowest_capabilities)
 
     # ----------------------------------------------------------------------
     @property

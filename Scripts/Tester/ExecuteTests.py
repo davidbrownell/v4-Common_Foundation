@@ -31,6 +31,7 @@ from xml.etree import ElementTree as ET
 from Common_Foundation import JsonEx
 from Common_Foundation import PathEx
 from Common_Foundation.Shell.All import CurrentShell
+from Common_Foundation.Streams.Capabilities import Capabilities
 from Common_Foundation.Streams.DoneManager import DoneManager, DoneManagerFlags
 from Common_Foundation import TextwrapEx
 
@@ -493,6 +494,13 @@ class ExecuteTests(object):
             @contextmanager
             def YieldLogDM() -> Iterator[DoneManager]:
                 with log_filename.open("a+") as f:
+                    Capabilities.Create(
+                        f,
+                        supports_colors=False,
+                        is_interactive=False,
+                        is_headless=True,
+                    )
+
                     with DoneManager.Create(
                         f,
                         "",
@@ -649,6 +657,13 @@ class ExecuteTests(object):
             @contextmanager
             def YieldLogDM() -> Iterator[DoneManager]:
                 with log_filename.open("a+") as f:
+                    Capabilities.Create(
+                        f,
+                        supports_colors=False,
+                        is_interactive=False,
+                        is_headless=True,
+                    )
+
                     with DoneManager.Create(
                         f,
                         "",

@@ -313,7 +313,7 @@ def CreateCustomPrefixFunc(
     def Impl(
         capabilities: Optional[Capabilities],
     ) -> str:
-        if (capabilities or Capabilities.Create()).supports_colors:
+        if (capabilities or Capabilities.Get(sys.stdout)).supports_colors:
             this_color_on = color_value
             this_color_off = COLOR_OFF
         else:
@@ -422,11 +422,10 @@ def CreateText(
             # The indent is the length of the prefix without color decorations
             len(
                 create_prefix_func(
-                    Capabilities(
-                        is_interactive=sys.stdout.isatty(),
+                    Capabilities.Alter(
+                        sys.stdout,
                         supports_colors=False,
-                        is_headless=False,
-                    ),
+                    )[1],
                 ),
             ),
             skip_first_line=True,
@@ -442,7 +441,7 @@ def CreateStatusText(
     *,
     capabilities: Optional[Capabilities]=None,
 ) -> str:
-    if (capabilities or Capabilities.Create()).supports_colors:
+    if (capabilities or Capabilities.Get(sys.stdout)).supports_colors:
         success_on = SUCCESS_COLOR_ON
         failed_on = ERROR_COLOR_ON
         warning_on = WARNING_COLOR_ON

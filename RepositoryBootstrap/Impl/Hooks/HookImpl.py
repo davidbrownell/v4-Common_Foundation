@@ -42,18 +42,6 @@ from RepositoryBootstrap.Impl.ActivationData import ActivationData
 
 
 # ----------------------------------------------------------------------
-# Update rich, as it's default terminal gets confused in this scenario
-reconfigure(
-    legacy_windows=False,
-    # Setting this to True causes '25h' to be printed to the console when the cursor is shown.
-    # Dig into the problem in rich if disabling this flag turns out to be a problem here.
-    #
-    # force_terminal=True,
-    width=get_console().width,
-)
-
-
-# ----------------------------------------------------------------------
 def Commit(
     dm: DoneManager,
     repository: Repository,
