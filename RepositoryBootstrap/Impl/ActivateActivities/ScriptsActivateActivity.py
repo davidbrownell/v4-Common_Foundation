@@ -24,7 +24,6 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import inflect as inflect_mod
 
-from rich import print as rich_print
 from rich.align import Align
 from rich.console import Group
 from rich.panel import Panel
@@ -33,6 +32,7 @@ from Common_Foundation.EnumSource import EnumSource
 from Common_Foundation import JsonEx
 from Common_Foundation.Shell import Commands                            # type: ignore
 from Common_Foundation.Shell.All import CurrentShell                    # type: ignore
+from Common_Foundation.Streams.Capabilities import Capabilities         # type: ignore
 from Common_Foundation.Streams.DoneManager import DoneManager           # type: ignore
 from Common_Foundation.Streams.StreamDecorator import StreamDecorator   # type: ignore
 from Common_Foundation import TextwrapEx                                # type: ignore
@@ -433,26 +433,32 @@ class ScriptsActivateActivity(ActivateActivity):
                     with dm.YieldStream() as stream:
                         stream.write("\n")
 
-                        rich_print(
-                            Panel(
-                                Group(
-                                    textwrap.dedent(
-                                        """\
-                                        Shell wrappers have been created for all recognized scripts with the directory
-                                        '{script_dir}' across all repositories. For a complete list of these wrappers, run:
-                                        """,
-                                    ).format(script_dir=self.name),
-                                    Align(
-                                        Constants.SCRIPT_LIST_NAME + CurrentShell.script_extensions[0],
-                                        "center",
-                                        style="bold white",
+                        (
+                            Capabilities
+                                .Get(stream)
+                                .CreateRichConsole(
+                                    StreamDecorator(stream, "  "),  # type: ignore
+                                )
+                                .print(
+                                    Panel(
+                                        Group(
+                                            textwrap.dedent(
+                                                """\
+                                                Shell wrappers have been created for all recognized scripts with the directory
+                                                '{script_dir}' across all repositories. For a complete list of these wrappers, run:
+                                                """,
+                                            ).format(script_dir=self.name),
+                                            Align(
+                                                Constants.SCRIPT_LIST_NAME + CurrentShell.script_extensions[0],
+                                                "center",
+                                                style="bold white",
+                                            ),
+                                        ),
+                                        expand=False,
+                                        padding=(1, 2),
                                     ),
-                                ),
-                                expand=False,
-                                padding=(1, 2),
-                            ),
-                            end="",
-                            file=StreamDecorator(stream, "  "),  # type: ignore
+                                    end="",
+                                )
                         )
 
                         stream.write("\n")

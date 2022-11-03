@@ -29,6 +29,7 @@ from rich.console import Console, Group
 from rich.panel import Panel
 
 from Common_Foundation.SourceControlManagers.SourceControlManager import Repository
+from Common_Foundation.Streams.Capabilities import Capabilities
 from Common_Foundation.Streams.DoneManager import DoneManager
 from Common_Foundation import PathEx
 from Common_Foundation.Streams.StreamDecorator import StreamDecorator
@@ -535,12 +536,15 @@ def _YieldRichConsole(
     dm: DoneManager,
 ) -> Iterator[Console]:
     with dm.YieldStdout() as stdout_context:
-        yield Console(
-            file=StreamDecorator(
+        capabilities = Capabilities.Get(stdout_context.stream)
+
+        console = capabilities.CreateRichConsole(
+            StreamDecorator(
                 stdout_context.stream,
                 line_prefix=stdout_context.line_prefix,
             ),  # type: ignore
-            force_terminal=True,
-            legacy_windows=False,
-            width=get_console().width - len(stdout_context.line_prefix),
         )
+
+        console.size = (console.width - len(stdout_context.line_prefix), console.height)
+
+        yield console

@@ -112,9 +112,8 @@ jobs:
     runs-on: ${{ inputs.os }}
 
     env:
-      COLUMNS:                              "200"
-      FORCE_COLOR:                          "1"
-      PYTHONIOENCODING:                     "UTF-8"
+      COLUMNS:                                          "200"
+      SIMULATE_TERMINAL_CAPABILITIES_SUPPORTS_COLORS:   "1"
 
     steps:
       - name: Checkout Source

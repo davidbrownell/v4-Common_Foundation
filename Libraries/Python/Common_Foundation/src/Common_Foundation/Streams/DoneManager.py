@@ -207,7 +207,6 @@ class TopLevelArgs(_CommonArgs):
 
     # ----------------------------------------------------------------------
     output_flags: DoneManagerFlags          = field(kw_only=True, default=DoneManagerFlags.Standard)
-    capabilities: Optional[Capabilities]    = field(kw_only=True, default=None)
 
     num_cols: int                           = field(kw_only=True, default=160)
 
@@ -226,7 +225,6 @@ class DoneManager(object):
     _stream: StreamDecorator
 
     output_flags: DoneManagerFlags          = field(kw_only=True)
-    capabilities: Capabilities              = field(kw_only=True)
     heading: Optional[str]                  = field(kw_only=True)
     preserve_status: bool                   = field(kw_only=True)
 
@@ -254,7 +252,6 @@ class DoneManager(object):
             stream,
             args,
             output_flags=args.output_flags,
-            capabilities=args.capabilities or Capabilities.Create(stream),
             num_cols=args.num_cols,
         ) as dm:
             try:
@@ -270,7 +267,6 @@ class DoneManager(object):
         stream: Union[StreamDecorator, TextIO, TextWriter]=sys.stdout,
         *,
         output_flags: DoneManagerFlags=DoneManagerFlags.Standard,
-        capabilities: Optional[Capabilities]=None,
     ) -> Iterator["DoneManager"]:
         """Creates a DoneManager suitable for use with a command-line application"""
 
@@ -281,7 +277,6 @@ class DoneManager(object):
             prefix="\nResults: ",
             suffix="\n",
             output_flags=output_flags,
-            capabilities=capabilities,
         ) as dm:
             is_exceptional = False
 
@@ -303,6 +298,10 @@ class DoneManager(object):
     @property
     def is_debug(self) -> bool:
         return bool(self.output_flags & DoneManagerFlags.DebugFlag)
+
+    @property
+    def capabilities(self) -> Capabilities:
+        return Capabilities.Get(self._stream)
 
     # ----------------------------------------------------------------------
     def isatty(self) -> bool:
@@ -511,7 +510,7 @@ class DoneManager(object):
         if self.is_verbose:
             stream = StreamDecorator(
                 self._stream,
-                line_prefix=TextwrapEx.CreateVerbosePrefix(self.capabilities),
+                line_prefix=TextwrapEx.CreateVerbosePrefix(Capabilities.Get(self._stream)),
                 decorate_empty_lines=True,
             )
         else:
@@ -538,7 +537,7 @@ class DoneManager(object):
         if self.is_debug:
             stream = StreamDecorator(
                 self._stream,
-                line_prefix=TextwrapEx.CreateDebugPrefix(self.capabilities),
+                line_prefix=TextwrapEx.CreateDebugPrefix(Capabilities.Get(self._stream)),
                 decorate_empty_lines=True,
             )
         else:
@@ -563,9 +562,11 @@ class DoneManager(object):
         else:
             self.ClearStatus()
 
+        is_interactive = self.capabilities.is_interactive
+
         with self._stream.YieldStdout() as context:
             try:
-                if not self._wrote_content:
+                if not self._wrote_content and is_interactive:
                     context.stream.write("\n")
 
                 yield context
@@ -577,7 +578,8 @@ class DoneManager(object):
                 # was yielded and if the caller wants to preserve anything
                 # that was written.
                 if context.stream is sys.stdout:
-                    sys.stdout.write("\r")
+                    if is_interactive:
+                        sys.stdout.write("\r")
 
                     if context.persist_content:
                         if self._wrote_content:
@@ -590,10 +592,11 @@ class DoneManager(object):
                         and not self._wrote_content
                     ):
                         # Move up a line, write the whitespace and heading
-                        sys.stdout.write(
-                            "\033[1A{}{}".format(self._line_prefix, self.heading),
-                        )
-                        sys.stdout.flush()
+                        if is_interactive:
+                            sys.stdout.write(
+                                "\033[1A{}{}".format(self._line_prefix, self.heading),
+                            )
+                            sys.stdout.flush()
 
     # ----------------------------------------------------------------------
     def __post_init__(self):
@@ -615,7 +618,6 @@ class DoneManager(object):
         args: _CommonArgs,
         *,
         output_flags: DoneManagerFlags,
-        capabilities: Capabilities,
         num_cols: int,
     ) -> Iterator["DoneManager"]:
         if args.heading:
@@ -632,11 +634,12 @@ class DoneManager(object):
             heading=args.heading,
             preserve_status=args.preserve_status,
             output_flags=output_flags,
-            capabilities=capabilities,
             num_cols=num_cols,
         )
 
-        if instance.capabilities.supports_colors:
+        capabilities = Capabilities.Get(stream)
+
+        if capabilities.supports_colors:
             error_color_on = TextwrapEx.ERROR_COLOR_ON
             success_color_on = TextwrapEx.SUCCESS_COLOR_ON
             warning_color_on = TextwrapEx.WARNING_COLOR_ON
@@ -652,7 +655,7 @@ class DoneManager(object):
         done_suffixes: List[Callable[[], Optional[str]]] = []
 
         if args.display_result:
-            if instance.capabilities.supports_colors:
+            if capabilities.supports_colors:
                 # ----------------------------------------------------------------------
                 def DisplayResult() -> str:
                     if instance.result < 0:
@@ -757,7 +760,7 @@ class DoneManager(object):
                             instance._stream.write("\n")
 
                         instance._stream.write(
-                            TextwrapEx.CreateErrorText(exception_content, capabilities=instance.capabilities),
+                            TextwrapEx.CreateErrorText(exception_content, capabilities=capabilities),
                         )
 
                         instance._stream.write("\n")
@@ -787,7 +790,6 @@ class DoneManager(object):
             stream,
             NestedArgs(*nested_args, **nested_kwargs),
             output_flags=self.output_flags,
-            capabilities=self.capabilities,
             num_cols=self.num_cols,
         ) as dm:
             try:
@@ -809,7 +811,7 @@ class DoneManager(object):
         if self._prev_status_content:
             self._WriteStatus("", update_prev_status=False)
 
-        content = create_text_func(content, capabilities=self.capabilities)
+        content = create_text_func(content, capabilities=Capabilities.Get(self._stream))
         if not content.endswith("\n"):
             content += "\n"
 

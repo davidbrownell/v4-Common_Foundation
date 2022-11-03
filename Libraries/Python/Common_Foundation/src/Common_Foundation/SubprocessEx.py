@@ -19,13 +19,14 @@ import os
 import copy
 import ctypes
 import subprocess
-
+import sys
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, cast, Dict, IO, List, Optional, TextIO, Union
+from typing import Any, Callable, cast, Dict, IO, List, Optional, TextIO, Union
 
 from .ContextlibEx import ExitStack
+from .Streams.Capabilities import Capabilities
 from .Streams.TextWriter import TextWriter
 
 
@@ -55,14 +56,24 @@ def Run(
     command_line: str,
     cwd: Optional[Path]=None,
     env: Optional[Dict[str, str]]=None,
+    *,
+    supports_colors: Optional[bool]=None,
 ) -> RunResult:
+    env_args: Dict[str, str] = {
+        Capabilities.SIMULATE_TERMINAL_INTERACTIVE_ENV_VAR: "0",
+        Capabilities.SIMULATE_TERMINAL_HEADLESS_ENV_VAR: "1",
+    }
+
+    if supports_colors is not None:
+        env_args[Capabilities.SIMULATE_TERMINAL_COLORS_ENV_VAR] = "1" if supports_colors else "0"
+
     result = subprocess.run(
         command_line,
         shell=True,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         cwd=cwd,
-        env=_SetEnvironment(env),
+        env=_SetEnvironment(env, **env_args),
     )
 
     content = result.stdout.decode("utf-8")
@@ -84,10 +95,18 @@ def Stream(
     env: Optional[Dict[str, str]]=None,
     *,
     stdin: Optional[str]=None,
-    convert_newlines: Optional[bool]=None,              # Convert '\r\n' to '\n'
     line_delimited_output: bool=False,                  # Buffer lines
 ) -> int:
-    if convert_newlines is None:
+    output_func = cast(Callable[[str], None], stream.write)
+    flush_func = stream.flush
+
+    capabilities = Capabilities.Get(sys.stdout)
+
+    # Windows seems to want to interpret '\r\n' as '\n\n' when output is redirected to a file. Work
+    # around that issue as best as we can.
+    convert_newlines = False
+
+    if not capabilities.is_interactive:
         try:
             # Importing here to avoid circular imports
             from .Shell.All import CurrentShell
@@ -96,10 +115,7 @@ def Stream(
         except:  # pylint: disable=bare-except
             # This functionality might throw when it is used during the initial setup process.
             # Don't convert newlines if that is the case.
-            convert_newlines = False
-
-    output_func = cast(Callable[[str], None], stream.write)
-    flush_func = stream.flush
+            pass
 
     if convert_newlines:
         newline_original_output_func = output_func
@@ -158,7 +174,15 @@ def Stream(
         stderr=subprocess.STDOUT,
         stdin=subprocess.PIPE,
         cwd=cwd,
-        env=_SetEnvironment(env),
+        env=_SetEnvironment(
+            env,
+            **{
+                "PYTHONUNBUFFERED": "1",
+                Capabilities.SIMULATE_TERMINAL_INTERACTIVE_ENV_VAR: "1" if capabilities.is_interactive else "0",
+                Capabilities.SIMULATE_TERMINAL_COLORS_ENV_VAR: "1" if capabilities.supports_colors else "0",
+                Capabilities.SIMULATE_TERMINAL_HEADLESS_ENV_VAR: "1" if capabilities.is_headless else "0",
+            },
+        ),
     ) as result:
         try:
             with ExitStack(flush_func):
@@ -170,7 +194,11 @@ def Stream(
                     result.stdin.close()
 
                 assert result.stdout is not None
-                _ReadStateMachine.Execute(result.stdout, output_func)
+                _ReadStateMachine.Execute(
+                    result.stdout,
+                    output_func,
+                    convert_newlines=convert_newlines,
+                )
 
                 result = result.wait() or 0
 
@@ -192,8 +220,13 @@ class _ReadStateMachine(object):
         cls,
         input_stream: IO[bytes],
         output_func: Callable[[str], None],
+        *,
+        convert_newlines: bool,
     ) -> None:
-        machine = cls(input_stream)
+        machine = cls(
+            input_stream,
+            convert_newlines=convert_newlines,
+        )
 
         while True:
             if machine._buffered_input is not None:
@@ -220,8 +253,11 @@ class _ReadStateMachine(object):
     def __init__(
         self,
         input_stream: IO[bytes],
+        *,
+        convert_newlines: bool,
     ):
         self._input_stream                  = input_stream
+        self._convert_newlines              = convert_newlines
 
         self._process_func: Callable[[int], Optional[List[int]]]            = self._ProcessStandard
 
@@ -247,14 +283,16 @@ class _ReadStateMachine(object):
         )
 
     # ----------------------------------------------------------------------
-    @staticmethod
     def _IsNewlineish(
+        self,
         value: int,
     ) -> bool:
-        return value in [
-            10, # '\r'
-            13, # '\n'
-        ]
+        return (
+            self._convert_newlines and value in [
+                10, # '\r'
+                13, # '\n'
+            ]
+        )
 
     # ----------------------------------------------------------------------
     @staticmethod
@@ -294,7 +332,7 @@ class _ReadStateMachine(object):
 
             return None
 
-        if self.__class__._IsNewlineish(value):  # pylint: disable=protected-access
+        if self._IsNewlineish(value):
             self._process_func = self._ProcessLineReset
             self._buffered_output.append(value)
 
@@ -331,7 +369,7 @@ class _ReadStateMachine(object):
     ) -> Optional[List[int]]:
         assert self._buffered_output
 
-        if self.__class__._IsNewlineish(value):  # pylint: disable=protected-access
+        if self._IsNewlineish(value):
             self._buffered_output.append(value)
             return None
 
@@ -378,20 +416,20 @@ class _ReadStateMachine(object):
 # ----------------------------------------------------------------------
 def _SetEnvironment(
     env: Optional[Dict[str, str]],
+    **kwargs: Any,
 ) -> Dict[str, str]:
     if env is None:
         env = copy.deepcopy(os.environ)  # type: ignore
 
     assert env is not None
 
-    for key, value in {
-        "PYTHONUNBUFFERED": "1",
-        "PYTHONIOENCODING": "UTF-8",
-        "COLUMNS": "200",
-        "FORCE_COLOR": "1",
-    }.items():
-        if key not in env:
-            env[key] = value
+    for k, v in kwargs.items():
+        env[k] = str(v) if not isinstance(v, str) else v
+
+    if "PYTHONIOENCODING" not in env:
+        env["PYTHONIOENCODING"] = "UTF-8"
+    if "COLUMNS" not in env:
+        env["COLUMNS"] = str(Capabilities.DEFAULT_CONSOLE_WIDTH)
 
     return env
 
