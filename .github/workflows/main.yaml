@@ -26,7 +26,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  Build_and_Test:
+  BuildAndTest:
     strategy:
       matrix:
         os:
@@ -37,7 +37,7 @@ jobs:
           - python310
           # - python310_nolibs
 
-    uses: ./.github/workflows/callable_main.yaml
+    uses: ./.github/workflows/callable_BuildAndTest.yaml
     with:
       os:                                   ${{ matrix.os }}
       configuration:                        ${{ matrix.configuration }}
@@ -53,7 +53,7 @@ jobs:
       #   2: Run these test types with code coverage
       #   3: Run these test types with and without code coverage
 
-      execute_UnitTests:                    1
+      execute_UnitTests:                    3
       execute_FunctionalTests:              1
       execute_IntegrationTests:             1
       execute_SystemTests:                  1

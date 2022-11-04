@@ -189,7 +189,7 @@ def Stream(
                 if stdin is not None:
                     assert result.stdin is not None
 
-                    result.stdin.write(stdin.encode("utf-8"))
+                    result.stdin.write(stdin.encode("UTF-8"))
                     result.stdin.flush()
                     result.stdin.close()
 

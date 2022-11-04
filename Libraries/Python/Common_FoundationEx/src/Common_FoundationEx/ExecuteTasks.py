@@ -547,9 +547,11 @@ def _GenerateStatusInfo(
             status_factories: List[_StatusFactory] = []
 
             enqueueing_status = "{}Enqueueing tasks...".format(stdout_context.line_prefix)
+            is_interactive = execute_dm.capabilities.is_interactive
 
-            stdout_context.stream.write(enqueueing_status)
-            stdout_context.stream.flush()
+            if is_interactive:
+                stdout_context.stream.write(enqueueing_status)
+                stdout_context.stream.flush()
 
             for task in tasks:
                 status_factories.append(
@@ -567,8 +569,9 @@ def _GenerateStatusInfo(
                     ),
                 )
 
-            stdout_context.stream.write("\r{}\r".format(" " * len(enqueueing_status)))
-            stdout_context.stream.flush()
+            if is_interactive:
+                stdout_context.stream.write("\r{}\r".format(" " * len(enqueueing_status)))
+                stdout_context.stream.flush()
 
             # Start the progress bar
             progress_bar.start()

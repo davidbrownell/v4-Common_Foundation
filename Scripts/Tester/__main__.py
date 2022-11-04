@@ -674,6 +674,7 @@ def TestItem(
             ignore_ignore_filenames=None,
             quiet=quiet,
             code_coverage_validator_name=code_coverage_validator,
+            code_coverage_mismatch_is_error=True,
             compiler_flags=compiler_flags,
             test_executor_flags=test_executor_flags,
             test_parser_flags=test_parser_flags,
@@ -749,6 +750,7 @@ def TestType(
             ignore_ignore_filenames=ignore_ignore_filenames,
             quiet=quiet,
             code_coverage_validator_name=code_coverage_validator,
+            code_coverage_mismatch_is_error=True,
             compiler_flags=compiler_flags,
             test_executor_flags=test_executor_flags,
             test_parser_flags=test_parser_flags,
@@ -829,6 +831,7 @@ def TestAll(
                     ignore_ignore_filenames=ignore_ignore_filenames,
                     quiet=quiet,
                     code_coverage_validator_name=code_coverage_validator,
+                    code_coverage_mismatch_is_error=False,
                     compiler_flags=compiler_flags,
                     test_executor_flags=test_executor_flags,
                     test_parser_flags=test_parser_flags,
@@ -974,6 +977,7 @@ def Execute(
             ignore_ignore_filenames=ignore_ignore_filenames,
             quiet=quiet,
             code_coverage_validator_name=code_coverage_validator if is_valid_code_coverage_validator else None,
+            code_coverage_mismatch_is_error=True,
             compiler_flags=compiler_flags,
             test_executor_flags=test_executor_flags,
             test_parser_flags=test_parser_flags,
@@ -1072,6 +1076,7 @@ def ExecuteTree(
             ignore_ignore_filenames=ignore_ignore_filenames,
             quiet=quiet,
             code_coverage_validator_name=code_coverage_validator if is_valid_code_coverage_validator else None,
+            code_coverage_mismatch_is_error=True,
             compiler_flags=compiler_flags,
             test_executor_flags=test_executor_flags,
             test_parser_flags=test_parser_flags,
@@ -1213,6 +1218,7 @@ def _TestImpl(
     quiet: bool,
 
     code_coverage_validator_name: Optional[_code_coverage_validator_enum],  # type: ignore
+    code_coverage_mismatch_is_error: bool,
 
     compiler_flags: Optional[List[str]],
     test_executor_flags: Optional[List[str]],
@@ -1237,7 +1243,13 @@ def _TestImpl(
     assert test_executor is not None
 
     if code_coverage and not test_executor.is_code_coverage_executor:
-        raise typer.BadParameter("The test executor '{}' does not support code coverage.".format(test_executor.name))
+        message = "The test executor '{}' does not support code coverage.".format(test_executor.name)
+
+        if code_coverage_mismatch_is_error:
+            raise typer.BadParameter(message)
+
+        dm.WriteInfo(message)
+        return
 
     # Get the code coverage validator
     code_coverage_validator: Optional[CodeCoverageValidatorImpl] = None

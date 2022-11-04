@@ -1,6 +1,6 @@
 # ----------------------------------------------------------------------
 # |
-# |  callable_main.yaml
+# |  callable_BuildAndTest.yaml
 # |
 # |  David Brownell <db@DavidBrownell.com>
 # |      2022-10-28 08:59:39
@@ -13,7 +13,7 @@
 # |  http://www.boost.org/LICENSE_1_0.txt.
 # |
 # ----------------------------------------------------------------------
-name: callable_main
+name: callable_BuildAndTest
 
 # Sample implementation in the calling workflow:
 #
@@ -30,7 +30,7 @@ name: callable_main
 #   workflow_dispatch:
 #
 # jobs:
-#   Build_and_Test:
+#   BuildAndTest:
 #     strategy:
 #       matrix:
 #         os:
@@ -41,7 +41,7 @@ name: callable_main
 #           # Enter repository configurations here, or "None" (without quotes) for repositories that aren't configurable
 #           - Enter_a_valid_configuration_name_here
 #
-#     uses: /davidbrownell/v4-Common_Foundation/.github/workflows/callable_main.yaml@CI-v1.0.0
+#     uses: /davidbrownell/v4-Common_Foundation/.github/workflows/callable_BuildAndTest.yaml@CI-v1.0.0
 #     with:
 #       os:                                   ${{ matrix.os }}
 #       configuration:                        ${{ matrix.configuration }}
@@ -108,26 +108,27 @@ on:
       execute_PerformanceTests:             {type: number, default: 0, required: true}
 
 jobs:
-  Build_and_Test:
+  BuildAndTest:
     runs-on: ${{ inputs.os }}
 
     env:
       COLUMNS:                                          "200"
       SIMULATE_TERMINAL_CAPABILITIES_SUPPORTS_COLORS:   "1"
+      PYTHONIOENCODING:                                 "UTF-8"
 
     steps:
       - name: Checkout Source
         uses: actions/checkout@v3
-        if: ${{ inputs.checkout_source }}
+        if: ${{ inputs.checkout_source == true || inputs.checkout_source == 'true' }}
 
       - name: "[Impl] Initialize OS-Specific Variables"
         id: initialize
-        uses: ./.github/actions/initialize
+        uses: davidbrownell/v4-Common_Foundation/.github/actions/initialize@CI-v1.0.0
         with:
           os:                               ${{ inputs.os }}
 
       - name: Setup
-        uses: ./.github/actions/setup
+        uses: davidbrownell/v4-Common_Foundation/.github/actions/setup@CI-v1.0.0
         with:
           os:                               ${{ inputs.os }}
           configuration:                    ${{ inputs.configuration }}
@@ -140,15 +141,15 @@ jobs:
 
       - name: Activate
         id: activate
-        uses: ./.github/actions/activate
+        uses: davidbrownell/v4-Common_Foundation/.github/actions/activate@CI-v1.0.0
         with:
           os:                               ${{ inputs.os }}
           configuration:                    ${{ inputs.configuration }}
           shell_name:                       ${{ steps.initialize.outputs.shell_name }}
 
       - name: Builder
-        uses: ./.github/actions/builder
-        if: ${{ inputs.run_Builder }}
+        uses: davidbrownell/v4-Common_Foundation/.github/actions/builder@CI-v1.0.0
+        if: ${{ inputs.run_Builder == true || inputs.run_Builder == 'true' }}
         with:
           os:                               ${{ inputs.os }}
           configuration:                    ${{ inputs.configuration }}
@@ -190,7 +191,7 @@ jobs:
       #             textwrap.dedent(
       #                 """\
       #                 - name: Tester ({test_type}{name_suffix})
-      #                   uses: ./.github/actions/tester
+      #                   uses: davidbrownell/v4-Common_Foundation/.github/actions/tester@CI-v1.0.0
       #                   if: {conditional}
       #                   with:
       #                     os:                               ${{{{ inputs.os }}}}
@@ -203,7 +204,7 @@ jobs:
       #                     activate_statement:               ${{{{ steps.activate.outputs.activate_statement }}}}
       #
       #                     test_type:                        {test_type}
-      #                     code_coverage:                    "{use_code_coverage}"
+      #                     code_coverage:                    {use_code_coverage}
       #
       #                 """,
       #             ).format(
@@ -215,7 +216,7 @@ jobs:
       #         )
       # ]]]
       - name: Tester (UnitTests)
-        uses: ./.github/actions/tester
+        uses: davidbrownell/v4-Common_Foundation/.github/actions/tester@CI-v1.0.0
         if: ${{ inputs.execute_UnitTests == 1 || inputs.execute_UnitTests == 3 }}
         with:
           os:                               ${{ inputs.os }}
@@ -228,10 +229,10 @@ jobs:
           activate_statement:               ${{ steps.activate.outputs.activate_statement }}
 
           test_type:                        UnitTests
-          code_coverage:                    "false"
+          code_coverage:                    false
 
       - name: Tester (FunctionalTests)
-        uses: ./.github/actions/tester
+        uses: davidbrownell/v4-Common_Foundation/.github/actions/tester@CI-v1.0.0
         if: ${{ inputs.execute_FunctionalTests == 1 || inputs.execute_FunctionalTests == 3 }}
         with:
           os:                               ${{ inputs.os }}
@@ -244,10 +245,10 @@ jobs:
           activate_statement:               ${{ steps.activate.outputs.activate_statement }}
 
           test_type:                        FunctionalTests
-          code_coverage:                    "false"
+          code_coverage:                    false
 
       - name: Tester (IntegrationTests)
-        uses: ./.github/actions/tester
+        uses: davidbrownell/v4-Common_Foundation/.github/actions/tester@CI-v1.0.0
         if: ${{ inputs.execute_IntegrationTests == 1 || inputs.execute_IntegrationTests == 3 }}
         with:
           os:                               ${{ inputs.os }}
@@ -260,10 +261,10 @@ jobs:
           activate_statement:               ${{ steps.activate.outputs.activate_statement }}
 
           test_type:                        IntegrationTests
-          code_coverage:                    "false"
+          code_coverage:                    false
 
       - name: Tester (SystemTests)
-        uses: ./.github/actions/tester
+        uses: davidbrownell/v4-Common_Foundation/.github/actions/tester@CI-v1.0.0
         if: ${{ inputs.execute_SystemTests == 1 || inputs.execute_SystemTests == 3 }}
         with:
           os:                               ${{ inputs.os }}
@@ -276,10 +277,10 @@ jobs:
           activate_statement:               ${{ steps.activate.outputs.activate_statement }}
 
           test_type:                        SystemTests
-          code_coverage:                    "false"
+          code_coverage:                    false
 
       - name: Tester (LocalEndToEndTests)
-        uses: ./.github/actions/tester
+        uses: davidbrownell/v4-Common_Foundation/.github/actions/tester@CI-v1.0.0
         if: ${{ inputs.execute_LocalEndToEndTests == 1 || inputs.execute_LocalEndToEndTests == 3 }}
         with:
           os:                               ${{ inputs.os }}
@@ -292,10 +293,10 @@ jobs:
           activate_statement:               ${{ steps.activate.outputs.activate_statement }}
 
           test_type:                        LocalEndToEndTests
-          code_coverage:                    "false"
+          code_coverage:                    false
 
       - name: Tester (EndToEndTests)
-        uses: ./.github/actions/tester
+        uses: davidbrownell/v4-Common_Foundation/.github/actions/tester@CI-v1.0.0
         if: ${{ inputs.execute_EndToEndTests == 1 || inputs.execute_EndToEndTests == 3 }}
         with:
           os:                               ${{ inputs.os }}
@@ -308,10 +309,10 @@ jobs:
           activate_statement:               ${{ steps.activate.outputs.activate_statement }}
 
           test_type:                        EndToEndTests
-          code_coverage:                    "false"
+          code_coverage:                    false
 
       - name: Tester (BuildVerificationTests)
-        uses: ./.github/actions/tester
+        uses: davidbrownell/v4-Common_Foundation/.github/actions/tester@CI-v1.0.0
         if: ${{ inputs.execute_BuildVerificationTests == 1 || inputs.execute_BuildVerificationTests == 3 }}
         with:
           os:                               ${{ inputs.os }}
@@ -324,10 +325,10 @@ jobs:
           activate_statement:               ${{ steps.activate.outputs.activate_statement }}
 
           test_type:                        BuildVerificationTests
-          code_coverage:                    "false"
+          code_coverage:                    false
 
       - name: Tester (PerformanceTests)
-        uses: ./.github/actions/tester
+        uses: davidbrownell/v4-Common_Foundation/.github/actions/tester@CI-v1.0.0
         if: ${{ inputs.execute_PerformanceTests == 1 || inputs.execute_PerformanceTests == 3 }}
         with:
           os:                               ${{ inputs.os }}
@@ -340,10 +341,10 @@ jobs:
           activate_statement:               ${{ steps.activate.outputs.activate_statement }}
 
           test_type:                        PerformanceTests
-          code_coverage:                    "false"
+          code_coverage:                    false
 
       - name: Tester (UnitTests, Code Coverage)
-        uses: ./.github/actions/tester
+        uses: davidbrownell/v4-Common_Foundation/.github/actions/tester@CI-v1.0.0
         if: ${{ inputs.execute_UnitTests == 2 || inputs.execute_UnitTests == 3 }}
         with:
           os:                               ${{ inputs.os }}
@@ -356,10 +357,10 @@ jobs:
           activate_statement:               ${{ steps.activate.outputs.activate_statement }}
 
           test_type:                        UnitTests
-          code_coverage:                    "true"
+          code_coverage:                    true
 
       - name: Tester (FunctionalTests, Code Coverage)
-        uses: ./.github/actions/tester
+        uses: davidbrownell/v4-Common_Foundation/.github/actions/tester@CI-v1.0.0
         if: ${{ inputs.execute_FunctionalTests == 2 || inputs.execute_FunctionalTests == 3 }}
         with:
           os:                               ${{ inputs.os }}
@@ -372,10 +373,10 @@ jobs:
           activate_statement:               ${{ steps.activate.outputs.activate_statement }}
 
           test_type:                        FunctionalTests
-          code_coverage:                    "true"
+          code_coverage:                    true
 
       - name: Tester (IntegrationTests, Code Coverage)
-        uses: ./.github/actions/tester
+        uses: davidbrownell/v4-Common_Foundation/.github/actions/tester@CI-v1.0.0
         if: ${{ inputs.execute_IntegrationTests == 2 || inputs.execute_IntegrationTests == 3 }}
         with:
           os:                               ${{ inputs.os }}
@@ -388,10 +389,10 @@ jobs:
           activate_statement:               ${{ steps.activate.outputs.activate_statement }}
 
           test_type:                        IntegrationTests
-          code_coverage:                    "true"
+          code_coverage:                    true
 
       - name: Tester (SystemTests, Code Coverage)
-        uses: ./.github/actions/tester
+        uses: davidbrownell/v4-Common_Foundation/.github/actions/tester@CI-v1.0.0
         if: ${{ inputs.execute_SystemTests == 2 || inputs.execute_SystemTests == 3 }}
         with:
           os:                               ${{ inputs.os }}
@@ -404,10 +405,10 @@ jobs:
           activate_statement:               ${{ steps.activate.outputs.activate_statement }}
 
           test_type:                        SystemTests
-          code_coverage:                    "true"
+          code_coverage:                    true
 
       - name: Tester (LocalEndToEndTests, Code Coverage)
-        uses: ./.github/actions/tester
+        uses: davidbrownell/v4-Common_Foundation/.github/actions/tester@CI-v1.0.0
         if: ${{ inputs.execute_LocalEndToEndTests == 2 || inputs.execute_LocalEndToEndTests == 3 }}
         with:
           os:                               ${{ inputs.os }}
@@ -420,10 +421,10 @@ jobs:
           activate_statement:               ${{ steps.activate.outputs.activate_statement }}
 
           test_type:                        LocalEndToEndTests
-          code_coverage:                    "true"
+          code_coverage:                    true
 
       - name: Tester (EndToEndTests, Code Coverage)
-        uses: ./.github/actions/tester
+        uses: davidbrownell/v4-Common_Foundation/.github/actions/tester@CI-v1.0.0
         if: ${{ inputs.execute_EndToEndTests == 2 || inputs.execute_EndToEndTests == 3 }}
         with:
           os:                               ${{ inputs.os }}
@@ -436,10 +437,10 @@ jobs:
           activate_statement:               ${{ steps.activate.outputs.activate_statement }}
 
           test_type:                        EndToEndTests
-          code_coverage:                    "true"
+          code_coverage:                    true
 
       - name: Tester (BuildVerificationTests, Code Coverage)
-        uses: ./.github/actions/tester
+        uses: davidbrownell/v4-Common_Foundation/.github/actions/tester@CI-v1.0.0
         if: ${{ inputs.execute_BuildVerificationTests == 2 || inputs.execute_BuildVerificationTests == 3 }}
         with:
           os:                               ${{ inputs.os }}
@@ -452,10 +453,10 @@ jobs:
           activate_statement:               ${{ steps.activate.outputs.activate_statement }}
 
           test_type:                        BuildVerificationTests
-          code_coverage:                    "true"
+          code_coverage:                    true
 
       - name: Tester (PerformanceTests, Code Coverage)
-        uses: ./.github/actions/tester
+        uses: davidbrownell/v4-Common_Foundation/.github/actions/tester@CI-v1.0.0
         if: ${{ inputs.execute_PerformanceTests == 2 || inputs.execute_PerformanceTests == 3 }}
         with:
           os:                               ${{ inputs.os }}
@@ -468,6 +469,6 @@ jobs:
           activate_statement:               ${{ steps.activate.outputs.activate_statement }}
 
           test_type:                        PerformanceTests
-          code_coverage:                    "true"
+          code_coverage:                    true
 
       # [[[end]]]

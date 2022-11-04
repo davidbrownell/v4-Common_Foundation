@@ -79,13 +79,13 @@ runs:
       #     ).format(
       #         output_template="".join("{}={{}}\\n".format(statement_value) for statement_value in statement_values),
       #         output_format=", ".join("os.getenv('_{}')".format(statement_value) for statement_value in statement_values),
-      #         env_template="".join("{}=\\n".format(statement_value) for statement_value in statement_values),
+      #         env_template="".join("_{}=\\n".format(statement_value) for statement_value in statement_values),
       #     ),
       # )
       # ]]]
       run: |
         python -c "import os; f = open(os.getenv('GITHUB_OUTPUT'), 'a+'); f.write('activate_statement={}\n'.format(os.getenv('_activate_statement'))); f.close();"
-        python -c "import os; f = open(os.getenv('GITHUB_ENV'), 'a+'); f.write('activate_statement=\n'); f.close();"
+        python -c "import os; f = open(os.getenv('GITHUB_ENV'), 'a+'); f.write('_activate_statement=\n'); f.close();"
 
       # [[[end]]]
 

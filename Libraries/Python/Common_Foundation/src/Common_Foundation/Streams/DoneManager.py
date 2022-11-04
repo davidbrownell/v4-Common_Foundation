@@ -233,6 +233,7 @@ class DoneManager(object):
     _status_line_prefix: str                = field(init=False)
 
     _wrote_content: bool                    = field(init=False, default=False)
+    _wrote_status: bool                     = field(init=False, default=False)
     _prev_status_content: List[str]         = field(init=False, default_factory=list)
 
     # ----------------------------------------------------------------------
@@ -566,7 +567,7 @@ class DoneManager(object):
 
         with self._stream.YieldStdout() as context:
             try:
-                if not self._wrote_content and is_interactive:
+                if not self._wrote_content:
                     context.stream.write("\n")
 
                 yield context
@@ -588,15 +589,15 @@ class DoneManager(object):
                         sys.stdout.write(self._line_prefix)
 
                     elif (
-                        not context.persist_content
+                        is_interactive
+                        and not context.persist_content
                         and not self._wrote_content
                     ):
                         # Move up a line, write the whitespace and heading
-                        if is_interactive:
-                            sys.stdout.write(
-                                "\033[1A{}{}".format(self._line_prefix, self.heading),
-                            )
-                            sys.stdout.flush()
+                        sys.stdout.write(
+                            "\033[1A{}{}".format(self._line_prefix, self.heading),
+                        )
+                        sys.stdout.flush()
 
     # ----------------------------------------------------------------------
     def __post_init__(self):
@@ -828,24 +829,16 @@ class DoneManager(object):
         *,
         update_prev_status: bool=True,
     ) -> None:
-        if not content and (not self._prev_status_content or not self._stream.isatty()):
+        if not self.capabilities.is_interactive:
             return
 
-        if not self._stream.isatty() and isinstance(content, str) and not content.endswith("\n"):
-            content += "\n"
-
-        if not self._stream.isatty():
-            self._stream.write(
-                TextwrapEx.Indent(
-                    "STATUS: {}".format(content),
-                    len("STATUS: "),
-                    skip_first_line=True,
-                ),
-            )
-
+        if not content and (not self._prev_status_content or self.preserve_status):
             return
 
         ShowCursor(not bool(content))
+
+        if isinstance(content, str) and not content.endswith("\n"):
+            content += "\n"
 
         # Prepare the content
         blank_lines: List[str] = []
@@ -868,23 +861,25 @@ class DoneManager(object):
 
                 lines.append("\r{}\n".format(line.ljust(self.num_cols)))
 
-            if self._stream.isatty() and len(self._prev_status_content) > len(lines):
+            if len(self._prev_status_content) > len(lines):
                 blank_lines += ["\r{}\n".format("".ljust(self.num_cols)), ] * (len(self._prev_status_content) - len(lines))
 
         # Write the content
         if not self._wrote_content:
             # If we haven't written anything yet, we need to write something to get
-            # the contained stream's prefix to fire (if any).
+            # the contained stream's prefix to fire (if any). This is something that
+            # will be undone in `_OnExit` if status information is the only thing that
+            # has been written.
             self._stream.write("")
-            self._wrote_content = True
 
         for line in itertools.chain(lines, blank_lines):
             sys.stdout.write(line)
 
-        if self._stream.isatty():
-            # Move the cursor up to the position that it would be in if we were writing
-            # a standard message
-            sys.stdout.write("\033[{}A\r".format(len(lines) + len(blank_lines)))
+        # Move the cursor up to the position that it would be in if we were writing
+        # a standard message
+        sys.stdout.write("\033[{}A\r".format(len(lines) + len(blank_lines)))
+
+        self._wrote_status = True
 
         if update_prev_status:
             self._prev_status_content = lines
@@ -895,3 +890,12 @@ class DoneManager(object):
             self.PreserveStatus()
         else:
             self.ClearStatus()
+
+            if (
+                self.capabilities.is_interactive
+                and not self._wrote_content
+                and self._wrote_status
+            ):
+                # Move up a line and recreate the heading
+                self._stream.write("\033[1A\r{}{}".format(self._line_prefix, self.heading))
+                self._stream.flush()
