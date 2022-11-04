@@ -115,7 +115,7 @@ set _COMMON_CODE_ABSOLUTE_DIR=%CD%
 popd
 
 @REM ----------------------------------------------------------------------
-REM Enlist and setup Common_Foundation
+REM Enlist in Common_Foundation
 if not exist "%_COMMON_CODE_ABSOLUTE_DIR%\Common\Foundation" (
     echo Enlisting in Common_Fundation...
     echo.
@@ -131,7 +131,23 @@ if not exist "%_COMMON_CODE_ABSOLUTE_DIR%\Common\Foundation" (
     echo.
     echo DONE!
     echo.
+
+    goto EnlistInCommonFoundation_End
 )
+
+REM Update Common_Foundation
+echo Updating Common_Foundation...
+echo.
+
+pushd "%_COMMON_CODE_ABSOLUTE_DIR%\Common\Foundation"
+git pull
+popd
+
+echo.
+echo DONE!
+echo.
+
+:EnlistInCommonFoundation_End
 
 @REM ----------------------------------------------------------------------
 call "%_COMMON_CODE_ABSOLUTE_DIR%\Common\Foundation\Setup.cmd" %_BOOTSTRAP_NAME_ARG% %_NO_HOOKS_ARG% %_FORCE_ARG% %_VERBOSE_ARG% %_DEBUG_ARG%

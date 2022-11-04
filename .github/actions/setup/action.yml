@@ -32,23 +32,80 @@ runs:
     - name: Setup (No Configuration)
       if: ${{ github.event.repository.name == 'v4-Common_Foundation' && inputs.configuration == 'None' }}
       run: |
-        ${{ inputs.sudo_command }}${{ inputs.local_script_prefix }}Setup${{ inputs.script_extension }} --no-interactive --debug
+        ${{ inputs.sudo_command }}${{ inputs.local_script_prefix }}Setup${{ inputs.script_extension }} --no-interactive --no-hooks --debug
       shell: ${{ inputs.shell_name }}
 
     - name: Setup (with Configuration)
       if: ${{ github.event.repository.name == 'v4-Common_Foundation' && inputs.configuration != 'None' }}
       run: |
-        ${{ inputs.sudo_command }}${{ inputs.local_script_prefix }}Setup${{ inputs.script_extension }} --configuration ${{ inputs.configuration }} --no-interactive --debug
+        ${{ inputs.sudo_command }}${{ inputs.local_script_prefix }}Setup${{ inputs.script_extension }} --configuration ${{ inputs.configuration }} --no-interactive --no-hooks --debug
+      shell: ${{ inputs.shell_name }}
+
+    # Do not let repositories in the '_actions' directory be used as dependency repositories during the bootstrap process
+    # (as the fall outside the `all_repositories_root` directory and are therefore not setup).
+
+    # There are probably shell scripts to do this cleaning, but it feels easier to do the work in python
+    - name: Generate Clean Actions (ubuntu)
+      if: ${{ github.event.repository.name != 'v4-Common_Foundation' && startsWith(inputs.os, 'ubuntu') }}
+      run: |
+          cat > _clean_action_dir.py <<EOF
+          import os
+          from pathlib import Path
+
+          for parent in Path.cwd().parents:
+            potential_folder = parent / '_actions'
+            if potential_folder.is_dir():
+              for root, _, filenames in os.walk(potential_folder):
+                for filename in filenames:
+                  if filename == '__RepositoryId__':
+                    fullpath = Path(root) / filename
+                    print(fullpath)
+
+                    fullpath.unlink()
+
+              break
+          EOF
+      shell: bash
+
+    - name: Generate Clean Actions (windows)
+      if: ${{ github.event.repository.name != 'v4-Common_Foundation' && startsWith(inputs.os, 'windows') }}
+      run: |
+        $python_content = @"
+        import os
+        from pathlib import Path
+
+        for parent in Path.cwd().parents:
+          potential_folder = parent / '_actions'
+          if potential_folder.is_dir():
+            for root, _, filenames in os.walk(potential_folder):
+              for filename in filenames:
+                if filename == '__RepositoryId__':
+                  fullpath = Path(root) / filename
+                  print(fullpath)
+
+                  fullpath.unlink()
+
+            break
+        "@
+
+        Add-Content "_clean_action_dir.py" $python_content
+      shell: powershell
+
+    - name: Clean Actions
+      if: ${{ github.event.repository.name != 'v4-Common_Foundation' }}
+      run: |
+        python _clean_action_dir.py
+        python -c "import os; os.remove('_clean_action_dir.py')"
       shell: ${{ inputs.shell_name }}
 
     - name: Bootstrap (No Configuration)
       if: ${{ github.event.repository.name != 'v4-Common_Foundation' && inputs.configuration == 'None' }}
       run: |
-        ${{ inputs.sudo_command }}${{ inputs.local_script_prefix }}Bootstrap${{ inputs.script_extension }} ${{ inputs.working_dir }}/code --no-interactive --debug
+        ${{ inputs.sudo_command }}${{ inputs.local_script_prefix }}Bootstrap${{ inputs.script_extension }} ${{ inputs.working_dir }}/code --no-interactive --no-hooks --debug
       shell: ${{ inputs.shell_name }}
 
     - name: Bootstrap (with Configuration)
       if: ${{ github.event.repository.name != 'v4-Common_Foundation' && inputs.configuration != 'None' }}
       run: |
-        ${{ inputs.sudo_command }}${{ inputs.local_script_prefix }}Bootstrap${{ inputs.script_extension }} ${{ inputs.working_dir }}/code --configuration ${{ inputs.configuration }} --no-interactive --debug
+        ${{ inputs.sudo_command }}${{ inputs.local_script_prefix }}Bootstrap${{ inputs.script_extension }} ${{ inputs.working_dir }}/code --configuration ${{ inputs.configuration }} --no-interactive --no-hooks --debug
       shell: ${{ inputs.shell_name }}

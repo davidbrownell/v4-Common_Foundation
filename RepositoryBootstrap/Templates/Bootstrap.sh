@@ -100,6 +100,17 @@ if [[ ${should_continue} == 1 ]]; then
         echo ""
 
         "$1/Common/Foundation/Setup.sh" ${name_arg} ${no_hooks_arg} ${force_arg} ${verbose_arg} ${debug_arg}
+    else
+        echo "Updating Common_Foundation..."
+        echo ""
+
+        pushd "$1/Common/Foundation" > /dev/null
+        git pull
+        popd > /dev/null
+
+        echo ""
+        echo "DONE!"
+        echo ""
     fi
 
     # Write the environment activation and python execution statements to a temporary file

@@ -293,9 +293,9 @@ def _EnlistImpl(
 
     for iteration in itertools.count(1):
         with dm.Nested(
-            "\nIteration {}...".format(iteration),
+            "Iteration {}...".format(iteration),
             display_exceptions=False,
-            suffix="\n",
+            suffix="\n\n",
         ) as iteration_dm:
             # Calculate the map
             calculator = _CreateRepositoryMapCalculator(
@@ -730,7 +730,7 @@ def _CreateRepositoryMapCalculator(
     calculator: Optional[RepositoryMapCalculator.RepositoryMapCalculator] = None
 
     with dm.Nested(
-        "Searching for dependencies of '{}' in '{}'...\n".format(
+        "Searching for dependencies of '{}' in '{}'...".format(
             source_repository,
             all_repositories_root,
         ),
@@ -738,7 +738,7 @@ def _CreateRepositoryMapCalculator(
             lambda: None if calculator is None else "{} found".format(inflect.no("repository", len(calculator.encountered_repos))),
             lambda: None if calculator is None else "{} missing".format(inflect.no("repository", len(calculator.pending_repos))),
         ],
-        preserve_status=True,
+        preserve_status=False,
     ) as nested_dm:
         # ----------------------------------------------------------------------
         class InternalRepositoryMapCalculator(RepositoryMapCalculator.RepositoryMapCalculator):
@@ -799,24 +799,23 @@ def _CreateRepositoryMapCalculator(
                 repositories_pending: int,
                 current_path: Optional[Path],
             ) -> None:
-                if nested_dm.capabilities.is_interactive:
-                    nested_dm.WriteStatus(
-                        textwrap.dedent(
-                            """\
-                            Directories searched:   {}
-                            Directories pending:    {}
-                            Repositories found:     {}
-                            Repositories pending:   {}
-                            Searching:              {}
-                            """,
-                        ).format(
-                            directories_searched,
-                            directories_pending,
-                            repositories_found,
-                            repositories_pending,
-                            current_path or "<None>",
-                        ),
-                    )
+                nested_dm.WriteStatus(
+                    textwrap.dedent(
+                        """\
+                        Directories searched:   {}
+                        Directories pending:    {}
+                        Repositories found:     {}
+                        Repositories pending:   {}
+                        Searching:              {}
+                        """,
+                    ).format(
+                        directories_searched,
+                        directories_pending,
+                        repositories_found,
+                        repositories_pending,
+                        current_path or "<None>",
+                    ),
+                )
 
         # ----------------------------------------------------------------------
 

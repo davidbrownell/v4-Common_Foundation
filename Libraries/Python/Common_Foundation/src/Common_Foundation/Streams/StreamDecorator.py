@@ -219,7 +219,7 @@ class StreamDecorator(TextWriter):
 
         line_prefix = self.GetCompleteLinePrefix()
 
-        if not self.isatty():
+        if not Capabilities.Get(self).is_interactive:
             try:
                 self.write("\n")
                 yield StreamDecorator.YieldStdoutContext(sys.stdout, line_prefix, persist_content=True)

@@ -37,6 +37,6 @@ runs:
       if: always()
       uses: actions/upload-artifact@v3.1.1
       with:
-        name: "Builder Artifacts [${{ inputs.os }}, ${{ inputs.configuration }}]"
+        name: "[${{ github.run_number }}] Builder Artifacts [${{ inputs.os }}, ${{ inputs.configuration }}]"
         path: ${{ inputs.working_dir }}/Builder
         if-no-files-found: ignore
