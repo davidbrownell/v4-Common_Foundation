@@ -31,7 +31,8 @@ from Common_Foundation.Types import extensionmethod, overridemethod
 
 from Common_FoundationEx.InflectEx import inflect
 
-from ...Interfaces.ICompilerIntrinsics import ICompilerIntrinsics
+from ..IntrinsicsBase import IntrinsicsBase
+
 from ...Interfaces.IInputProcessor import IInputProcessor
 from ...Interfaces.IInvocationQuery import IInvocationQuery, InvokeReason
 from ...Interfaces.IOutputProcessor import IOutputProcessor
@@ -39,7 +40,7 @@ from ...Interfaces.IOutputProcessor import IOutputProcessor
 
 # ----------------------------------------------------------------------
 class ConditionalInvocationQueryMixin(
-    ICompilerIntrinsics,
+    IntrinsicsBase,
     IInvocationQuery,
 ):
     """Mixin for compilers that determine invocation by conditions"""

@@ -15,12 +15,21 @@
 # ----------------------------------------------------------------------
 """Contains the CodeGenerator object"""
 
-from typing import Any, Callable, Dict, TextIO, Tuple, Union
+from pathlib import Path
+from typing import Any, Callable, Dict, Optional, TextIO, Tuple, Union
+
+from Common_Foundation.Types import overridemethod
 
 from . import CommandLine
 from .CompilerImpl import CompilerImpl
 
+from .Interfaces.IInputProcessor import IInputProcessor
+from .Interfaces.IOutputProcessor import IOutputProcessor
+
 from .Mixins.InvocationQueryMixins.ConditionalInvocationQueryMixin import ConditionalInvocationQueryMixin
+
+# Convenience Imports
+from .CompilerImpl import InputType, InvokeReason  # pylint: disable=unused-import
 
 
 # ----------------------------------------------------------------------
@@ -31,8 +40,15 @@ class CodeGenerator(
     """Pre-configured object for a compiler that generates code"""
 
     # ----------------------------------------------------------------------
-    def __init__(self, *args, **kwargs):
-        super(CodeGenerator, self).__init__(
+    def __init__(
+        self,
+        input_processor: IInputProcessor,
+        output_processor: IOutputProcessor,
+        *args,
+        **kwargs,
+    ):
+        CompilerImpl.__init__(
+            self,
             "Generate",
             "Generating",
             *args,
@@ -43,6 +59,25 @@ class CodeGenerator(
                 },
             },
         )
+
+        ConditionalInvocationQueryMixin.__init__(self, input_processor, output_processor)
+
+    # ----------------------------------------------------------------------
+    @overridemethod
+    def IsSupportedTestItem(
+        self,
+        item: Path,  # pylint: disable=unused-argument
+    ) -> bool:
+        return False
+
+    # ----------------------------------------------------------------------
+    @overridemethod
+    def ItemToTestName(
+        self,
+        item: Path,                         # pylint: disable=unused-argument
+        test_type_name: str,                # pylint: disable=unused-argument
+    ) -> Optional[Path]:
+        return None
 
     # ----------------------------------------------------------------------
     def Generate(
@@ -71,3 +106,4 @@ class CodeGenerator(
 # ----------------------------------------------------------------------
 CreateGenerateCommandLineFunc               = CommandLine.CreateInvokeCommandLineFunc
 CreateCleanCommandLineFunc                  = CommandLine.CreateCleanCommandLineFunc
+CreateListCommandLineFunc                   = CommandLine.CreateListCommandLineFunc

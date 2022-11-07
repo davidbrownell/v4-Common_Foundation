@@ -54,6 +54,9 @@ class BuildInfo(BuildInfoBase):
             ],
             bool,                           # True to continue, False to terminate
         ],
+        *,
+        is_verbose: bool,
+        is_debug: bool,
     ) -> Union[
         int,                                # Return code
         Tuple[
@@ -76,6 +79,9 @@ class BuildInfo(BuildInfoBase):
             ],
             bool,                           # True to continue, False to terminate
         ],
+        *,
+        is_verbose: bool,
+        is_debug: bool,
     ) -> Union[
         int,                                # Return code
         Tuple[

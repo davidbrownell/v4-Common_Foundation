@@ -49,6 +49,9 @@ class BuildInfo(BuildInfoBase):
             ],
             bool,                           # True to continue, False to terminate
         ],
+        *,
+        is_verbose: bool,                   # pylint: disable=unused-argument
+        is_debug: bool,                     # pylint: disable=unused-argument
     ) -> Union[
         int,                                # Error code
         Tuple[int, str],                    # Error code and short text that provides info about the result
@@ -68,6 +71,9 @@ class BuildInfo(BuildInfoBase):
             ],
             bool,                           # True to continue, False to terminate
         ],
+        *,
+        is_verbose: bool,                   # pylint: disable=unused-argument
+        is_debug: bool,                     # pylint: disable=unused-argument
     ) -> Union[
         int,                                # Error code
         Tuple[int, str],                    # Error code and short text that provides info about the result

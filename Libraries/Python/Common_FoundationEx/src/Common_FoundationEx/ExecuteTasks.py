@@ -152,7 +152,7 @@ def ExecuteTasks(
         quiet=quiet,
         refresh_per_second=refresh_per_second,
     ) as (status_factories, on_task_complete_func):
-        if max_num_threads == 1:
+        if max_num_threads == 1 or len(tasks) == 1:
             for task_data, status_factory in zip(tasks, status_factories):
                 with ExitStack(status_factory.Stop):
                     _ExecuteTask(
@@ -479,8 +479,8 @@ def _GenerateStatusInfo(
                 nonlocal success_count
 
                 if task_data.result < 0:
-                    if dm.result >= 0:
-                        dm.result = task_data.result
+                    if execute_dm.result >= 0:
+                        execute_dm.result = task_data.result
 
                     if not quiet:
                         progress_bar.print(
@@ -499,8 +499,8 @@ def _GenerateStatusInfo(
                         stdout_context.persist_content = True
 
                 if task_data.result > 0:
-                    if dm.result == 0:
-                        dm.result = task_data.result
+                    if execute_dm.result == 0:
+                        execute_dm.result = task_data.result
 
                     if not quiet:
                         progress_bar.print(

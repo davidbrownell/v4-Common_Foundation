@@ -21,14 +21,15 @@ from typing import Any, Dict, Generator, List, Set, TextIO, Tuple
 from Common_Foundation.Streams.DoneManager import DoneManager
 from Common_Foundation.Types import overridemethod
 
-from ...Interfaces.ICompilerIntrinsics import ICompilerIntrinsics
+from ..IntrinsicsBase import IntrinsicsBase
+
 from ...Interfaces.IInputProcessor import IInputProcessor
 from ...Interfaces.IOutputProcessor import IOutputProcessor
 
 
 # ----------------------------------------------------------------------
 class MultipleOutputProcessorMixin(
-    ICompilerIntrinsics,
+    IntrinsicsBase,
     IOutputProcessor,
 ):
     """Mixin for compilers that generate multiple output files"""
@@ -98,6 +99,7 @@ class MultipleOutputProcessorMixin(
         dm: DoneManager,
         metadata: Dict[str, Any],
     ) -> Dict[str, Any]:
+        assert MultipleOutputProcessorMixin.ATTRIBUTE_NAME in metadata, "Derived classes should have added '{}' to `metadata` before this functionality is invoked".format(MultipleOutputProcessorMixin.ATTRIBUTE_NAME)
         output_filenames = metadata[MultipleOutputProcessorMixin.ATTRIBUTE_NAME]
 
         for index, output_filename in enumerate(output_filenames):

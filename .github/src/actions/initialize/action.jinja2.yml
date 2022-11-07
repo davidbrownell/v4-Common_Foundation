@@ -76,9 +76,19 @@ runs:
     - name: Set Statements
       id: set_statements
       shell: ${{ env._shell_name }}
-      run: |
-        python -c "import os; f = open(os.getenv('GITHUB_OUTPUT'), 'a+'); f.write('local_script_prefix={}\nscript_extension={}\nshell_name={}\nsource_command={}\nsudo_command={}\nworking_dir={}\n'.format(os.getenv('_local_script_prefix'), os.getenv('_script_extension'), os.getenv('_shell_name'), os.getenv('_source_command'), os.getenv('_sudo_command'), os.getenv('_working_dir'))); f.close();"
-        python -c "import os; f = open(os.getenv('GITHUB_ENV'), 'a+'); f.write('_local_script_prefix=\n_script_extension=\n_shell_name=\n_source_command=\n_sudo_command=\n_working_dir=\n'); f.close();"
+      <<% import "../../_PersistEnvironmentVars.macro.yaml" as PersistEnvironmentVars %>>
+      <<<
+        PersistEnvironmentVars.Execute(
+          [
+            "local_script_prefix",
+            "script_extension",
+            "shell_name",
+            "source_command",
+            "sudo_command",
+            "working_dir",
+          ],
+        )
+      >>>
 
     - name: Validate
       run: |

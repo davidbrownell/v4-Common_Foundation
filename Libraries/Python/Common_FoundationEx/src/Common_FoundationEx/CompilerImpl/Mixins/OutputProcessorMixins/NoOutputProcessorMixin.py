@@ -21,13 +21,14 @@ from typing import Any, Dict, Generator, List, TextIO, Tuple
 from Common_Foundation.Streams.DoneManager import DoneManager
 from Common_Foundation.Types import overridemethod
 
-from ...Interfaces.ICompilerIntrinsics import ICompilerIntrinsics
+from ..IntrinsicsBase import IntrinsicsBase
+
 from ...Interfaces.IOutputProcessor import IOutputProcessor
 
 
 # ----------------------------------------------------------------------
 class NoOutputProcessorMixin(
-    ICompilerIntrinsics,
+    IntrinsicsBase,
     IOutputProcessor,
 ):
     """Mixin for compilers that don't generate any output"""

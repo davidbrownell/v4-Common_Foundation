@@ -1,0 +1,60 @@
+# ----------------------------------------------------------------------
+# |
+# |  action.yml
+# |
+# |  David Brownell <db@DavidBrownell.com>
+# |      2022-10-28 10:57:01
+# |
+# ----------------------------------------------------------------------
+# |
+# |  Copyright David Brownell 2022
+# |  Distributed under the Boost Software License, Version 1.0. See
+# |  accompanying file LICENSE_1_0.txt or copy at
+# |  http://www.boost.org/LICENSE_1_0.txt.
+# |
+# ----------------------------------------------------------------------
+name: Tester
+description: Runs `Tester` on the repository.
+
+inputs:
+  os:                                       {type: string, required: true}
+  configuration:                            {type: string, required: true}
+
+  script_extension:                         {type: string, required: true}
+  shell_name:                               {type: string, required: true}
+  working_dir:                              {type: string, required: true}
+
+  activate_statement:                       {type: string, required: true}
+
+  test_type:                                {type: string, required: true}
+
+  code_coverage:                            {type: boolean, required: true}
+
+runs:
+  using: composite
+  steps:
+    - name: "Tester (${{ inputs.test_type }})"
+      if: ${{ inputs.code_coverage == false || inputs.code_coverage == 'false' }}
+      run: ${{ inputs.activate_statement }} && Tester${{ inputs.script_extension }} TestAll . "${{ inputs.working_dir }}/Tester${{ inputs.test_type }}" ${{ inputs.test_type }} --debug
+      shell: ${{ inputs.shell_name }}
+
+    - name: "Tester (${{ inputs.test_type }}) [Upload]"
+      if: ${{ (inputs.code_coverage == false || inputs.code_coverage == 'false') && always() }}
+      uses: actions/upload-artifact@v3.1.1
+      with:
+        name: "[${{ github.run_number }}] Tester Artifacts (${{ inputs.test_type }}) [${{ inputs.os }}, ${{ inputs.configuration }}]"
+        path: "${{ inputs.working_dir }}/Tester${{ inputs.test_type }}"
+        if-no-files-found: ignore
+
+    - name: "Tester (${{ inputs.test_type }}, Code Coverage)"
+      if: ${{ inputs.code_coverage == true || inputs.code_coverage == 'true' }}
+      run: ${{ inputs.activate_statement }} && Tester${{ inputs.script_extension }} TestAll . "${{ inputs.working_dir }}/Tester${{ inputs.test_type }}Coverage" ${{ inputs.test_type }} --debug --code-coverage
+      shell: ${{ inputs.shell_name }}
+
+    - name: "Tester (${{ inputs.test_type }}, Code Coverage) [Upload]"
+      if: ${{ (inputs.code_coverage == true || inputs.code_coverage == 'true') && always() }}
+      uses: actions/upload-artifact@v3.1.1
+      with:
+        name: "[${{ github.run_number }}] Tester Artifacts (${{ inputs.test_type }}, Code Coverage) [${{ inputs.os }}, ${{ inputs.configuration }}]"
+        path: "${{ inputs.working_dir }}/Tester${{ inputs.test_type }}Coverage"
+        if-no-files-found: ignore

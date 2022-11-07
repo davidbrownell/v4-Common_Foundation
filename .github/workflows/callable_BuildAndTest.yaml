@@ -3,7 +3,7 @@
 # |  callable_BuildAndTest.yaml
 # |
 # |  David Brownell <db@DavidBrownell.com>
-# |      2022-10-28 08:59:39
+# |      2022-11-07 10:06:37
 # |
 # ----------------------------------------------------------------------
 # |
@@ -14,6 +14,7 @@
 # |
 # ----------------------------------------------------------------------
 name: callable_BuildAndTest
+
 
 # Sample implementation in the calling workflow:
 #
@@ -30,7 +31,7 @@ name: callable_BuildAndTest
 #   workflow_dispatch:
 #
 # jobs:
-#   BuildAndTest:
+#   <repo_name_here>:
 #     strategy:
 #       matrix:
 #         os:
@@ -107,8 +108,11 @@ on:
       execute_BuildVerificationTests:       {type: number, default: 0, required: true}
       execute_PerformanceTests:             {type: number, default: 0, required: true}
 
+      # ----------------------------------------------------------------------
+      # |  Child Inputs
+
 jobs:
-  BuildAndTest:
+  BuildAndTestJob:
     runs-on: ${{ inputs.os }}
 
     env:
@@ -147,6 +151,7 @@ jobs:
           configuration:                    ${{ inputs.configuration }}
           shell_name:                       ${{ steps.initialize.outputs.shell_name }}
 
+
       - name: Builder
         uses: davidbrownell/v4-Common_Foundation/.github/actions/builder@CI-v1.0.0
         if: ${{ inputs.run_Builder == true || inputs.run_Builder == 'true' }}
@@ -160,61 +165,6 @@ jobs:
 
           activate_statement:               ${{ steps.activate.outputs.activate_statement }}
 
-      # [[[cog
-      # import textwrap
-      #
-      # for use_code_coverage, name_suffix, conditional_template in [
-      #     (
-      #         False,
-      #         "",
-      #         # Note that GitHub actions don't support bit checking, so need to compare manually
-      #         "${{{{ inputs.execute_{test_type} == 1 || inputs.execute_{test_type} == 3 }}}}"
-      #     ),
-      #     (
-      #         True,
-      #         ", Code Coverage",
-      #         # Note that GitHub actions don't support bit checking, so need to compare manually
-      #         "${{{{ inputs.execute_{test_type} == 2 || inputs.execute_{test_type} == 3 }}}}"
-      #     ),
-      # ]:
-      #     for test_type in [
-      #         "UnitTests",
-      #         "FunctionalTests",
-      #         "IntegrationTests",
-      #         "SystemTests",
-      #         "LocalEndToEndTests",
-      #         "EndToEndTests",
-      #         "BuildVerificationTests",
-      #         "PerformanceTests",
-      #     ]:
-      #         cog.out(
-      #             textwrap.dedent(
-      #                 """\
-      #                 - name: Tester ({test_type}{name_suffix})
-      #                   uses: davidbrownell/v4-Common_Foundation/.github/actions/tester@CI-v1.0.0
-      #                   if: {conditional}
-      #                   with:
-      #                     os:                               ${{{{ inputs.os }}}}
-      #                     configuration:                    ${{{{ inputs.configuration }}}}
-      #
-      #                     script_extension:                 ${{{{ steps.initialize.outputs.script_extension }}}}
-      #                     shell_name:                       ${{{{ steps.initialize.outputs.shell_name }}}}
-      #                     working_dir:                      ${{{{ steps.initialize.outputs.working_dir }}}}
-      #
-      #                     activate_statement:               ${{{{ steps.activate.outputs.activate_statement }}}}
-      #
-      #                     test_type:                        {test_type}
-      #                     code_coverage:                    {use_code_coverage}
-      #
-      #                 """,
-      #             ).format(
-      #                 test_type=test_type,
-      #                 name_suffix=name_suffix,
-      #                 conditional=conditional_template.format(test_type=test_type),
-      #                 use_code_coverage=str(use_code_coverage).lower(),
-      #             ),
-      #         )
-      # ]]]
       - name: Tester (UnitTests)
         uses: davidbrownell/v4-Common_Foundation/.github/actions/tester@CI-v1.0.0
         if: ${{ inputs.execute_UnitTests == 1 || inputs.execute_UnitTests == 3 }}
@@ -471,4 +421,4 @@ jobs:
           test_type:                        PerformanceTests
           code_coverage:                    true
 
-      # [[[end]]]
+

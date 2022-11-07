@@ -63,9 +63,8 @@ runs:
     - name: Activate Statement
       id: activate_statement
       shell: ${{ inputs.shell_name }}
-      run: |
-        python -c "import os; f = open(os.getenv('GITHUB_OUTPUT'), 'a+'); f.write('activate_statement={}\n'.format(os.getenv('_activate_statement'))); f.close();"
-        python -c "import os; f = open(os.getenv('GITHUB_ENV'), 'a+'); f.write('_activate_statement=\n'); f.close();"
+      <<% import "../../_PersistEnvironmentVars.macro.yaml" as PersistEnvironmentVars %>>
+      <<< PersistEnvironmentVars.Execute(["activate_statement"]) >>>
 
     - name: Activate
       run: ${{ steps.activate_statement.outputs.activate_statement }}
