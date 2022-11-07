@@ -430,6 +430,9 @@ def _EnlistImpl(
             ) -> str:
                 data = item[1]
 
+                if data.root == source_repository:
+                    return "Skipping the source repository."
+
                 this_scm = next(
                     (
                         scm
