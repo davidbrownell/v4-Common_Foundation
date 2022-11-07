@@ -41,6 +41,8 @@ from .Interfaces.IInvocationQuery import IInvocationQuery, InvokeReason
 from .Interfaces.IInvoker import IInvoker
 from .Interfaces.IOutputProcessor import IOutputProcessor
 
+from .Mixins.IntrinsicsBase import IntrinsicsBase
+
 
 # ----------------------------------------------------------------------
 class InputType(Enum):
@@ -64,7 +66,7 @@ class InputType(Enum):
 
 # ----------------------------------------------------------------------
 class CompilerImpl(
-    ICompilerIntrinsics,
+    IntrinsicsBase,
     IInputProcessor,
     IInvocationQuery,
     IInvoker,
@@ -341,7 +343,8 @@ class CompilerImpl(
                     if "input" in metadata:
                         metadata["output_dir"] /= Path(*metadata["input"].parts[len_item_root_parts:])
                     elif "inputs" in metadata:
-                        metadata["output_dir"] /= str(index)
+                        if len(all_input_items) != 1:
+                            metadata["output_dir"] /= str(index)
                     else:
                         assert False, metadata  # pragma: no cover
 
@@ -351,7 +354,7 @@ class CompilerImpl(
             else:
                 decorate_generated_metadata_func = lambda _: None
 
-            for generated_metadata in self._GenerateMetadataItems(input_items, metadata):
+            for generated_metadata in self._GenerateMetadataItems(item_root, input_items, metadata):
                 decorate_generated_metadata_func(generated_metadata)
 
                 # Validate required metadata names
@@ -539,35 +542,6 @@ class CompilerImpl(
                     return invoke_dm.result, short_desc
 
                 return invoke_dm.result
-
-    # ----------------------------------------------------------------------
-    @overridemethod
-    def _EnumerateOptionalMetadata(self) -> Generator[Tuple[str, Any], None, None]:
-        # No optional metadata by default
-        if False:
-            yield
-
-    # ----------------------------------------------------------------------
-    @overridemethod
-    def _GetRequiredMetadataNames(self) -> List[str]:
-        # No required metadata names by default
-        return []
-
-    # ----------------------------------------------------------------------
-    @overridemethod
-    def _GetRequiredContextNames(self) -> List[str]:
-        # No required context names by default
-        return []
-
-    # ----------------------------------------------------------------------
-    @overridemethod
-    def _CreateContext(
-        self,
-        dm: DoneManager,  # pylint: disable=unused-argument
-        metadata: Dict[str, Any],
-    ) -> Dict[str, Any]:
-        # No conversion by default
-        return metadata
 
     # ----------------------------------------------------------------------
     # |

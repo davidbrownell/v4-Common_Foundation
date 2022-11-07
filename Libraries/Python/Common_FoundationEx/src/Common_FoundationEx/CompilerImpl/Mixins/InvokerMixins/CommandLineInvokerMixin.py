@@ -22,14 +22,15 @@ from Common_Foundation.Streams.DoneManager import DoneManager
 from Common_Foundation import SubprocessEx
 from Common_Foundation.Types import overridemethod
 
-from ...Interfaces.ICompilerIntrinsics import ICompilerIntrinsics
+from ..IntrinsicsBase import IntrinsicsBase
+
 from ...Interfaces.IInvocationQuery import InvokeReason
 from ...Interfaces.IInvoker import IInvoker
 
 
 # ----------------------------------------------------------------------
 class CommandLineInvokerMixin(
-    ICompilerIntrinsics,
+    IntrinsicsBase,
     IInvoker,
 ):
     """Mixin for compilers that invoke functionality by running an external command via the command line"""

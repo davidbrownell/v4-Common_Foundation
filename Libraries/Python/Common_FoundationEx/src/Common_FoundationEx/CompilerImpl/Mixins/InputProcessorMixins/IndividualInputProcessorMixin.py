@@ -23,13 +23,14 @@ from typing import Any, Dict, Generator, List, Optional, Tuple
 from Common_Foundation.Streams.DoneManager import DoneManager
 from Common_Foundation.Types import overridemethod
 
-from ...Interfaces.ICompilerIntrinsics import ICompilerIntrinsics
+from ..IntrinsicsBase import IntrinsicsBase
+
 from ...Interfaces.IInputProcessor import IInputProcessor
 
 
 # ----------------------------------------------------------------------
 class IndividualInputProcessorMixin(
-    ICompilerIntrinsics,
+    IntrinsicsBase,
     IInputProcessor,
 ):
     """Mixin where all inputs are processed as individual items"""
@@ -91,6 +92,7 @@ class IndividualInputProcessorMixin(
     @overridemethod
     def _GenerateMetadataItems(
         self,
+        input_root: Path,  # pylint: disable=unused-argument
         input_items: List[Path],
         user_provided_metadata: Dict[str, Any],
     ) -> Generator[Dict[str, Any], None, None]:

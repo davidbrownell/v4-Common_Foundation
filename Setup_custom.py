@@ -40,6 +40,7 @@ def GetConfigurations() -> Union[Configuration.Configuration, Dict[str, Configur
     python_libraries: List[Configuration.VersionInfo] = basic_python_libraries + [
         Configuration.VersionInfo("colorama", SemVer("0.4.5")),
         Configuration.VersionInfo("inflect", SemVer("6.0.0")),
+        Configuration.VersionInfo("jinja2", SemVer("3.1.2")),
         Configuration.VersionInfo("requests", SemVer("2.28.1")),
         Configuration.VersionInfo("rich", SemVer("12.6.0")),
         Configuration.VersionInfo("semantic_version", SemVer("2.10.0")),

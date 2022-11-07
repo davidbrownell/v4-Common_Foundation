@@ -21,14 +21,15 @@ from typing import Any, Dict, Generator, List, TextIO, Tuple
 from Common_Foundation.Streams.DoneManager import DoneManager
 from Common_Foundation.Types import overridemethod
 
-from ...Interfaces.ICompilerIntrinsics import ICompilerIntrinsics
+from ..IntrinsicsBase import IntrinsicsBase
+
 from ...Interfaces.IInputProcessor import IInputProcessor
 from ...Interfaces.IOutputProcessor import IOutputProcessor
 
 
 # ----------------------------------------------------------------------
 class AtomicOutputProcessorMixin(
-    ICompilerIntrinsics,
+    IntrinsicsBase,
     IOutputProcessor,
 ):
     """Mixin for compilers that generate a single file"""

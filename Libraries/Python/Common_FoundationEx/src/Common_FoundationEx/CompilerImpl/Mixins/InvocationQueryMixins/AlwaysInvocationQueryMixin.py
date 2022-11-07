@@ -20,13 +20,14 @@ from typing import Any, Dict, Generator, List, Optional, Tuple
 from Common_Foundation.Streams.DoneManager import DoneManager
 from Common_Foundation.Types import overridemethod
 
-from ...Interfaces.ICompilerIntrinsics import ICompilerIntrinsics
+from ..IntrinsicsBase import IntrinsicsBase
+
 from ...Interfaces.IInvocationQuery import IInvocationQuery, InvokeReason
 
 
 # ----------------------------------------------------------------------
 class AlwaysInvocationQueryMixin(
-    ICompilerIntrinsics,
+    IntrinsicsBase,
     IInvocationQuery,
 ):
     """Always invokes the compiler"""

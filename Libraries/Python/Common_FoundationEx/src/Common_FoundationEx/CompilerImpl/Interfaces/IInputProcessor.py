@@ -50,6 +50,7 @@ class IInputProcessor(ABC):
     @abstractmethod
     def _GenerateMetadataItems(
         self,
+        input_root: Path,
         input_items: List[Path],
         user_provided_metadata: Dict[str, Any],
     ) -> Generator[Dict[str, Any], None, None]:

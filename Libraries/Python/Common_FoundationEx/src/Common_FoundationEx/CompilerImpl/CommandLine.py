@@ -89,6 +89,7 @@ def CreateInvokeCommandLineFunc(
             {output_dir_parameter}
             {custom_parameters}
             {single_threaded_parameter}
+            single_task: bool=typer.Option(False, "--single-task", help="Optimizes the output display for single-task invocations."),
             quiet: bool=typer.Option(False, "--quiet", help="Write less output to the terminal."),
             verbose: bool=typer.Option(False, "--verbose", help="Write verbose information to the terminal."),
             debug: bool=typer.Option(False, "--debug", help="Write additional debug information to the terminal."),
@@ -106,6 +107,7 @@ def CreateInvokeCommandLineFunc(
                     {custom_args},
                     {single_threaded_argument},
                     quiet=quiet,
+                    single_task=single_task,
                 )
         """,
     ).format(
@@ -281,9 +283,16 @@ class _CustomParameters(object):
                 annotation = v
                 default = ""
 
+            annotation_name = str(annotation)
+
+            if annotation_name.startswith("typing."):
+                annotation_name = annotation_name[len("typing."):]
+            else:
+                annotation_name = annotation.__name__
+
             parameters[k] = '{name}: {annotation}{default}'.format(
                 name=k,
-                annotation=annotation.__name__,
+                annotation=annotation_name,
                 default=default,
             )
 
@@ -400,6 +409,7 @@ def _InvokeImpl(
     output_dir: Path,
     custom_params: Dict[str, Any],
     *,
+    single_task: bool,
     single_threaded: bool,
     quiet: bool,
 ) -> None:
@@ -408,6 +418,15 @@ def _InvokeImpl(
     context_info = _ContextInfo.Create(compiler, dm, inputs, output_dir, custom_params)
 
     if not context_info.contexts:
+        return
+
+    if single_task and len(context_info.contexts) != 1:
+        dm.WriteError(
+            "'single-task' was specified on the command line, but {} {} found.".format(
+                inflect.no("task", len(context_info.contexts)),
+                inflect.plural_verb("was", len(context_info.contexts)),
+            ),
+        )
         return
 
     # Create and execute the tasks
@@ -480,181 +499,232 @@ def _InvokeImpl(
     )
 
     # Prepare the final output
-    add_output_column = not isinstance(compiler, NoOutputProcessorMixin)
+    if single_task:
+        assert len(tasks) == 1
+        task_data = tasks[0]
 
-    rows: List[List[str]] = []
+        with dm.YieldStream() as stream:
+            assert task_data.log_filename.is_file(), task_data.log_filename
+            with task_data.log_filename.open() as f:
+                log_content = f.read()
 
-    for task_data in tasks:
-        rows.append(
-            [
-                task_data.context.compiler_context["display_name"],
-                "Failed ({})".format(task_data.result) if task_data.result < 0
-                    else "Unknown ({})".format(task_data.result) if task_data.result > 0
-                        else "Succeeded ({})".format(task_data.result)
-                ,
-                str(task_data.execution_time),
-                str(task_data.log_filename) if dm.capabilities.is_headless else "{} [View Log]".format(
-                    TextwrapEx.GetSizeDisplay(task_data.log_filename.stat().st_size) if task_data.log_filename.is_file() else "",
-                ),
-            ]
-        )
+        final_content = textwrap.dedent(
+            """\
 
-        if add_output_column:
-            rows[-1].append(
-                str(task_data.context.output_dir) if dm.capabilities.is_headless else "{} [View]".format(
-                    inflect.no("item", sum(1 for _ in task_data.context.output_dir.iterdir())),
-                ),
-            )
+            Execution result:   {}{}
+            Execution time:     {}
 
-        rows[-1].append(task_data.short_desc or "")
+            Log Contents:
 
-    if dm.capabilities.supports_colors:
-        success_on = TextwrapEx.SUCCESS_COLOR_ON
-        failure_on = TextwrapEx.ERROR_COLOR_ON
-        warning_on = TextwrapEx.WARNING_COLOR_ON
-        color_off = TextwrapEx.COLOR_OFF
-    else:
-        success_on = ""
-        failure_on = ""
-        warning_on = ""
-        color_off = ""
-
-    # ----------------------------------------------------------------------
-    def DecorateRow(
-        index: int,
-        values: List[str],
-    ) -> List[str]:
-        task_data = tasks[index]
-
-        if task_data.result < 0:
-            color_on = failure_on
-        elif task_data.result > 0:
-            color_on = warning_on
-        else:
-            color_on = success_on
-
-        values[1] = "{}{}{}".format(color_on, values[1], color_off)
-
-        # Attempt to provide a link to the name
-        if not dm.capabilities.is_headless:
-            if context_info.common_path:
-                potential_file = context_info.common_path / context_info.contexts[index]["display_name"]
-            else:
-                potential_file = Path(context_info.contexts[index]["display_name"])
-
-            if potential_file.is_file():
-                values[0] = TextwrapEx.CreateAnsiHyperLinkEx(
-                    "file:///{}".format(potential_file.as_posix()),
-                    values[0],
-                )
-
-            values[3] = TextwrapEx.CreateAnsiHyperLinkEx(
-                "file:///{}".format(task_data.log_filename.as_posix()),
-                values[3],
-            )
-
-            if add_output_column:
-                values[4] = TextwrapEx.CreateAnsiHyperLinkEx(
-                    "file:///{}".format(task_data.context.output_dir.as_posix()),
-                    values[4],
-                )
-
-        return values
-
-    # ----------------------------------------------------------------------
-
-    with dm.YieldStream() as stream:
-        indented_stream = StreamDecorator(stream, "    ")
-
-        indented_stream.write("\n\n")
-
-        if context_info.common_path is not None:
-            indented_stream.write(
-                textwrap.dedent(
-                    """\
-                    All items are relative to '{}'.
-
-
-                    """,
-                ).format(
-                    context_info.common_path if dm.capabilities.is_headless else TextwrapEx.CreateAnsiHyperLink(
-                        "file:///{}".format(context_info.common_path.as_posix()),
-                        str(context_info.common_path),
-                    ),
-                ),
-            )
-
-        headers: List[str] = [
-            "Context Name",
-            "Result",
-            "Execution Time",
-            "Log File",
-        ]
-
-        if add_output_column:
-            headers.append("Output Directory")
-
-        headers.append("Short Description")
-
-        col_justifications: List[TextwrapEx.Justify] = [
-            TextwrapEx.Justify.Left,
-            TextwrapEx.Justify.Center,
-            TextwrapEx.Justify.Left,
-            TextwrapEx.Justify.Right,
-        ]
-
-        if add_output_column:
-            col_justifications.append(TextwrapEx.Justify.Right)
-
-        col_justifications.append(TextwrapEx.Justify.Left)
-
-        indented_stream.write(
-            TextwrapEx.CreateTable(
-                headers,
-                rows,
-                col_justifications,
-                decorate_values_func=DecorateRow,
+                {}
+            """,
+        ).format(
+            task_data.result,
+            " ({})".format(task_data.short_desc) if task_data.short_desc else "",
+            task_data.execution_time,
+            TextwrapEx.Indent(
+                log_content.rstrip(),
+                4,
+                skip_first_line=True,
             ),
         )
 
-        indented_stream.write("\n")
-
-    # Write final output
-    success_count = 0
-    warning_count = 0
-    error_count = 0
-
-    for task_data in tasks:
         if task_data.result < 0:
-            error_count += 1
+            dm.WriteError(final_content)
         elif task_data.result > 0:
-            warning_count += 1
+            dm.WriteWarning(final_content)
         else:
-            success_count += 1
+            dm.WriteSuccess(final_content)
 
-    dm.WriteLine(
-        textwrap.dedent(
-            """\
+        # Remove the log file and any empty ancestors since we just displayed its output
+        task_data.log_filename.unlink()
 
-            {success_prefix}{success_count:>6} ({success_percentage:>6.2f}%)
-            {error_prefix}  {error_count:>6} ({error_percentage:>6.2f}%)
-            {warning_prefix}{warning_count:>6} ({warning_percentage:>6.2f}%)
-            Total:   {total:>6} (100.00%)
+        parent_dir = task_data.log_filename.parent
 
-            """,
-        ).format(
-            success_prefix=TextwrapEx.CreateSuccessPrefix(dm.capabilities),
-            success_count=success_count,
-            success_percentage=(success_count / len(tasks)) * 100,
-            error_prefix=TextwrapEx.CreateErrorPrefix(dm.capabilities),
-            error_count=error_count,
-            error_percentage=(error_count / len(tasks)) * 100,
-            warning_prefix=TextwrapEx.CreateWarningPrefix(dm.capabilities),
-            warning_count=warning_count,
-            warning_percentage=(warning_count / len(tasks)) * 100,
-            total=len(tasks),
-        ),
-    )
+        while True:
+            if next(parent_dir.iterdir(), None) is not None:
+
+                break
+
+            PathEx.RemoveTree(parent_dir)
+            parent_dir = parent_dir.parent
+
+    else:
+        add_output_column = not isinstance(compiler, NoOutputProcessorMixin)
+
+        rows: List[List[str]] = []
+
+        for task_data in tasks:
+            rows.append(
+                [
+                    task_data.context.compiler_context["display_name"],
+                    "Failed ({})".format(task_data.result) if task_data.result < 0
+                        else "Unknown ({})".format(task_data.result) if task_data.result > 0
+                            else "Succeeded ({})".format(task_data.result)
+                    ,
+                    str(task_data.execution_time),
+                    str(task_data.log_filename) if dm.capabilities.is_headless else "{} [View Log]".format(
+                        TextwrapEx.GetSizeDisplay(task_data.log_filename.stat().st_size) if task_data.log_filename.is_file() else "",
+                    ),
+                ]
+            )
+
+            if add_output_column:
+                rows[-1].append(
+                    str(task_data.context.output_dir) if dm.capabilities.is_headless else "{} [View]".format(
+                        inflect.no("item", sum(1 for _ in task_data.context.output_dir.iterdir())),
+                    ),
+                )
+
+            rows[-1].append(task_data.short_desc or "")
+
+        if dm.capabilities.supports_colors:
+            success_on = TextwrapEx.SUCCESS_COLOR_ON
+            failure_on = TextwrapEx.ERROR_COLOR_ON
+            warning_on = TextwrapEx.WARNING_COLOR_ON
+            color_off = TextwrapEx.COLOR_OFF
+        else:
+            success_on = ""
+            failure_on = ""
+            warning_on = ""
+            color_off = ""
+
+        # ----------------------------------------------------------------------
+        def DecorateRow(
+            index: int,
+            values: List[str],
+        ) -> List[str]:
+            task_data = tasks[index]
+
+            if task_data.result < 0:
+                color_on = failure_on
+            elif task_data.result > 0:
+                color_on = warning_on
+            else:
+                color_on = success_on
+
+            values[1] = "{}{}{}".format(color_on, values[1], color_off)
+
+            # Attempt to provide a link to the name
+            if not dm.capabilities.is_headless:
+                if context_info.common_path:
+                    potential_file = context_info.common_path / context_info.contexts[index]["display_name"]
+                else:
+                    potential_file = Path(context_info.contexts[index]["display_name"])
+
+                if potential_file.is_file():
+                    values[0] = TextwrapEx.CreateAnsiHyperLinkEx(
+                        "file:///{}".format(potential_file.as_posix()),
+                        values[0],
+                    )
+
+                values[3] = TextwrapEx.CreateAnsiHyperLinkEx(
+                    "file:///{}".format(task_data.log_filename.as_posix()),
+                    values[3],
+                )
+
+                if add_output_column:
+                    values[4] = TextwrapEx.CreateAnsiHyperLinkEx(
+                        "file:///{}".format(task_data.context.output_dir.as_posix()),
+                        values[4],
+                    )
+
+            return values
+
+        # ----------------------------------------------------------------------
+
+        with dm.YieldStream() as stream:
+            indented_stream = StreamDecorator(stream, "    ")
+
+            indented_stream.write("\n\n")
+
+            if context_info.common_path is not None:
+                indented_stream.write(
+                    textwrap.dedent(
+                        """\
+                        All items are relative to '{}'.
+
+
+                        """,
+                    ).format(
+                        context_info.common_path if dm.capabilities.is_headless else TextwrapEx.CreateAnsiHyperLink(
+                            "file:///{}".format(context_info.common_path.as_posix()),
+                            str(context_info.common_path),
+                        ),
+                    ),
+                )
+
+            headers: List[str] = [
+                "Context Name",
+                "Result",
+                "Execution Time",
+                "Log File",
+            ]
+
+            if add_output_column:
+                headers.append("Output Directory")
+
+            headers.append("Short Description")
+
+            col_justifications: List[TextwrapEx.Justify] = [
+                TextwrapEx.Justify.Left,
+                TextwrapEx.Justify.Center,
+                TextwrapEx.Justify.Left,
+                TextwrapEx.Justify.Right,
+            ]
+
+            if add_output_column:
+                col_justifications.append(TextwrapEx.Justify.Right)
+
+            col_justifications.append(TextwrapEx.Justify.Left)
+
+            indented_stream.write(
+                TextwrapEx.CreateTable(
+                    headers,
+                    rows,
+                    col_justifications,
+                    decorate_values_func=DecorateRow,
+                ),
+            )
+
+            indented_stream.write("\n")
+
+        # Write final output
+        success_count = 0
+        warning_count = 0
+        error_count = 0
+
+        for task_data in tasks:
+            if task_data.result < 0:
+                error_count += 1
+            elif task_data.result > 0:
+                warning_count += 1
+            else:
+                success_count += 1
+
+        dm.WriteLine(
+            textwrap.dedent(
+                """\
+
+                {success_prefix}{success_count:>6} ({success_percentage:>6.2f}%)
+                {error_prefix}  {error_count:>6} ({error_percentage:>6.2f}%)
+                {warning_prefix}{warning_count:>6} ({warning_percentage:>6.2f}%)
+                Total:   {total:>6} (100.00%)
+
+                """,
+            ).format(
+                success_prefix=TextwrapEx.CreateSuccessPrefix(dm.capabilities),
+                success_count=success_count,
+                success_percentage=(success_count / len(tasks)) * 100,
+                error_prefix=TextwrapEx.CreateErrorPrefix(dm.capabilities),
+                error_count=error_count,
+                error_percentage=(error_count / len(tasks)) * 100,
+                warning_prefix=TextwrapEx.CreateWarningPrefix(dm.capabilities),
+                warning_count=warning_count,
+                warning_percentage=(warning_count / len(tasks)) * 100,
+                total=len(tasks),
+            ),
+        )
 
 
 # ----------------------------------------------------------------------

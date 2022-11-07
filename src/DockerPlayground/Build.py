@@ -190,6 +190,9 @@ class BuildInfo(BuildInfoBase):
             ],
             bool,                           # True to continue, False to terminate
         ],
+        *,
+        is_verbose: bool,                   # pylint: disable=unused-argument
+        is_debug: bool,                     # pylint: disable=unused-argument
     ) -> Union[
         int,                                # Return code
         Tuple[
@@ -250,6 +253,8 @@ class BuildInfo(BuildInfoBase):
             bool,                           # True to continue, False to terminate
         ],
         *,
+        is_verbose: bool,
+        is_debug: bool,
         dev_environment_configuration: str,
         force: bool,
         image_name: str,
@@ -282,7 +287,8 @@ class BuildInfo(BuildInfoBase):
             output_stream,
             "Building '{}'...".format(config_info.name),
             output_flags=DoneManagerFlags.Create(
-                debug=True,
+                verbose=is_verbose,
+                debug=is_debug,
             ),
         ) as dm:
             if not os.getenv("DEVELOPMENT_ENVIRONMENT_DOCKER_DEVELOPMENT_MIXIN_ACTIVE"):

@@ -31,7 +31,7 @@ from abc import abstractmethod, ABC
 from enum import Enum
 from io import StringIO
 from pathlib import Path
-from typing import Callable, Dict, List, Optional, Pattern, TextIO, Tuple, Union
+from typing import Callable, Dict, List, Optional, Pattern, Protocol, TextIO, Tuple, Union
 
 try:
     import typer
@@ -159,6 +159,7 @@ class BuildInfoBase(ABC):
         }
 
     # ----------------------------------------------------------------------
+    @Types.extensionmethod
     def GetNumCleanSteps(
         self,
         configuration: Optional[str],  # pylint: disable=unused-argument
@@ -181,6 +182,7 @@ class BuildInfoBase(ABC):
         return {}
 
     # ----------------------------------------------------------------------
+    @Types.extensionmethod
     def GetNumBuildSteps(
         self,
         configuration: Optional[str],  # pylint: disable=unused-argument
@@ -216,6 +218,9 @@ class BuildInfoBase(ABC):
             ],
             bool,                           # True to continue, False to terminate
         ],
+        *,
+        is_verbose: bool,
+        is_debug: bool,
     ) -> Union[
         int,                                # Error code
         Tuple[int, str],                    # Error code and short text that provides info about the result
@@ -236,6 +241,9 @@ class BuildInfoBase(ABC):
             ],
             bool,                           # True to continue, False to terminate
         ],
+        *,
+        is_verbose: bool,
+        is_debug: bool,
     ) -> Union[
         int,                                # Error code
         Tuple[int, str],                    # Error code and short text that provides info about the result
@@ -439,7 +447,7 @@ class BuildInfoBase(ABC):
         ).format(
             name=self.name,
             # Build
-            build_no_args_is_help="True" if (build_configuration_parameter or build_output_dir_parameter or build_parameters) else "False",
+            build_no_args_is_help="True" if (build_configuration_parameter or build_output_dir_parameter) else "False",
             build_configuration_parameter=build_configuration_parameter,
             build_configuration_argument=build_configuration_argument,
             build_output_dir_parameter=build_output_dir_parameter,
@@ -451,7 +459,7 @@ class BuildInfoBase(ABC):
             ),
             build_arguments=", ".join('"{k}": {k}'.format(k=k) for k in build_parameters),
             # Clean
-            clean_no_args_is_help="True" if (clean_configuration_parameter or clean_output_dir_parameter or clean_parameters) else "False",
+            clean_no_args_is_help="True" if (clean_configuration_parameter or clean_output_dir_parameter) else "False",
             clean_configuration_parameter=clean_configuration_parameter,
             clean_configuration_argument=clean_configuration_argument,
             clean_output_dir_parameter=clean_output_dir_parameter,
@@ -466,10 +474,8 @@ class BuildInfoBase(ABC):
             rebuild_no_args_is_help="True" if (
                 build_configuration_parameter
                 or build_output_dir_parameter
-                or build_parameters
                 or clean_configuration_parameter
                 or clean_output_dir_parameter
-                or clean_parameters
             ) else "False",
             rebuild_configuration_parameter=build_configuration_parameter or clean_configuration_parameter,
             rebuild_output_dir_parameter=build_output_dir_parameter or clean_output_dir_parameter,
@@ -541,7 +547,39 @@ class BuildInfoBase(ABC):
         app()
 
     # ----------------------------------------------------------------------
+    # |
+    # |  Private Types
+    # |
     # ----------------------------------------------------------------------
+    class _ExecuteFuncType(Protocol):
+        def __call__(
+            self,
+            configuration: Optional[str],
+            output_dir: Optional[Path],
+            output_stream: TextIO,
+            on_progress_update: Callable[
+                [
+                    int,                    # Step ID
+                    str,                    # Status info
+                ],
+                bool,                       # True to continue, False to terminate
+            ],
+            *,
+            is_verbose: bool,
+            is_debug: bool,
+        ) -> Union[
+            int,                            # Error code
+            Tuple[
+                int,                        # Error code
+                str,                        # Short text that provides info about the result
+            ]
+        ]:
+            ...
+
+    # ----------------------------------------------------------------------
+    # |
+    # |  Private Methods
+    # |
     # ----------------------------------------------------------------------
     def _BuildImpl(
         self,
@@ -602,10 +640,7 @@ class BuildInfoBase(ABC):
         output_dir: Optional[Path],
         desc: str,
         get_num_steps_func: Callable[[Optional[str]], int],
-        execute_func: Callable[
-            [Optional[str], Optional[Path], TextIO, Callable[[int, str], bool]],
-            Union[int, Tuple[int, str]],
-        ],
+        execute_func: "BuildInfoBase._ExecuteFuncType",
     ) -> None:
         if not self._ValidateEnvironment(dm):
             return
@@ -658,7 +693,14 @@ class BuildInfoBase(ABC):
                     # ----------------------------------------------------------------------
 
                     sink = StringIO()
-                    result = execute_func(configuration, output_dir, sink, OnProgress)
+                    result = execute_func(
+                        configuration,
+                        output_dir,
+                        sink,
+                        OnProgress,
+                        is_verbose=dm.is_verbose,
+                        is_debug=dm.is_debug,
+                        )
                     output = sink.getvalue()
 
                     if isinstance(result, tuple):

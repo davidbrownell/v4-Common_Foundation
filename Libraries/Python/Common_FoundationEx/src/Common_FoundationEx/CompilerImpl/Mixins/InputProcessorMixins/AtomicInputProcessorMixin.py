@@ -20,25 +20,26 @@ import copy
 from pathlib import Path
 from typing import Any, Dict, Generator, List, Optional, Tuple
 
-from Common_Foundation import PathEx
 from Common_Foundation.Streams.DoneManager import DoneManager
 from Common_Foundation.Types import overridemethod
 
 from Common_FoundationEx.InflectEx import inflect
 
-from ...Interfaces.ICompilerIntrinsics import ICompilerIntrinsics
+from ..IntrinsicsBase import IntrinsicsBase
+
 from ...Interfaces.IInputProcessor import IInputProcessor
 
 
 # ----------------------------------------------------------------------
 class AtomicInputProcessorMixin(
-    ICompilerIntrinsics,
+    IntrinsicsBase,
     IInputProcessor,
 ):
     """Mixin where all inputs are grouped as a single group"""
 
     # Generated
     ATTRIBUTE_NAME                          = "inputs"
+    INPUT_ROOT_ATTRIBUTE_NAME               = "input_root"
 
     # ----------------------------------------------------------------------
     @overridemethod
@@ -55,12 +56,9 @@ class AtomicInputProcessorMixin(
         metadata_or_context: Dict[str, Any],
     ) -> Optional[str]:
         inputs = metadata_or_context[AtomicInputProcessorMixin.ATTRIBUTE_NAME]
+        input_root = metadata_or_context[AtomicInputProcessorMixin.INPUT_ROOT_ATTRIBUTE_NAME]
 
-        common_path = PathEx.GetCommonPath(*inputs)
-        if common_path is None:
-            return None
-
-        return "{} under '{}'".format(inflect.no("item", len(inputs)), common_path)
+        return "{} under '{}'".format(inflect.no("item", len(inputs)), input_root)
 
     # ----------------------------------------------------------------------
     # |
@@ -75,6 +73,7 @@ class AtomicInputProcessorMixin(
     @overridemethod
     def _GetRequiredMetadataNames(self) -> List[str]:
         return [
+            AtomicInputProcessorMixin.INPUT_ROOT_ATTRIBUTE_NAME,
             AtomicInputProcessorMixin.ATTRIBUTE_NAME,
         ] + super(AtomicInputProcessorMixin, self)._GetRequiredMetadataNames()
 
@@ -100,15 +99,20 @@ class AtomicInputProcessorMixin(
     @overridemethod
     def _GenerateMetadataItems(
         self,
+        input_root: Path,
         input_items: List[Path],
         user_provided_metadata: Dict[str, Any],
     ) -> Generator[Dict[str, Any], None, None]:
-        if AtomicInputProcessorMixin.ATTRIBUTE_NAME in user_provided_metadata:
-            raise Exception("'{}' is a reserved keyword.".format(AtomicInputProcessorMixin.ATTRIBUTE_NAME))
-
-        assert AtomicInputProcessorMixin.ATTRIBUTE_NAME in user_provided_metadata
+        for keyword in [
+            AtomicInputProcessorMixin.INPUT_ROOT_ATTRIBUTE_NAME,
+            AtomicInputProcessorMixin.ATTRIBUTE_NAME,
+        ]:
+            if keyword in user_provided_metadata:
+                raise Exception("'{}' is a reserved keyword.".format(keyword))
 
         metadata = copy.deepcopy(user_provided_metadata)
 
+        metadata[AtomicInputProcessorMixin.INPUT_ROOT_ATTRIBUTE_NAME] = input_root
         metadata[AtomicInputProcessorMixin.ATTRIBUTE_NAME] = input_items
+
         yield metadata

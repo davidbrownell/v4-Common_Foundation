@@ -471,6 +471,8 @@ def Build(
                                                                 ctx,
                                                                 get_custom_args_func(),
                                                             ),
+                                                            is_verbose=priority_group_dm.is_verbose,
+                                                            is_debug=priority_group_dm.is_debug,
                                                         )
 
                                                         if isinstance(result, tuple):

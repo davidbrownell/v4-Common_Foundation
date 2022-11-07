@@ -19,7 +19,6 @@ import re
 
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Type, TypeVar, Union
 
-import click
 import typer
 
 from typer import models as typer_models
