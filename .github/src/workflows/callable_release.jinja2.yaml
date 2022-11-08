@@ -31,7 +31,12 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: BugBug1
-        run: |
-          echo "Hello world!"
-        shell: bash
+      - name: Checkout source
+        uses: actions/checkout@v3
+        with:
+          ref: refs/heads/${{ inputs.source_branch }}
+
+      - name: Create Pull Request
+        run: gh pr create -B ${{ inputs.dest_branch }} -H ${{ inputs.source_branch }} --title 'Merge "${{ inputs.source_branch }}" into "${{ inputs.dest_branch }}"' --body 'Created by Github action'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

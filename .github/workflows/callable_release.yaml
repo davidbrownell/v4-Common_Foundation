@@ -9,7 +9,7 @@
 #
 #     Code Generator:         Jinja2
 #     Input Filename:         workflows/callable_release.jinja2.yaml
-#     Generated Date:         2022-11-08 10:50:31.958447
+#     Generated Date:         2022-11-08 11:19:30.496642
 #
 # ----------------------------------------------------------------------
 # ----------------------------------------------------------------------
@@ -48,7 +48,12 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: BugBug1
-        run: |
-          echo "Hello world!"
-        shell: bash
+      - name: Checkout source
+        uses: actions/checkout@v3
+        with:
+          ref: refs/heads/${{ inputs.source_branch }}
+
+      - name: Create Pull Request
+        run: gh pr create -B ${{ inputs.dest_branch }} -H ${{ inputs.source_branch }} --title 'Merge "${{ inputs.source_branch }}" into "${{ inputs.dest_branch }}"' --body 'Created by Github action'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
