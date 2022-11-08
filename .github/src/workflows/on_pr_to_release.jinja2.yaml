@@ -1,6 +1,6 @@
 # ----------------------------------------------------------------------
 # |
-# |  pr_to_release.yaml
+# |  on_pr_to_release.yaml
 # |
 # |  David Brownell <db@DavidBrownell.com>
 # |      2022-11-08 11:31:59
@@ -14,7 +14,6 @@
 # |
 # ----------------------------------------------------------------------
 name: "OnPullRequest (release)"
-
 run-name: ${{ github.run_number }} [${{ github.event.pull_request.user.login }}] on ${{ github.ref_name }}
 
 on:
@@ -25,5 +24,5 @@ on:
   workflow_dispatch: # BugBug
 
 jobs:
-  Workflow:
+  Common_Foundation:
     uses: ./.github/workflows/callable_pr_to_release.yaml

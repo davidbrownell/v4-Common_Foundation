@@ -1,23 +1,6 @@
 # ----------------------------------------------------------------------
-# ----------------------------------------------------------------------
-# ----------------------------------------------------------------------
-#
-# This file is the result of a code generation process; any changes made
-# to this file will be overwritten during the next code generation
-# invocation. Any changes MUST be made in the source file rather than in
-# this one.
-#
-#     Code Generator:         Jinja2
-#     Input Filename:         workflows/push_to_main.jinja2.yaml
-#     Generated Date:         2022-11-08 13:16:02.825801
-#
-# ----------------------------------------------------------------------
-# ----------------------------------------------------------------------
-# ----------------------------------------------------------------------
-
-# ----------------------------------------------------------------------
 # |
-# |  push_to_main.yaml
+# |  on_push_to_main.yaml
 # |
 # |  David Brownell <db@DavidBrownell.com>
 # |      2022-11-07 13:35:13
