@@ -20,6 +20,7 @@ on:
   pull_request:
     branches:
       - main
+      - davidbrownell_main # BugBug
   workflow_dispatch:
 
 jobs:

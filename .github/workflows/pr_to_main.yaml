@@ -9,7 +9,7 @@
 #
 #     Code Generator:         Jinja2
 #     Input Filename:         workflows/pr_to_main.jinja2.yaml
-#     Generated Date:         2022-11-08 12:54:46.019863
+#     Generated Date:         2022-11-08 12:58:52.048392
 #
 # ----------------------------------------------------------------------
 # ----------------------------------------------------------------------
@@ -37,6 +37,7 @@ on:
   pull_request:
     branches:
       - main
+      - davidbrownell_main # BugBug
   workflow_dispatch:
 
 jobs:
