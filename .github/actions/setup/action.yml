@@ -9,7 +9,7 @@
 #
 #     Code Generator:         Jinja2
 #     Input Filename:         actions/setup/action.jinja2.yml
-#     Generated Date:         2022-11-08 08:01:45.818319
+#     Generated Date:         2022-11-08 08:13:36.509920
 #
 # ----------------------------------------------------------------------
 # ----------------------------------------------------------------------
@@ -122,6 +122,7 @@ runs:
       shell: ${{ inputs.shell_name }}
 
     # BugBug: Remove branch name in all of these
+    # BugBug: Simplify this code if there is a ternary operator available
 
     - name: Bootstrap (No Configuration)
       if: ${{ inputs.repo_name != 'davidbrownell/v4-Common_Foundation' && inputs.configuration == 'None' && !inputs.branch_overrides }}

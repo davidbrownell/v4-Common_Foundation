@@ -105,6 +105,7 @@ runs:
       shell: ${{ inputs.shell_name }}
 
     # BugBug: Remove branch name in all of these
+    # BugBug: Simplify this code if there is a ternary operator available
 
     - name: Bootstrap (No Configuration)
       if: ${{ inputs.repo_name != 'davidbrownell/v4-Common_Foundation' && inputs.configuration == 'None' && !inputs.branch_overrides }}

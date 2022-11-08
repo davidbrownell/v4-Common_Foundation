@@ -42,11 +42,6 @@ outputs:
 runs:
   using: composite
   steps:
-    - name: BugBug
-      run: |
-        echo "${{ inputs.subject_repo_name || 'BugBug' }}"
-      shell: ${{ inputs.shell_name }}
-
     # ----------------------------------------------------------------------
     - name: Checkout Source (Standard)
       uses: actions/checkout@v3
@@ -70,15 +65,9 @@ runs:
 
     # ----------------------------------------------------------------------
     - name: Checkout Source (Custom Repo)
-      if: ${{ inputs.subject_repo_name && inputs.subject_repo_branch }}
+      if: ${{ inputs.subject_repo_name }}
       run: |
-        git clone -b ${{ inputs.subject_repo_branch }} https://github.com/${{ inputs.subject_repo_name }} "${{ inputs.working_dir }}/repo_under_test"
-      shell: ${{ inputs.shell_name }}
-
-    - name: Checkout Source (Custom Repo)
-      if: ${{ inputs.subject_repo_name && !inputs.subject_repo_branch }}
-      run: |
-        git clone -b release https://github.com/${{ inputs.subject_repo_name }} "${{ inputs.working_dir }}/repo_under_test"
+        git clone -b ${{ inputs.subject_repo_branch || 'release' }} https://github.com/${{ inputs.subject_repo_name }} "${{ inputs.working_dir }}/repo_under_test"
       shell: ${{ inputs.shell_name }}
 
     - name: "[Impl] Set Statement Variables (Custom, ubuntu)"
