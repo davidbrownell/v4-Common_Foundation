@@ -1,6 +1,6 @@
 # ----------------------------------------------------------------------
 # |
-# |  release.yaml
+# |  push_to_main.yaml
 # |
 # |  David Brownell <db@DavidBrownell.com>
 # |      2022-11-07 13:35:13
@@ -13,29 +13,29 @@
 # |  http://www.boost.org/LICENSE_1_0.txt.
 # |
 # ----------------------------------------------------------------------
-name: release
+name: OnPush (main)
 run-name: ${{ github.run_number }} [${{ github.actor }}] on ${{ github.ref_name }}
 
 on:
   push:
     branches:
       - main
-      - davidbrownell_releaseCI # BugBug
+      - davidbrownell_main # BugBug
   workflow_dispatch:
 
 jobs:
   # BugBug Common_Foundation:
-  # BugBug   uses: ./.github/workflows/callable_main.yaml
+  # BugBug   uses: ./.github/workflows/exercise_main.yaml
   # BugBug   with:
-  # BugBug     branch_overrides: "Common_Foundation:main"
+  # BugBug     setup_branch_overrides: "Common_Foundation:main"
   # BugBug     subject_repo_name: "davidbrownell/v4-Common_Foundation"
   # BugBug
   # BugBug Common_PythonDevelopment:
-  # BugBug   uses: davidbrownell/v4-Common_PythonDevelopment/.github/workflows/callable_main.yaml@CI-vBugBug
+  # BugBug   uses: davidbrownell/v4-Common_PythonDevelopment/.github/workflows/exercise_main.yaml@CI-vBugBug
   # BugBug   with:
-  # BugBug     branch_overrides: "Common_Foundation:main"
+  # BugBug     setup_branch_overrides: "Common_Foundation:main"
   # BugBug     subject_repo_name: "davidbrownell/v4-Common_PythonDevelopment"
-  # BugBug     subject_repo_branch: davidbrownell_releaseCI # BugBug
+  # BugBug     subject_repo_branch: davidbrownell_main # BugBug
 
   # ----------------------------------------------------------------------
   Promote:
@@ -43,10 +43,10 @@ jobs:
     # BugBug   - Common_Foundation
     # BugBug   - Common_PythonDevelopment
 
-    uses: ./.github/workflows/callable_release.yaml
+    uses: ./.github/workflows/callable_promote_to_release.yaml
     with:
       # BugBug source_branch: main
       # BugBug dest_branch: release
 
-      source_branch: davidbrownell_releaseCI
-      dest_branch: davidbrownell_TestingRelease
+      source_branch: davidbrownell_main
+      dest_branch: davidbrownell_release

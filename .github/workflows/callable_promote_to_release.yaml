@@ -1,6 +1,23 @@
 # ----------------------------------------------------------------------
+# ----------------------------------------------------------------------
+# ----------------------------------------------------------------------
+#
+# This file is the result of a code generation process; any changes made
+# to this file will be overwritten during the next code generation
+# invocation. Any changes MUST be made in the source file rather than in
+# this one.
+#
+#     Code Generator:         Jinja2
+#     Input Filename:         workflows/callable_promote_to_release.jinja2.yaml
+#     Generated Date:         2022-11-08 12:54:46.001863
+#
+# ----------------------------------------------------------------------
+# ----------------------------------------------------------------------
+# ----------------------------------------------------------------------
+
+# ----------------------------------------------------------------------
 # |
-# |  callable_release.yaml
+# |  callable_promote_to_release.yaml
 # |
 # |  David Brownell <db@DavidBrownell.com>
 # |      2022-11-07 13:48:26
@@ -28,6 +45,7 @@ on:
 
 jobs:
   Workflow:
+    name: "Push Changes from '${{ inputs.source_branch }}' to '${{ inputs.dest_branch }}'"
     runs-on: ubuntu-latest
 
     steps:

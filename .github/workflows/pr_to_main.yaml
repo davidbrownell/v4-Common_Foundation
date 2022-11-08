@@ -8,8 +8,8 @@
 # this one.
 #
 #     Code Generator:         Jinja2
-#     Input Filename:         workflows/release.jinja2.yaml
-#     Generated Date:         2022-11-08 12:22:28.085942
+#     Input Filename:         workflows/pr_to_main.jinja2.yaml
+#     Generated Date:         2022-11-08 12:54:46.019863
 #
 # ----------------------------------------------------------------------
 # ----------------------------------------------------------------------
@@ -17,10 +17,10 @@
 
 # ----------------------------------------------------------------------
 # |
-# |  release.yaml
+# |  pr_to_main.yaml
 # |
 # |  David Brownell <db@DavidBrownell.com>
-# |      2022-11-07 13:35:13
+# |      2022-10-31 14:30:18
 # |
 # ----------------------------------------------------------------------
 # |
@@ -30,40 +30,15 @@
 # |  http://www.boost.org/LICENSE_1_0.txt.
 # |
 # ----------------------------------------------------------------------
-name: release
+name: "OnPullRequest (main)"
 run-name: ${{ github.run_number }} [${{ github.actor }}] on ${{ github.ref_name }}
 
 on:
-  push:
+  pull_request:
     branches:
       - main
-      - davidbrownell_releaseCI # BugBug
   workflow_dispatch:
 
 jobs:
-  # BugBug Common_Foundation:
-  # BugBug   uses: ./.github/workflows/callable_main.yaml
-  # BugBug   with:
-  # BugBug     branch_overrides: "Common_Foundation:main"
-  # BugBug     subject_repo_name: "davidbrownell/v4-Common_Foundation"
-  # BugBug
-  # BugBug Common_PythonDevelopment:
-  # BugBug   uses: davidbrownell/v4-Common_PythonDevelopment/.github/workflows/callable_main.yaml@CI-vBugBug
-  # BugBug   with:
-  # BugBug     branch_overrides: "Common_Foundation:main"
-  # BugBug     subject_repo_name: "davidbrownell/v4-Common_PythonDevelopment"
-  # BugBug     subject_repo_branch: davidbrownell_releaseCI # BugBug
-
-  # ----------------------------------------------------------------------
-  Promote:
-    # BugBug needs:
-    # BugBug   - Common_Foundation
-    # BugBug   - Common_PythonDevelopment
-
-    uses: ./.github/workflows/callable_release.yaml
-    with:
-      # BugBug source_branch: main
-      # BugBug dest_branch: release
-
-      source_branch: davidbrownell_releaseCI
-      dest_branch: davidbrownell_TestingRelease
+  Common_Foundation:
+    uses: ./.github/workflows/callable_pr_to_main.yaml

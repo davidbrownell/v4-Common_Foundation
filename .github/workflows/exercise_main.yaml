@@ -1,6 +1,23 @@
 # ----------------------------------------------------------------------
+# ----------------------------------------------------------------------
+# ----------------------------------------------------------------------
+#
+# This file is the result of a code generation process; any changes made
+# to this file will be overwritten during the next code generation
+# invocation. Any changes MUST be made in the source file rather than in
+# this one.
+#
+#     Code Generator:         Jinja2
+#     Input Filename:         workflows/exercise_main.jinja2.yaml
+#     Generated Date:         2022-11-08 12:54:46.017866
+#
+# ----------------------------------------------------------------------
+# ----------------------------------------------------------------------
+# ----------------------------------------------------------------------
+
+# ----------------------------------------------------------------------
 # |
-# |  callable_main.yaml
+# |  exercise_main.yaml
 # |
 # |  David Brownell <db@DavidBrownell.com>
 # |      2022-11-07 10:06:37
@@ -13,12 +30,10 @@
 # |  http://www.boost.org/LICENSE_1_0.txt.
 # |
 # ----------------------------------------------------------------------
-name: callable_main
-
 on:
   workflow_call:
     inputs:
-      branch_overrides:
+      setup_branch_overrides:
         type: string
         required: false
         description: "See ../_BuildAndTest.template.yaml for more info."
@@ -35,6 +50,8 @@ on:
 
 jobs:
   Workflow:
+    name: "Validate Pull Requests to '${{ github.base_ref }}'"
+
     strategy:
       matrix:
         os:
@@ -45,9 +62,9 @@ jobs:
           - python310
           # - python310_nolibs
 
-    uses: ./.github/workflows/callable_mainImpl.yaml
+    uses: ./.github/workflows/exercise_main-Impl.yaml
     with:
-      branch_overrides:                     ${{ inputs.branch_overrides }}
+      setup_branch_overrides:               ${{ inputs.setup_branch_overrides }}
       subject_repo_name:                    ${{ inputs.subject_repo_name }}
       subject_repo_branch:                  ${{ inputs.subject_repo_branch }}
 

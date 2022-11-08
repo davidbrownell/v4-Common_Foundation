@@ -1,9 +1,9 @@
 # ----------------------------------------------------------------------
 # |
-# |  callable_mainImpl.yaml
+# |  callable_pr_to_main.jinja2.yaml
 # |
 # |  David Brownell <db@DavidBrownell.com>
-# |      2022-11-07 13:54:33
+# |      2022-11-08 12:52:02
 # |
 # ----------------------------------------------------------------------
 # |
@@ -13,6 +13,9 @@
 # |  http://www.boost.org/LICENSE_1_0.txt.
 # |
 # ----------------------------------------------------------------------
-name: callable_mainImpl
+on:
+  workflow_call:
 
-<<% extends "../_BuildAndTest.template.yaml" %>>
+jobs:
+  Workflow:
+    uses: ./.github/workflows/exercise_main.yaml

@@ -113,26 +113,26 @@ runs:
       if: ${{ inputs.repo_name != 'davidbrownell/v4-Common_Foundation' && inputs.configuration == 'None' && !inputs.branch_overrides }}
       run: |
         pushd "${{ inputs.repo_dir }}"
-        ${{ inputs.sudo_command }}${{ inputs.local_script_prefix }}Bootstrap${{ inputs.script_extension }} ${{ inputs.working_dir }}/code --no-interactive --no-hooks --debug --branch davidbrownell_releaseCI
+        ${{ inputs.sudo_command }}${{ inputs.local_script_prefix }}Bootstrap${{ inputs.script_extension }} ${{ inputs.working_dir }}/code --no-interactive --no-hooks --debug --branch davidbrownell_release
       shell: ${{ inputs.shell_name }}
 
     - name: Bootstrap (with Configuration)
       if: ${{ inputs.repo_name != 'davidbrownell/v4-Common_Foundation' && inputs.configuration != 'None' && !inputs.branch_overrides }}
       run: |
         pushd "${{ inputs.repo_dir }}"
-        ${{ inputs.sudo_command }}${{ inputs.local_script_prefix }}Bootstrap${{ inputs.script_extension }} ${{ inputs.working_dir }}/code --configuration ${{ inputs.configuration }} --no-interactive --no-hooks --debug --branch davidbrownell_releaseCI
+        ${{ inputs.sudo_command }}${{ inputs.local_script_prefix }}Bootstrap${{ inputs.script_extension }} ${{ inputs.working_dir }}/code --configuration ${{ inputs.configuration }} --no-interactive --no-hooks --debug --branch davidbrownell_release
       shell: ${{ inputs.shell_name }}
 
     - name: Bootstrap (No Configuration, with Branch Overrides)
       if: ${{ inputs.repo_name != 'davidbrownell/v4-Common_Foundation' && inputs.configuration == 'None' && inputs.branch_overrides }}
       run: |
         pushd "${{ inputs.repo_dir }}"
-        ${{ inputs.sudo_command }}${{ inputs.local_script_prefix }}Bootstrap${{ inputs.script_extension }} ${{ inputs.working_dir }}/code --no-interactive --no-hooks --debug --branch davidbrownell_releaseCI --branch-overrides "${{ inputs.branch_overrides }}"
+        ${{ inputs.sudo_command }}${{ inputs.local_script_prefix }}Bootstrap${{ inputs.script_extension }} ${{ inputs.working_dir }}/code --no-interactive --no-hooks --debug --branch davidbrownell_release --branch-overrides "${{ inputs.branch_overrides }}"
       shell: ${{ inputs.shell_name }}
 
     - name: Bootstrap (with Configuration, with Branch Overrides)
       if: ${{ inputs.repo_name != 'davidbrownell/v4-Common_Foundation' && inputs.configuration != 'None' && inputs.branch_overrides }}
       run: |
         pushd "${{ inputs.repo_dir }}"
-        ${{ inputs.sudo_command }}${{ inputs.local_script_prefix }}Bootstrap${{ inputs.script_extension }} ${{ inputs.working_dir }}/code --configuration ${{ inputs.configuration }} --no-interactive --no-hooks --debug --branch davidbrownell_releaseCI --branch-overrides "${{ inputs.branch_overrides }}"
+        ${{ inputs.sudo_command }}${{ inputs.local_script_prefix }}Bootstrap${{ inputs.script_extension }} ${{ inputs.working_dir }}/code --configuration ${{ inputs.configuration }} --no-interactive --no-hooks --debug --branch davidbrownell_release --branch-overrides "${{ inputs.branch_overrides }}"
       shell: ${{ inputs.shell_name }}

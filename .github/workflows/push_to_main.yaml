@@ -8,8 +8,8 @@
 # this one.
 #
 #     Code Generator:         Jinja2
-#     Input Filename:         workflows/main.jinja2.yaml
-#     Generated Date:         2022-11-08 12:22:28.080946
+#     Input Filename:         workflows/push_to_main.jinja2.yaml
+#     Generated Date:         2022-11-08 12:54:46.023864
 #
 # ----------------------------------------------------------------------
 # ----------------------------------------------------------------------
@@ -17,10 +17,10 @@
 
 # ----------------------------------------------------------------------
 # |
-# |  main.yaml
+# |  push_to_main.yaml
 # |
 # |  David Brownell <db@DavidBrownell.com>
-# |      2022-10-31 14:30:18
+# |      2022-11-07 13:35:13
 # |
 # ----------------------------------------------------------------------
 # |
@@ -30,15 +30,40 @@
 # |  http://www.boost.org/LICENSE_1_0.txt.
 # |
 # ----------------------------------------------------------------------
-name: main
+name: OnPush (main)
 run-name: ${{ github.run_number }} [${{ github.actor }}] on ${{ github.ref_name }}
 
 on:
-  pull_request:
+  push:
     branches:
       - main
+      - davidbrownell_main # BugBug
   workflow_dispatch:
 
 jobs:
-  Common_Foundation:
-    uses: ./.github/workflows/callable_main.yaml
+  # BugBug Common_Foundation:
+  # BugBug   uses: ./.github/workflows/exercise_main.yaml
+  # BugBug   with:
+  # BugBug     setup_branch_overrides: "Common_Foundation:main"
+  # BugBug     subject_repo_name: "davidbrownell/v4-Common_Foundation"
+  # BugBug
+  # BugBug Common_PythonDevelopment:
+  # BugBug   uses: davidbrownell/v4-Common_PythonDevelopment/.github/workflows/exercise_main.yaml@CI-vBugBug
+  # BugBug   with:
+  # BugBug     setup_branch_overrides: "Common_Foundation:main"
+  # BugBug     subject_repo_name: "davidbrownell/v4-Common_PythonDevelopment"
+  # BugBug     subject_repo_branch: davidbrownell_main # BugBug
+
+  # ----------------------------------------------------------------------
+  Promote:
+    # BugBug needs:
+    # BugBug   - Common_Foundation
+    # BugBug   - Common_PythonDevelopment
+
+    uses: ./.github/workflows/callable_promote_to_release.yaml
+    with:
+      # BugBug source_branch: main
+      # BugBug dest_branch: release
+
+      source_branch: davidbrownell_main
+      dest_branch: davidbrownell_release
