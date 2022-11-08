@@ -9,7 +9,7 @@
 #
 #     Code Generator:         Jinja2
 #     Input Filename:         workflows/release.jinja2.yaml
-#     Generated Date:         2022-11-08 11:19:30.500642
+#     Generated Date:         2022-11-08 11:23:19.712843
 #
 # ----------------------------------------------------------------------
 # ----------------------------------------------------------------------
@@ -61,6 +61,8 @@ jobs:
 
     uses: ./.github/workflows/callable_release.yaml
     with:
-      source_branch: main
+      # BugBug source_branch: main
       # BugBug dest_branch: release
+
+      source_branch: davidbrownell_releaseCI
       dest_branch: davidbrownell_TestingRelease

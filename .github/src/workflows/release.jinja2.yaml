@@ -44,6 +44,8 @@ jobs:
 
     uses: ./.github/workflows/callable_release.yaml
     with:
-      source_branch: main
+      # BugBug source_branch: main
       # BugBug dest_branch: release
+
+      source_branch: davidbrownell_releaseCI
       dest_branch: davidbrownell_TestingRelease
