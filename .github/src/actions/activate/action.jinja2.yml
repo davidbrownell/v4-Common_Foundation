@@ -39,6 +39,9 @@ runs:
           var activate_statement;
 
           if("${{ inputs.os }}".startsWith("windows")) {
+            console.log("BugBug1 " + "${{ inputs.repo_dir }}");
+            console.log("BugBug2 " + "${{ inputs.repo_dir }}".replaceAll("\\", "\\\\"));
+
             activate_statement = "pushd \"" + "${{ inputs.repo_dir }}".replaceAll("\\", "\\\\") + "\" && Activate.cmd";
           } else {
             activate_statement = "pushd \"${{ inputs.repo_dir }}\" >> /dev/null && . ./Activate.sh";
