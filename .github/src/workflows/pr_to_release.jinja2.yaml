@@ -21,6 +21,7 @@ on:
   pull_request:
     branches:
       - release
+      - davidbrownell_TestingRelease # BugBug
   workflow_dispatch:
 
 jobs:
