@@ -9,7 +9,7 @@
 #
 #     Code Generator:         Jinja2
 #     Input Filename:         actions/activate/action.jinja2.yml
-#     Generated Date:         2022-11-08 10:24:14.050206
+#     Generated Date:         2022-11-08 10:28:29.079252
 #
 # ----------------------------------------------------------------------
 # ----------------------------------------------------------------------
@@ -56,9 +56,6 @@ runs:
           var activate_statement;
 
           if("${{ inputs.os }}".startsWith("windows")) {
-            console.log("BugBug1 " + String.raw"${{ inputs.repo_dir }}");
-            console.log("BugBug2 " + String.raw"${{ inputs.repo_dir }}".replaceAll("\\", "\\\\"));
-
             activate_statement = "pushd \"" + String.raw"${{ inputs.repo_dir }}" + "\" && Activate.cmd";
           } else {
             activate_statement = "pushd \"" + String.raw"${{ inputs.repo_dir }}" + "\" >> /dev/null && . ./Activate.sh";
