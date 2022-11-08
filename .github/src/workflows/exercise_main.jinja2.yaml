@@ -1,0 +1,73 @@
+# ----------------------------------------------------------------------
+# |
+# |  exercise_main.yaml
+# |
+# |  David Brownell <db@DavidBrownell.com>
+# |      2022-11-07 10:06:37
+# |
+# ----------------------------------------------------------------------
+# |
+# |  Copyright David Brownell 2022
+# |  Distributed under the Boost Software License, Version 1.0. See
+# |  accompanying file LICENSE_1_0.txt or copy at
+# |  http://www.boost.org/LICENSE_1_0.txt.
+# |
+# ----------------------------------------------------------------------
+on:
+  workflow_call:
+    inputs:
+      setup_branch_overrides:
+        type: string
+        required: false
+        description: "See ../_BuildAndTest.template.yaml for more info."
+
+      subject_repo_name:
+        type: string
+        required: false
+        description: "See ../_BuildAndTest.template.yaml for more info."
+
+      subject_repo_branch:
+        type: string
+        required: false
+        description: "See ../_BuildAndTest.template.yaml for more info."
+
+jobs:
+  Workflow:
+    name: "Common_Foundation ('${{ github.ref_name }}')"
+
+    strategy:
+      matrix:
+        os:
+          - ubuntu-latest
+          - windows-latest
+
+        configuration:
+          - python310
+          # - python310_nolibs
+
+    uses: ./.github/workflows/exercise_main-Impl.yaml
+    with:
+      setup_branch_overrides:               ${{ inputs.setup_branch_overrides }}
+      subject_repo_name:                    ${{ inputs.subject_repo_name }}
+      subject_repo_branch:                  ${{ inputs.subject_repo_branch }}
+
+      os:                                   ${{ matrix.os }}
+      configuration:                        ${{ matrix.configuration }}
+
+      run_Builder:                          true
+
+      # Use the following values to control how different test types are run:
+      #
+      #   0: Do not run these test types
+      #   1: Run these test types without code coverage
+      #   2: Run these test types with code coverage
+      #   3: Run these test types with and without code coverage
+
+      execute_UnitTests:                    3
+      execute_FunctionalTests:              1
+      execute_IntegrationTests:             1
+      execute_SystemTests:                  1
+      execute_LocalEndToEndTests:           1
+      execute_EndToEndTests:                0
+      execute_BuildVerificationTests:       0
+      execute_PerformanceTests:             0

@@ -1,0 +1,49 @@
+# ----------------------------------------------------------------------
+# |
+# |  on_push_to_main.yaml
+# |
+# |  David Brownell <db@DavidBrownell.com>
+# |      2022-11-07 13:35:13
+# |
+# ----------------------------------------------------------------------
+# |
+# |  Copyright David Brownell 2022
+# |  Distributed under the Boost Software License, Version 1.0. See
+# |  accompanying file LICENSE_1_0.txt or copy at
+# |  http://www.boost.org/LICENSE_1_0.txt.
+# |
+# ----------------------------------------------------------------------
+name: OnPush (main)
+run-name: ${{ github.run_number }} [${{ github.actor }}] on ${{ github.ref_name }}
+
+on:
+  # TODO: push:
+  # TODO:   branches:
+  # TODO:     - main
+  workflow_dispatch:
+
+jobs:
+  Common_Foundation:
+    uses: ./.github/workflows/exercise_main.yaml
+    with:
+      setup_branch_overrides: "Common_Foundation:${{ github.ref_name }}"
+      subject_repo_name: "davidbrownell/v4-Common_Foundation"
+
+  # TODO: Common_PythonDevelopment:
+  # TODO:   uses: davidbrownell/v4-Common_PythonDevelopment/.github/workflows/exercise_main.yaml@CI-v1.1.0
+  # TODO:   with:
+  # TODO:     setup_branch_overrides: "Common_Foundation:${{ github.ref_name }}"
+  # TODO:     subject_repo_name: "davidbrownell/v4-Common_PythonDevelopment"
+
+  # ----------------------------------------------------------------------
+  Promote:
+    name: "Promote (Common_Foundation)"
+
+    needs:
+      - Common_Foundation
+      # TODO: - Common_PythonDevelopment
+
+    uses: ./.github/workflows/callable_promote_to_release.yaml
+    with:
+      source_branch: ${{ github.ref_name }}
+      dest_branch: release

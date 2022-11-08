@@ -1,4 +1,21 @@
 # ----------------------------------------------------------------------
+# ----------------------------------------------------------------------
+# ----------------------------------------------------------------------
+#
+# This file is the result of a code generation process; any changes made
+# to this file will be overwritten during the next code generation
+# invocation. Any changes MUST be made in the source file rather than in
+# this one.
+#
+#     Code Generator:         Jinja2
+#     Input Filename:         actions/initialize/action.jinja2.yml
+#     Generated Date:         2022-11-08 15:25:27.700837
+#
+# ----------------------------------------------------------------------
+# ----------------------------------------------------------------------
+# ----------------------------------------------------------------------
+
+# ----------------------------------------------------------------------
 # |
 # |  action.yml
 # |
@@ -22,70 +39,86 @@ inputs:
 outputs:
   local_script_prefix:
     description: "Prefix used when invoking a script in the current directory."
-    value: ${{ steps.set_statements.outputs.local_script_prefix }}
+    value: ${{ steps.local_script_prefix.outputs.result }}
 
   script_extension:
     description: "File extension used for scripts."
-    value: ${{ steps.set_statements.outputs.script_extension }}
+    value: ${{ steps.script_extension.outputs.result }}
 
   shell_name:
     description: "Name of shell used to invoke GitHub actions."
-    value: ${{ steps.set_statements.outputs.shell_name }}
+    value: ${{ steps.shell_name.outputs.result }}
 
   source_command:
     description: "Command used when invoking a script that changes the state of the current environment."
-    value: ${{ steps.set_statements.outputs.source_command }}
+    value: ${{ steps.source_command.outputs.result }}
 
   sudo_command:
     description: "Common used to invoke privileged operations."
-    value: ${{ steps.set_statements.outputs.sudo_command }}
+    value: ${{ steps.sudo_command.outputs.result }}
 
   working_dir:
     description: "Working directory."
-    value: ${{ steps.set_statements.outputs.working_dir }}
+    value: ${{ steps.working_directory.outputs.result }}
 
 runs:
   using: composite
   steps:
-    # This code is attempting to create the activate command given the following constraints:
-    #   - These steps must work on both Windows and Linux
-    #   - GitHub actions don't support multiple steps with the same id (meaning we can't conditionally execute one technique or the other)
 
-    - name: "[Impl] Set Statement Variables (ubuntu)"
-      if: ${{ startsWith(inputs.os, 'ubuntu') }}
-      run: |
-        echo "_local_script_prefix=./" >> $GITHUB_ENV
-        echo "_script_extension=.sh" >> $GITHUB_ENV
-        echo "_shell_name=bash" >> $GITHUB_ENV
-        echo "_source_command=. " >> $GITHUB_ENV
-        echo "_sudo_command=sudo " >> $GITHUB_ENV
-        echo "_working_dir=$RUNNER_TEMP" >> $GITHUB_ENV
-      shell: bash
+    - name: Local Script Prefix
+      id: local_script_prefix
+      uses: actions/github-script@v6
+      with:
+        result-encoding: string
+        script: |
+          return "${{ inputs.os }}".startsWith("windows") ? "" : "./";
 
-    - name: "[Impl] Set Statement Variables (windows)"
-      if: ${{ startsWith(inputs.os, 'windows') }}
-      run: |
-        echo "_local_script_prefix=" >> $env:GITHUB_ENV
-        echo "_script_extension=.cmd" >> $env:GITHUB_ENV
-        echo "_shell_name=cmd" >> $env:GITHUB_ENV
-        echo "_source_command=" >> $env:GITHUB_ENV
-        echo "_sudo_command=" >> $env:GITHUB_ENV
-        echo "_working_dir=$env:RUNNER_TEMP" >> $env:GITHUB_ENV
-      shell: powershell
+    - name: Script Extension
+      id: script_extension
+      uses: actions/github-script@v6
+      with:
+        result-encoding: string
+        script: |
+          return "${{ inputs.os }}".startsWith("windows") ? ".cmd" : ".sh";
 
-    - name: Set Statements
-      id: set_statements
-      shell: ${{ env._shell_name }}
-      run: |
-        python -c "import os; f = open(os.getenv('GITHUB_OUTPUT'), 'a+'); f.write('local_script_prefix={}\nscript_extension={}\nshell_name={}\nsource_command={}\nsudo_command={}\nworking_dir={}\n'.format(os.getenv('_local_script_prefix'), os.getenv('_script_extension'), os.getenv('_shell_name'), os.getenv('_source_command'), os.getenv('_sudo_command'), os.getenv('_working_dir'))); f.close();"
-        python -c "import os; f = open(os.getenv('GITHUB_ENV'), 'a+'); f.write('_local_script_prefix=\n_script_extension=\n_shell_name=\n_source_command=\n_sudo_command=\n_working_dir=\n'); f.close();"
+    - name: Shell Name
+      id: shell_name
+      uses: actions/github-script@v6
+      with:
+        result-encoding: string
+        script: |
+          return "${{ inputs.os }}".startsWith("windows") ? "cmd" : "bash";
 
-    - name: Validate
+    - name: Source Command
+      id: source_command
+      uses: actions/github-script@v6
+      with:
+        result-encoding: string
+        script: |
+          return "${{ inputs.os }}".startsWith("windows") ? "" : ". ";
+
+    - name: Sudo Command
+      id: sudo_command
+      uses: actions/github-script@v6
+      with:
+        result-encoding: string
+        script: |
+          return "${{ inputs.os }}".startsWith("windows") ? "" : "sudo ";
+
+    - name: Working Directory
+      id: working_directory
+      uses: actions/github-script@v6
+      with:
+        result-encoding: string
+        script: |
+          return "${{ inputs.os }}".startsWith("windows") ? process.env.RUNNER_TEMP : process.env.RUNNER_TEMP;
+
+    - name: Results
+      shell: ${{ steps.shell_name.outputs.result }}
       run: |
-        echo "local_script_prefix=${{ steps.set_statements.outputs.local_script_prefix }}"
-        echo "script_extension=${{ steps.set_statements.outputs.script_extension }}"
-        echo "shell_name=${{ steps.set_statements.outputs.shell_name }}"
-        echo "source_command=${{ steps.set_statements.outputs.source_command }}"
-        echo "sudo_command=${{ steps.set_statements.outputs.sudo_command }}"
-        echo "working_dir=${{ steps.set_statements.outputs.working_dir }}"
-      shell: ${{ steps.set_statements.outputs.shell_name }}
+        echo "Local Script Prefix: '${{ steps.local_script_prefix.outputs.result }}'"
+        echo "Script Extension: '${{ steps.script_extension.outputs.result }}'"
+        echo "Shell Name: '${{ steps.shell_name.outputs.result }}'"
+        echo "Source Command: '${{ steps.source_command.outputs.result }}'"
+        echo "Sudo Command: '${{ steps.sudo_command.outputs.result }}'"
+        echo "Working Directory: '${{ steps.working_directory.outputs.result }}'"

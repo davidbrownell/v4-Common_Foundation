@@ -17,6 +17,8 @@ name: Tester
 description: Runs `Tester` on the repository.
 
 inputs:
+  archive_prefix:                           {type: string, required: true}
+
   os:                                       {type: string, required: true}
   configuration:                            {type: string, required: true}
 
@@ -42,7 +44,7 @@ runs:
       if: ${{ (inputs.code_coverage == false || inputs.code_coverage == 'false') && always() }}
       uses: actions/upload-artifact@v3.1.1
       with:
-        name: "[${{ github.run_number }}] Tester Artifacts (${{ inputs.test_type }}) [${{ inputs.os }}, ${{ inputs.configuration }}]"
+        name: "${{ inputs.archive_prefix }} Tester Artifacts (${{ inputs.test_type }})"
         path: "${{ inputs.working_dir }}/Tester${{ inputs.test_type }}"
         if-no-files-found: ignore
 
@@ -55,6 +57,6 @@ runs:
       if: ${{ (inputs.code_coverage == true || inputs.code_coverage == 'true') && always() }}
       uses: actions/upload-artifact@v3.1.1
       with:
-        name: "[${{ github.run_number }}] Tester Artifacts (${{ inputs.test_type }}, Code Coverage) [${{ inputs.os }}, ${{ inputs.configuration }}]"
+        name: "${{ inputs.archive_prefix }} Tester Artifacts (${{ inputs.test_type }}, Code Coverage)"
         path: "${{ inputs.working_dir }}/Tester${{ inputs.test_type }}Coverage"
         if-no-files-found: ignore
