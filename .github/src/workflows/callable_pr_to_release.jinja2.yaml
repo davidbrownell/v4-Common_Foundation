@@ -32,7 +32,7 @@ jobs:
         run: |
           if [[ "${{ github.event.pull_request.user.login }}" == "github-actions[bot]" ]]; then
             exit 0
-          else
-            echo "Pull requests to the branch '${{ github.base_ref }}' should only be initiated by the CI machine ('${{ github.event.pull_request.user.login }}' was found)."
-            exit -1
           fi
+
+          echo "Pull requests to the branch '${{ github.base_ref }}' should only be initiated by the CI machine ('${{ github.event.pull_request.user.login }}' was found)."
+          exit -1

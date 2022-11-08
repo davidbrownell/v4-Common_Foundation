@@ -9,7 +9,7 @@
 #
 #     Code Generator:         Jinja2
 #     Input Filename:         workflows/callable_pr_to_release.jinja2.yaml
-#     Generated Date:         2022-11-08 12:00:08.686755
+#     Generated Date:         2022-11-08 12:05:20.195382
 #
 # ----------------------------------------------------------------------
 # ----------------------------------------------------------------------
@@ -49,7 +49,7 @@ jobs:
         run: |
           if [[ "${{ github.event.pull_request.user.login }}" == "github-actions[bot]" ]]; then
             exit 0
-          else
-            echo "Pull requests to the branch '${{ github.base_ref }}' should only be initiated by the CI machine ('${{ github.event.pull_request.user.login }}' was found)."
-            exit -1
           fi
+
+          echo "Pull requests to the branch '${{ github.base_ref }}' should only be initiated by the CI machine ('${{ github.event.pull_request.user.login }}' was found)."
+          exit -1
