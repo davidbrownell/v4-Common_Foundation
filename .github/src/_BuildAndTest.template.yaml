@@ -157,6 +157,10 @@ jobs:
         with:
           os:                               ${{ inputs.os }}
 
+      - name: BugBug
+        run: echo BugBug - ${{ steps.initialize.outputs.bugbug_test }}
+        shell: ${{ steps.initialize.outputs.shell_name }}
+
       # outputs:
       #   - archive_prefix
       #   - repo_name

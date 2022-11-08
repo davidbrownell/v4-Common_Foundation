@@ -44,9 +44,19 @@ outputs:
     description: "Working directory."
     value: ${{ steps.set_statements.outputs.working_dir }}
 
+  bugbug_test:
+    value: ${{ steps.bugbug.outputs.result }}
+
 runs:
   using: composite
   steps:
+    - name: BugBug
+      id: bugbug
+      uses: actions/github-script@v6
+      script: |
+        return "This is a test!!!"
+      result-encoding: string
+
     # This code is attempting to create the activate command given the following constraints:
     #   - These steps must work on both Windows and Linux
     #   - GitHub actions don't support multiple steps with the same id (meaning we can't conditionally execute one technique or the other)
