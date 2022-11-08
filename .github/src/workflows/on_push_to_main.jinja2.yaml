@@ -24,26 +24,26 @@ on:
   workflow_dispatch:
 
 jobs:
-  # BugBug Common_Foundation:
-  # BugBug   uses: ./.github/workflows/exercise_main.yaml
-  # BugBug   with:
-  # BugBug     setup_branch_overrides: "Common_Foundation:${{ github.base_ref }}"
-  # BugBug     subject_repo_name: "davidbrownell/v4-Common_Foundation"
-  # BugBug
-  # BugBug Common_PythonDevelopment:
-  # BugBug   uses: davidbrownell/v4-Common_PythonDevelopment/.github/workflows/exercise_main.yaml@CI-vBugBug
-  # BugBug   with:
-  # BugBug     setup_branch_overrides: "Common_Foundation:${{ github.base_ref }}"
-  # BugBug     subject_repo_name: "davidbrownell/v4-Common_PythonDevelopment"
-  # BugBug     subject_repo_branch: davidbrownell_main # BugBug
+  Common_Foundation:
+    uses: ./.github/workflows/exercise_main.yaml
+    with:
+      setup_branch_overrides: "Common_Foundation:${{ github.base_ref }}"
+      subject_repo_name: "davidbrownell/v4-Common_Foundation"
+
+  Common_PythonDevelopment:
+    uses: davidbrownell/v4-Common_PythonDevelopment/.github/workflows/exercise_main.yaml@CI-vBugBug
+    with:
+      setup_branch_overrides: "Common_Foundation:${{ github.base_ref }}"
+      subject_repo_name: "davidbrownell/v4-Common_PythonDevelopment"
+      subject_repo_branch: davidbrownell_main # BugBug
 
   # ----------------------------------------------------------------------
   Promote:
     name: "Promote (Common_Foundation)"
 
-    # BugBug needs:
-    # BugBug   - Common_Foundation
-    # BugBug   - Common_PythonDevelopment
+    needs:
+      - Common_Foundation
+      - Common_PythonDevelopment
 
     uses: ./.github/workflows/callable_promote_to_release.yaml
     with:
