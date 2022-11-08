@@ -17,5 +17,5 @@ on:
   workflow_call:
 
 jobs:
-  Workflow:
+  _:
     uses: ./.github/workflows/exercise_main.yaml

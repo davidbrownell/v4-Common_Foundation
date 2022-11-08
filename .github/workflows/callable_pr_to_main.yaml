@@ -9,7 +9,7 @@
 #
 #     Code Generator:         Jinja2
 #     Input Filename:         workflows/callable_pr_to_main.jinja2.yaml
-#     Generated Date:         2022-11-08 13:08:47.742372
+#     Generated Date:         2022-11-08 13:11:09.101865
 #
 # ----------------------------------------------------------------------
 # ----------------------------------------------------------------------
@@ -34,5 +34,5 @@ on:
   workflow_call:
 
 jobs:
-  Workflow:
+  _:
     uses: ./.github/workflows/exercise_main.yaml
