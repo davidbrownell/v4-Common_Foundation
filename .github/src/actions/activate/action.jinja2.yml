@@ -38,7 +38,7 @@ runs:
         script: |
           var activate_statement;
 
-          if("${{ inputs.os }}.startsWith("windows")) {
+          if("${{ inputs.os }}".startsWith("windows")) {
             activate_statement = "pushd \"${{ inputs.repo_dir }}\" && Activate.cmd";
           } else {
             activate_statement = "pushd \"${{ inputs.repo_dir }}\" > /dev/null && . ./Activate.sh";
