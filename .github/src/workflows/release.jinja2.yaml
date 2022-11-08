@@ -20,6 +20,7 @@ on:
   push:
     branches:
       - main
+      - davidbrownell_releaseCI # BugBug
   workflow_dispatch:
 
 jobs:
