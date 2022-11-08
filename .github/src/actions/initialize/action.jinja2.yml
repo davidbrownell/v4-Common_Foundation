@@ -22,91 +22,48 @@ inputs:
 outputs:
   local_script_prefix:
     description: "Prefix used when invoking a script in the current directory."
-    value: ${{ steps.set_statements.outputs.local_script_prefix }}
+    value: ${{ steps.local_script_prefix.outputs.result }}
 
   script_extension:
     description: "File extension used for scripts."
-    value: ${{ steps.set_statements.outputs.script_extension }}
+    value: ${{ steps.script_extension.outputs.result }}
 
   shell_name:
     description: "Name of shell used to invoke GitHub actions."
-    value: ${{ steps.set_statements.outputs.shell_name }}
+    value: ${{ steps.shell_name.outputs.result }}
 
   source_command:
     description: "Command used when invoking a script that changes the state of the current environment."
-    value: ${{ steps.set_statements.outputs.source_command }}
+    value: ${{ steps.source_command.outputs.result }}
 
   sudo_command:
     description: "Common used to invoke privileged operations."
-    value: ${{ steps.set_statements.outputs.sudo_command }}
+    value: ${{ steps.sudo_command.outputs.result }}
 
   working_dir:
     description: "Working directory."
-    value: ${{ steps.set_statements.outputs.working_dir }}
-
-  bugbug_test:
-    value: ${{ steps.bugbug.outputs.result }}
+    value: ${{ steps.working_directory.outputs.result }}
 
 runs:
   using: composite
   steps:
-    - name: BugBug
-      id: bugbug
+    <<%
+      set values = [
+        ("Local Script Prefix", "local_script_prefix", '""', '"./"'),
+        ("Script Extension", "script_extension", '".cmd"', '".sh"'),
+        ("Shell Name", "shell_name", '"cmd"', '"bash"'),
+        ("Source Command", "source_command", '""', '". "'),
+        ("Sudo Command", "sudo_command", '""', '"sudo "'),
+        ("Working Directory", "working_directory", "process.env.RUNNER_TEMP", "process.env.RUNNER_TEMP"),
+      ]
+    %>>
+    <<% for name, id, windows_value, linux_value in values %>>
+    - name: <<< name >>>
+      id: <<< id >>>
       uses: actions/github-script@v6
       with:
         script: |
-          return "${{ inputs.os }}".startsWith("windows") ? "This is a test!!! (windows)" : "This is a test!!! (linux)";
+          return "${{ inputs.os }}".startsWith("windows") ? <<< windows_value >>> : <<< linux_value >>>;
         result-encoding: string
 
-    # This code is attempting to create the activate command given the following constraints:
-    #   - These steps must work on both Windows and Linux
-    #   - GitHub actions don't support multiple steps with the same id (meaning we can't conditionally execute one technique or the other)
-
-    - name: "[Impl] Set Statement Variables (ubuntu)"
-      if: ${{ startsWith(inputs.os, 'ubuntu') }}
-      run: |
-        echo "_local_script_prefix=./" >> $GITHUB_ENV
-        echo "_script_extension=.sh" >> $GITHUB_ENV
-        echo "_shell_name=bash" >> $GITHUB_ENV
-        echo "_source_command=. " >> $GITHUB_ENV
-        echo "_sudo_command=sudo " >> $GITHUB_ENV
-        echo "_working_dir=$RUNNER_TEMP" >> $GITHUB_ENV
-      shell: bash
-
-    - name: "[Impl] Set Statement Variables (windows)"
-      if: ${{ startsWith(inputs.os, 'windows') }}
-      run: |
-        echo "_local_script_prefix=" >> $env:GITHUB_ENV
-        echo "_script_extension=.cmd" >> $env:GITHUB_ENV
-        echo "_shell_name=cmd" >> $env:GITHUB_ENV
-        echo "_source_command=" >> $env:GITHUB_ENV
-        echo "_sudo_command=" >> $env:GITHUB_ENV
-        echo "_working_dir=$env:RUNNER_TEMP" >> $env:GITHUB_ENV
-      shell: powershell
-
-    - name: "[Impl] Set Statements"
-      id: set_statements
-      shell: ${{ env._shell_name }}
-      <<% import "../../_PersistEnvironmentVars.macro.yaml" as PersistEnvironmentVars %>>
-      <<<
-        PersistEnvironmentVars.Execute(
-          [
-            "local_script_prefix",
-            "script_extension",
-            "shell_name",
-            "source_command",
-            "sudo_command",
-            "working_dir",
-          ],
-        )
-      >>>
-
-    - name: Validate
-      run: |
-        echo "local_script_prefix=${{ steps.set_statements.outputs.local_script_prefix }}"
-        echo "script_extension=${{ steps.set_statements.outputs.script_extension }}"
-        echo "shell_name=${{ steps.set_statements.outputs.shell_name }}"
-        echo "source_command=${{ steps.set_statements.outputs.source_command }}"
-        echo "sudo_command=${{ steps.set_statements.outputs.sudo_command }}"
-        echo "working_dir=${{ steps.set_statements.outputs.working_dir }}"
-      shell: ${{ steps.set_statements.outputs.shell_name }}
+    <<% endfor %>>
