@@ -9,7 +9,7 @@
 #
 #     Code Generator:         Jinja2
 #     Input Filename:         workflows/callable_promote_to_release.jinja2.yaml
-#     Generated Date:         2022-11-08 13:01:15.518918
+#     Generated Date:         2022-11-08 13:08:47.741372
 #
 # ----------------------------------------------------------------------
 # ----------------------------------------------------------------------
@@ -49,6 +49,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: "[Impl] Dump Contexts"
+        uses: davidbrownell/v4-Common_Foundation/.github/actions/dump_contexts@CI-vBugBug
+
       - name: Checkout source
         uses: actions/checkout@v3
         with:

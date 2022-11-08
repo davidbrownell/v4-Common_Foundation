@@ -9,7 +9,7 @@
 #
 #     Code Generator:         Jinja2
 #     Input Filename:         workflows/pr_to_main.jinja2.yaml
-#     Generated Date:         2022-11-08 13:01:15.530896
+#     Generated Date:         2022-11-08 13:08:47.753234
 #
 # ----------------------------------------------------------------------
 # ----------------------------------------------------------------------
@@ -30,8 +30,8 @@
 # |  http://www.boost.org/LICENSE_1_0.txt.
 # |
 # ----------------------------------------------------------------------
-name: "OnPullRequest (main)"
-run-name: ${{ github.run_number }} [${{ github.actor }}] on ${{ github.ref_name }}
+# BugBug name: "OnPullRequest (main)"
+run-name: ${{ github.run_number }} [${{ github.event.pull_request.user.login }}] on ${{ github.ref_name }}
 
 on:
   pull_request:
@@ -41,5 +41,5 @@ on:
   workflow_dispatch:
 
 jobs:
-  Common_Foundation:
+  "OnPullRequest (main)":
     uses: ./.github/workflows/callable_pr_to_main.yaml

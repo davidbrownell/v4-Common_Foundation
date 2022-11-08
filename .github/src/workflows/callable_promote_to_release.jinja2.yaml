@@ -32,6 +32,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: "[Impl] Dump Contexts"
+        uses: davidbrownell/v4-Common_Foundation/.github/actions/dump_contexts@CI-vBugBug
+
       - name: Checkout source
         uses: actions/checkout@v3
         with:

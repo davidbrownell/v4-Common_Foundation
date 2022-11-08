@@ -9,7 +9,7 @@
 #
 #     Code Generator:         Jinja2
 #     Input Filename:         workflows/push_to_main.jinja2.yaml
-#     Generated Date:         2022-11-08 13:01:15.533907
+#     Generated Date:         2022-11-08 13:08:47.756243
 #
 # ----------------------------------------------------------------------
 # ----------------------------------------------------------------------
@@ -31,7 +31,7 @@
 # |
 # ----------------------------------------------------------------------
 name: OnPush (main)
-run-name: ${{ github.run_number }} [${{ github.actor }}] on ${{ github.ref_name }}
+run-name: ${{ github.run_number }} [${{ github.actor }}] on ${{ github.ref_name }} # BugBug: Change this
 
 on:
   push:
