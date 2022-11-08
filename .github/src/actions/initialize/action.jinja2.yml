@@ -53,9 +53,10 @@ runs:
     - name: BugBug
       id: bugbug
       uses: actions/github-script@v6
-      script: |
-        return "This is a test!!!"
-      result-encoding: string
+      with:
+        script: |
+          return "This is a test!!!"
+        result-encoding: string
 
     # This code is attempting to create the activate command given the following constraints:
     #   - These steps must work on both Windows and Linux
