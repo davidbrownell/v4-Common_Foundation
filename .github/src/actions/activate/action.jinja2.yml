@@ -25,48 +25,38 @@ inputs:
 outputs:
   activate_statement:
     description: The command to activate the environment that can be used by other composite actions.
-    value: ${{ steps.activate_statement.outputs.activate_statement }}
+    value: ${{ steps.activate_statement.outputs.result }}
 
 runs:
   using: composite
   steps:
-    # This code is attempting to create the activate command given the following constraints:
-    #   - These steps must work on both Windows and Linux
-    #   - GitHub actions don't support multiple steps with the same id (meaning we can't conditionally execute one technique or the other)
-
-    - name: "[Impl] Set Activate Statement Variables (ubuntu)"
-      if: ${{ startsWith(inputs.os, 'ubuntu') }}
-      run: |
-        if [[ "${{ inputs.configuration }}" == "None" ]]; then
-          export _activate_statement="pushd ${{ inputs.repo_dir }} > /dev/null && . ./Activate.sh --debug"
-        else
-          export _activate_statement="pushd ${{ inputs.repo_dir }} > /dev/null && . ./Activate.sh ${{ inputs.configuration }} --debug"
-        fi
-
-        echo "_activate_statement=${_activate_statement}" >> $GITHUB_ENV
-
-      shell: ${{ inputs.shell_name }}
-
-    - name: "[Impl] Set Activate Statement Variables (windows)"
-      if: ${{ startsWith(inputs.os, 'windows') }}
-      run: |
-        if ( "${{ inputs.configuration }}" -eq "None" ) {
-          $env:_activate_statement="pushd ${{ inputs.repo_dir }} && Activate.cmd --debug"
-        }
-        else {
-          $env:_activate_statement="pushd ${{ inputs.repo_dir }} && Activate.cmd ${{ inputs.configuration }} --debug"
-        }
-
-        echo "_activate_statement=$env:_activate_statement" >> $env:GITHUB_ENV
-
-      shell: powershell
-
     - name: Activate Statement
       id: activate_statement
-      shell: ${{ inputs.shell_name }}
-      <<% import "../../_PersistEnvironmentVars.macro.yaml" as PersistEnvironmentVars %>>
-      <<< PersistEnvironmentVars.Execute(["activate_statement"]) >>>
+      uses: actions/github-script@v6
+      with:
+        result-encoding: string
+        script: |
+          var activate_statement;
+
+          if("${{ inputs.os }}.startsWith("windows")) {
+            activate_statement = "pushd \"${{ inputs.repo_dir }}\" && Activate.cmd";
+          } else {
+            activate_statement = "pushd \"${{ inputs.repo_dir }}\" > /dev/null && . ./Activate.sh";
+          }
+
+          if("${{ inputs.configuration }}" != "None") {
+            activate_statement += " ${{ inputs.configuration }}";
+          }
+
+          activate_statement += " --debug";
+
+          return activate_statement;
 
     - name: Activate
-      run: ${{ steps.activate_statement.outputs.activate_statement }}
+      run: ${{ steps.activate_statement.outputs.result }}
       shell: ${{ inputs.shell_name }}
+
+    - name: Results
+      run: |
+        echo "Activate Statement: ${{ steps.activate_statement.outputs.result }}"
+      ehsell: ${{ inputs.shell_name }}

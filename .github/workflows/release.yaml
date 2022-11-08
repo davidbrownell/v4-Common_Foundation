@@ -9,7 +9,7 @@
 #
 #     Code Generator:         Jinja2
 #     Input Filename:         workflows/release.jinja2.yaml
-#     Generated Date:         2022-11-08 09:40:25.566862
+#     Generated Date:         2022-11-08 09:52:04.212501
 #
 # ----------------------------------------------------------------------
 # ----------------------------------------------------------------------
@@ -40,24 +40,24 @@ on:
   workflow_dispatch:
 
 jobs:
-  # BugBug Common_Foundation:
-  # BugBug   uses: ./.github/workflows/callable_main.yaml
-  # BugBug   with:
-  # BugBug     branch_overrides: "Common_Foundation:main"
-  # BugBug     subject_repo_name: "davidbrownell/v4-Common_Foundation"
-  # BugBug
-  # BugBug Common_PythonDevelopment:
-  # BugBug   uses: davidbrownell/v4-Common_PythonDevelopment/.github/workflows/callable_main.yaml@CI-vBugBug
-  # BugBug   with:
-  # BugBug     branch_overrides: "Common_Foundation:main"
-  # BugBug     subject_repo_name: "davidbrownell/v4-Common_PythonDevelopment"
-  # BugBug     subject_repo_branch: davidbrownell_releaseCI # BugBug
+  Common_Foundation:
+    uses: ./.github/workflows/callable_main.yaml
+    with:
+      branch_overrides: "Common_Foundation:main"
+      subject_repo_name: "davidbrownell/v4-Common_Foundation"
+
+  Common_PythonDevelopment:
+    uses: davidbrownell/v4-Common_PythonDevelopment/.github/workflows/callable_main.yaml@CI-vBugBug
+    with:
+      branch_overrides: "Common_Foundation:main"
+      subject_repo_name: "davidbrownell/v4-Common_PythonDevelopment"
+      subject_repo_branch: davidbrownell_releaseCI # BugBug
 
   # ----------------------------------------------------------------------
   Promote:
-    # BugBug needs:
-    # BugBug   - Common_Foundation
-    # BugBug   - Common_PythonDevelopment
+    needs:
+      - Common_Foundation
+      - Common_PythonDevelopment
 
     uses: ./.github/workflows/callable_release.yaml
     with:
