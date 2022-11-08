@@ -9,7 +9,7 @@
 #
 #     Code Generator:         Jinja2
 #     Input Filename:         workflows/callable_mainImpl.jinja2.yaml
-#     Generated Date:         2022-11-08 08:30:33.280502
+#     Generated Date:         2022-11-08 08:34:22.761706
 #
 # ----------------------------------------------------------------------
 # ----------------------------------------------------------------------
@@ -166,10 +166,6 @@ jobs:
         with:
           os:                               ${{ inputs.os }}
 
-      - name: BugBug
-        run: echo BugBug - ${{ steps.initialize.outputs.bugbug_test }}
-        shell: ${{ steps.initialize.outputs.shell_name }}
-
       # outputs:
       #   - archive_prefix
       #   - repo_name
@@ -179,6 +175,8 @@ jobs:
         id: checkout_source
         uses: davidbrownell/v4-Common_Foundation/.github/actions/checkout_source@CI-vBugBug
         with:
+          bugbut_test:                      ${{ steps.initialize.outputs.bugbug_test }}
+
           subject_repo_name:                ${{ inputs.subject_repo_name }}
           subject_repo_branch:              ${{ inputs.subject_repo_branch }}
 

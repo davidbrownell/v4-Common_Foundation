@@ -17,6 +17,8 @@ name: Checkout Source
 description: Checks out source code.
 
 inputs:
+  bugbug_test: {type: string, required: true }
+
   subject_repo_name:                        {type: string, required: false}
   subject_repo_branch:                      {type: string, required: false}
 
@@ -42,6 +44,10 @@ outputs:
 runs:
   using: composite
   steps:
+    - name: BugBug
+      run: echo ${{ inputs.bugbug_test }}
+      shell: ${{ inputs.shell_name }}
+
     # ----------------------------------------------------------------------
     - name: Checkout Source (Standard)
       uses: actions/checkout@v3
