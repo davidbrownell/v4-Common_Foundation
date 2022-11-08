@@ -24,4 +24,5 @@ on:
   workflow_dispatch:
 
 jobs:
-  uses: ./.github/workflows/callable_pr_to_release.yaml
+  Workflow:
+    uses: ./.github/workflows/callable_pr_to_release.yaml
