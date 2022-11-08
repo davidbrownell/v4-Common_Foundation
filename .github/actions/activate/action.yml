@@ -9,7 +9,7 @@
 #
 #     Code Generator:         Jinja2
 #     Input Filename:         actions/activate/action.jinja2.yml
-#     Generated Date:         2022-11-08 09:52:04.176675
+#     Generated Date:         2022-11-08 09:55:11.956740
 #
 # ----------------------------------------------------------------------
 # ----------------------------------------------------------------------
@@ -76,4 +76,4 @@ runs:
     - name: Results
       run: |
         echo "Activate Statement: ${{ steps.activate_statement.outputs.result }}"
-      ehsell: ${{ inputs.shell_name }}
+      shell: ${{ inputs.shell_name }}

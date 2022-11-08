@@ -59,4 +59,4 @@ runs:
     - name: Results
       run: |
         echo "Activate Statement: ${{ steps.activate_statement.outputs.result }}"
-      ehsell: ${{ inputs.shell_name }}
+      shell: ${{ inputs.shell_name }}
