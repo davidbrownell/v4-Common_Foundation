@@ -9,7 +9,7 @@
 #
 #     Code Generator:         Jinja2
 #     Input Filename:         workflows/pr_to_release.jinja2.yaml
-#     Generated Date:         2022-11-08 12:12:54.620436
+#     Generated Date:         2022-11-08 12:19:13.216615
 #
 # ----------------------------------------------------------------------
 # ----------------------------------------------------------------------
@@ -42,5 +42,4 @@ on:
 
 jobs:
   Workflow:
-    name: "BugBug (can be ignored?)"
     uses: ./.github/workflows/callable_pr_to_release.yaml

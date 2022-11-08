@@ -25,5 +25,4 @@ on:
 
 jobs:
   Workflow:
-    name: "BugBug (can be ignored?)"
     uses: ./.github/workflows/callable_pr_to_release.yaml
