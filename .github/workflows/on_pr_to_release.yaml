@@ -8,8 +8,8 @@
 # this one.
 #
 #     Code Generator:         Jinja2
-#     Input Filename:         workflows/callable_pr_to_main.jinja2.yaml
-#     Generated Date:         2022-11-08 12:58:52.037393
+#     Input Filename:         workflows/on_pr_to_release.jinja2.yaml
+#     Generated Date:         2022-11-08 13:37:40.584754
 #
 # ----------------------------------------------------------------------
 # ----------------------------------------------------------------------
@@ -17,10 +17,10 @@
 
 # ----------------------------------------------------------------------
 # |
-# |  callable_pr_to_main.jinja2.yaml
+# |  on_pr_to_release.yaml
 # |
 # |  David Brownell <db@DavidBrownell.com>
-# |      2022-11-08 12:52:02
+# |      2022-11-08 11:31:59
 # |
 # ----------------------------------------------------------------------
 # |
@@ -30,9 +30,16 @@
 # |  http://www.boost.org/LICENSE_1_0.txt.
 # |
 # ----------------------------------------------------------------------
+name: "OnPullRequest (release)"
+run-name: ${{ github.run_number }} [${{ github.event.pull_request.user.login }}] on ${{ github.ref_name }}
+
 on:
-  workflow_call:
+  pull_request:
+    branches:
+      - release
+      - davidbrownell_release # BugBug
+  workflow_dispatch: # BugBug
 
 jobs:
-  Workflow:
-    uses: ./.github/workflows/exercise_main.yaml
+  Common_Foundation:
+    uses: ./.github/workflows/callable_pr_to_release.yaml

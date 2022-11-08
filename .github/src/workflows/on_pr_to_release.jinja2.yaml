@@ -1,9 +1,9 @@
 # ----------------------------------------------------------------------
 # |
-# |  pr_to_main.yaml
+# |  on_pr_to_release.yaml
 # |
 # |  David Brownell <db@DavidBrownell.com>
-# |      2022-10-31 14:30:18
+# |      2022-11-08 11:31:59
 # |
 # ----------------------------------------------------------------------
 # |
@@ -13,16 +13,16 @@
 # |  http://www.boost.org/LICENSE_1_0.txt.
 # |
 # ----------------------------------------------------------------------
-name: "OnPullRequest (main)"
-run-name: ${{ github.run_number }} [${{ github.actor }}] on ${{ github.ref_name }}
+name: "OnPullRequest (release)"
+run-name: ${{ github.run_number }} [${{ github.event.pull_request.user.login }}] on ${{ github.ref_name }}
 
 on:
   pull_request:
     branches:
-      - main
-      - davidbrownell_main # BugBug
-  workflow_dispatch:
+      - release
+      - davidbrownell_release # BugBug
+  workflow_dispatch: # BugBug
 
 jobs:
   Common_Foundation:
-    uses: ./.github/workflows/callable_pr_to_main.yaml
+    uses: ./.github/workflows/callable_pr_to_release.yaml

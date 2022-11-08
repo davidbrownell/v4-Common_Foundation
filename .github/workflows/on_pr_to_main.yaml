@@ -8,8 +8,8 @@
 # this one.
 #
 #     Code Generator:         Jinja2
-#     Input Filename:         workflows/pr_to_main.jinja2.yaml
-#     Generated Date:         2022-11-08 12:58:52.048392
+#     Input Filename:         workflows/on_pr_to_main.jinja2.yaml
+#     Generated Date:         2022-11-08 13:37:40.582754
 #
 # ----------------------------------------------------------------------
 # ----------------------------------------------------------------------
@@ -17,7 +17,7 @@
 
 # ----------------------------------------------------------------------
 # |
-# |  pr_to_main.yaml
+# |  on_pr_to_main.yaml
 # |
 # |  David Brownell <db@DavidBrownell.com>
 # |      2022-10-31 14:30:18
@@ -31,7 +31,7 @@
 # |
 # ----------------------------------------------------------------------
 name: "OnPullRequest (main)"
-run-name: ${{ github.run_number }} [${{ github.actor }}] on ${{ github.ref_name }}
+run-name: ${{ github.run_number }} [${{ github.event.pull_request.user.login }}] on ${{ github.ref_name }}
 
 on:
   pull_request:
@@ -42,4 +42,4 @@ on:
 
 jobs:
   Common_Foundation:
-    uses: ./.github/workflows/callable_pr_to_main.yaml
+    uses: ./.github/workflows/exercise_main.yaml

@@ -33,7 +33,7 @@ on:
 
 jobs:
   Workflow:
-    name: "Validate Pull Requests to '${{ github.base_ref }}'"
+    name: "'${{ github.base_ref }}'"
 
     strategy:
       matrix:

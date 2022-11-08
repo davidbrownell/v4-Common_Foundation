@@ -9,7 +9,7 @@
 #
 #     Code Generator:         Jinja2
 #     Input Filename:         workflows/callable_promote_to_release.jinja2.yaml
-#     Generated Date:         2022-11-08 12:58:52.035394
+#     Generated Date:         2022-11-08 13:37:40.571754
 #
 # ----------------------------------------------------------------------
 # ----------------------------------------------------------------------
@@ -49,12 +49,15 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: "[Impl] Dump Contexts"
+        uses: davidbrownell/v4-Common_Foundation/.github/actions/dump_contexts@CI-vBugBug
+
       - name: Checkout source
         uses: actions/checkout@v3
         with:
           ref: refs/heads/${{ inputs.source_branch }}
 
       - name: Create Pull Request
-        run: gh pr create -B ${{ inputs.dest_branch }} -H ${{ inputs.source_branch }} --title 'Merge "${{ inputs.source_branch }}" into "${{ inputs.dest_branch }}"' --body 'Created by Github action'
+        run: gh pr create -B ${{ inputs.dest_branch }} -H ${{ inputs.source_branch }} --title 'Merge "${{ inputs.source_branch }}" into "${{ inputs.dest_branch }}"' --body 'Created by Github action.'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

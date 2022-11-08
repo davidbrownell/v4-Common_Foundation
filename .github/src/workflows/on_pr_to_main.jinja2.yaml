@@ -1,9 +1,9 @@
 # ----------------------------------------------------------------------
 # |
-# |  callable_pr_to_main.jinja2.yaml
+# |  on_pr_to_main.yaml
 # |
 # |  David Brownell <db@DavidBrownell.com>
-# |      2022-11-08 12:52:02
+# |      2022-10-31 14:30:18
 # |
 # ----------------------------------------------------------------------
 # |
@@ -13,9 +13,16 @@
 # |  http://www.boost.org/LICENSE_1_0.txt.
 # |
 # ----------------------------------------------------------------------
+name: "OnPullRequest (main)"
+run-name: ${{ github.run_number }} [${{ github.event.pull_request.user.login }}] on ${{ github.ref_name }}
+
 on:
-  workflow_call:
+  pull_request:
+    branches:
+      - main
+      - davidbrownell_main # BugBug
+  workflow_dispatch:
 
 jobs:
-  Workflow:
+  Common_Foundation:
     uses: ./.github/workflows/exercise_main.yaml
