@@ -1,0 +1,118 @@
+# ----------------------------------------------------------------------
+# ----------------------------------------------------------------------
+# ----------------------------------------------------------------------
+#
+# This file is the result of a code generation process; any changes made
+# to this file will be overwritten during the next code generation
+# invocation. Any changes MUST be made in the source file rather than in
+# this one.
+#
+#     Code Generator:         Jinja2
+#     Input Filename:         actions/checkout_source/action.jinja2.yml
+#     Generated Date:         2022-11-08 15:25:27.694876
+#
+# ----------------------------------------------------------------------
+# ----------------------------------------------------------------------
+# ----------------------------------------------------------------------
+
+# ----------------------------------------------------------------------
+# |
+# |  action.yml
+# |
+# |  David Brownell <db@DavidBrownell.com>
+# |      2022-11-07 16:19:23
+# |
+# ----------------------------------------------------------------------
+# |
+# |  Copyright David Brownell 2022
+# |  Distributed under the Boost Software License, Version 1.0. See
+# |  accompanying file LICENSE_1_0.txt or copy at
+# |  http://www.boost.org/LICENSE_1_0.txt.
+# |
+# ----------------------------------------------------------------------
+name: Checkout Source
+description: Checks out source code.
+
+inputs:
+  subject_repo_name:                        {type: string, required: false}
+  subject_repo_branch:                      {type: string, required: false}
+
+  os:                                       {type: string, required: true}
+  configuration:                            {type: string, required: true}
+
+  shell_name:                               {type: string, required: true}
+  working_dir:                              {type: string, required: true}
+
+outputs:
+  archive_prefix:
+    description: "Prefix that can be applied to archive names to prevent collisions."
+    value: ${{ steps.archive_prefix.outputs.result }}
+
+  repo_name:
+    description: "Name of the repository under build."
+    value: ${{ steps.repo_name.outputs.result }}
+
+  repo_dir:
+    description: "Directory to the repository under build."
+    value: ${{ steps.repo_directory.outputs.result }}
+
+runs:
+  using: composite
+  steps:
+
+    - name: Archive Prefix
+      id: archive_prefix
+      uses: actions/github-script@v6
+      with:
+        result-encoding: string
+        script: |
+          if(!"${{ inputs.subject_repo_name }}") {
+            return "[${{ github.run_number }}, ${{ github.event.repository.name }}, ${{ inputs.os }}, ${{ inputs.configuration }}]";
+          }
+
+          var source_repo_name = "${{ inputs.subject_repo_name }}".split("/", 2)[1];
+
+          return "[${{ github.run_number }}, " + source_repo_name + ", ${{ inputs.os }}, ${{ inputs.configuration }}]"
+
+    - name: Repo Name
+      id: repo_name
+      uses: actions/github-script@v6
+      with:
+        result-encoding: string
+        script: |
+          if(!"${{ inputs.subject_repo_name }}") {
+            return "${{ github.repository }}";
+          }
+
+          return "${{ inputs.subject_repo_name }}";
+
+    - name: Repo Directory
+      id: repo_directory
+      uses: actions/github-script@v6
+      with:
+        result-encoding: string
+        script: |
+          if(!"${{ inputs.subject_repo_name }}") {
+            return process.cwd();
+          }
+
+          var path = require("path");
+
+          return path.join(String.raw`${{ inputs.working_dir }}`, "repo_under_test");
+
+    - name: Results
+      shell: ${{ steps.shell_name.outputs.result }}
+      run: |
+        echo "Archive Prefix: '${{ steps.archive_prefix.outputs.result }}'"
+        echo "Repo Name: '${{ steps.repo_name.outputs.result }}'"
+        echo "Repo Directory: '${{ steps.repo_directory.outputs.result }}'"
+
+    - name: Checkout Source (Standard)
+      uses: actions/checkout@v3
+      if: ${{ !inputs.subject_repo_name }}
+
+    - name: Checkout Source (Custom Repo)
+      if: ${{ inputs.subject_repo_name }}
+      shell: ${{ inputs.shell_name }}
+      run: |
+        git clone -b ${{ inputs.subject_repo_branch || 'release' }} https://github.com/${{ inputs.subject_repo_name }} "${{ steps.repo_directory.outputs.result }}"

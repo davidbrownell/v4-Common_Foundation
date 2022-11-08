@@ -1,4 +1,21 @@
 # ----------------------------------------------------------------------
+# ----------------------------------------------------------------------
+# ----------------------------------------------------------------------
+#
+# This file is the result of a code generation process; any changes made
+# to this file will be overwritten during the next code generation
+# invocation. Any changes MUST be made in the source file rather than in
+# this one.
+#
+#     Code Generator:         Jinja2
+#     Input Filename:         actions/activate/action.jinja2.yml
+#     Generated Date:         2022-11-08 15:25:27.690916
+#
+# ----------------------------------------------------------------------
+# ----------------------------------------------------------------------
+# ----------------------------------------------------------------------
+
+# ----------------------------------------------------------------------
 # |
 # |  action.yml
 # |
@@ -17,6 +34,7 @@ name: Activate
 description: Runs `Activate` on the repository.
 
 inputs:
+  repo_dir:                                 {type: string, required: true}
   os:                                       {type: string, required: true}
   configuration:                            {type: string, required: true}
   shell_name:                               {type: string, required: true}
@@ -24,49 +42,38 @@ inputs:
 outputs:
   activate_statement:
     description: The command to activate the environment that can be used by other composite actions.
-    value: ${{ steps.activate_statement.outputs.activate_statement }}
+    value: ${{ steps.activate_statement.outputs.result }}
 
 runs:
   using: composite
   steps:
-    # This code is attempting to create the activate command given the following constraints:
-    #   - These steps must work on both Windows and Linux
-    #   - GitHub actions don't support multiple steps with the same id (meaning we can't conditionally execute one technique or the other)
-
-    - name: "[Impl] Set Activate Statement Variables (ubuntu)"
-      if: ${{ startsWith(inputs.os, 'ubuntu') }}
-      run: |
-        if [[ "${{ inputs.configuration }}" == "None" ]]; then
-          export _activate_statement=". ./Activate.sh --debug"
-        else
-          export _activate_statement=". ./Activate.sh ${{ inputs.configuration }} --debug"
-        fi
-
-        echo "_activate_statement=${_activate_statement}" >> $GITHUB_ENV
-
-      shell: ${{ inputs.shell_name }}
-
-    - name: "[Impl] Set Activate Statement Variables (windows)"
-      if: ${{ startsWith(inputs.os, 'windows') }}
-      run: |
-        if ( "${{ inputs.configuration }}" -eq "None" ) {
-          $env:_activate_statement="Activate.cmd --debug"
-        }
-        else {
-          $env:_activate_statement="Activate.cmd ${{ inputs.configuration }} --debug"
-        }
-
-        echo "_activate_statement=$env:_activate_statement" >> $env:GITHUB_ENV
-
-      shell: powershell
-
     - name: Activate Statement
       id: activate_statement
+      uses: actions/github-script@v6
+      with:
+        result-encoding: string
+        script: |
+          var activate_statement;
+
+          if("${{ inputs.os }}".startsWith("windows")) {
+            activate_statement = "pushd \"" + String.raw`${{ inputs.repo_dir }}` + "\" && Activate.cmd";
+          } else {
+            activate_statement = "pushd \"" + String.raw`${{ inputs.repo_dir }}` + "\" >> /dev/null && . ./Activate.sh";
+          }
+
+          if("${{ inputs.configuration }}" != "None") {
+            activate_statement += " ${{ inputs.configuration }}";
+          }
+
+          activate_statement += " --debug";
+
+          return activate_statement;
+
+    - name: Results
       shell: ${{ inputs.shell_name }}
       run: |
-        python -c "import os; f = open(os.getenv('GITHUB_OUTPUT'), 'a+'); f.write('activate_statement={}\n'.format(os.getenv('_activate_statement'))); f.close();"
-        python -c "import os; f = open(os.getenv('GITHUB_ENV'), 'a+'); f.write('_activate_statement=\n'); f.close();"
+        echo "Activate Statement: ${{ steps.activate_statement.outputs.result }}"
 
     - name: Activate
-      run: ${{ steps.activate_statement.outputs.activate_statement }}
       shell: ${{ inputs.shell_name }}
+      run: ${{ steps.activate_statement.outputs.result }}

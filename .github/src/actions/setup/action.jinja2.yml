@@ -17,6 +17,10 @@ name: Setup
 description: Runs `Setup` or `Bootstrap` on the repository.
 
 inputs:
+  repo_name:                                {type: string, required: true}
+  repo_dir:                                 {type: string, required: true}
+  branch_overrides:                         {type: string, required: false}
+
   os:                                       {type: string, required: true}
   configuration:                            {type: string, required: true}
 
@@ -29,24 +33,12 @@ inputs:
 runs:
   using: composite
   steps:
-    - name: Setup (No Configuration)
-      if: ${{ github.event.repository.name == 'v4-Common_Foundation' && inputs.configuration == 'None' }}
-      run: |
-        ${{ inputs.sudo_command }}${{ inputs.local_script_prefix }}Setup${{ inputs.script_extension }} --no-interactive --no-hooks --debug
-      shell: ${{ inputs.shell_name }}
-
-    - name: Setup (with Configuration)
-      if: ${{ github.event.repository.name == 'v4-Common_Foundation' && inputs.configuration != 'None' }}
-      run: |
-        ${{ inputs.sudo_command }}${{ inputs.local_script_prefix }}Setup${{ inputs.script_extension }} --configuration ${{ inputs.configuration }} --no-interactive --no-hooks --debug
-      shell: ${{ inputs.shell_name }}
-
     # Do not let repositories in the '_actions' directory be used as dependency repositories during the bootstrap process
     # (as the fall outside the `all_repositories_root` directory and are therefore not setup).
 
     # There are probably shell scripts to do this cleaning, but it feels easier to do the work in python
     - name: Generate Clean Actions (ubuntu)
-      if: ${{ github.event.repository.name != 'v4-Common_Foundation' && startsWith(inputs.os, 'ubuntu') }}
+      if: ${{ inputs.repo_name != 'davidbrownell/v4-Common_Foundation' && startsWith(inputs.os, 'ubuntu') }}
       run: |
           cat > _clean_action_dir.py <<EOF
           import os
@@ -68,7 +60,7 @@ runs:
       shell: bash
 
     - name: Generate Clean Actions (windows)
-      if: ${{ github.event.repository.name != 'v4-Common_Foundation' && startsWith(inputs.os, 'windows') }}
+      if: ${{ inputs.repo_name != 'davidbrownell/v4-Common_Foundation' && startsWith(inputs.os, 'windows') }}
       run: |
         $python_content = @"
         import os
@@ -92,20 +84,47 @@ runs:
       shell: powershell
 
     - name: Clean Actions
-      if: ${{ github.event.repository.name != 'v4-Common_Foundation' }}
+      if: ${{ inputs.repo_name != 'davidbrownell/v4-Common_Foundation' }}
       run: |
         python _clean_action_dir.py
         python -c "import os; os.remove('_clean_action_dir.py')"
       shell: ${{ inputs.shell_name }}
 
-    - name: Bootstrap (No Configuration)
-      if: ${{ github.event.repository.name != 'v4-Common_Foundation' && inputs.configuration == 'None' }}
-      run: |
-        ${{ inputs.sudo_command }}${{ inputs.local_script_prefix }}Bootstrap${{ inputs.script_extension }} ${{ inputs.working_dir }}/code --no-interactive --no-hooks --debug
-      shell: ${{ inputs.shell_name }}
+    - name: Setup Statement
+      id: setup_statement
+      uses: actions/github-script@v6
+      with:
+        result-encoding: string
+        script: |
+          var setup_statement;
 
-    - name: Bootstrap (with Configuration)
-      if: ${{ github.event.repository.name != 'v4-Common_Foundation' && inputs.configuration != 'None' }}
-      run: |
-        ${{ inputs.sudo_command }}${{ inputs.local_script_prefix }}Bootstrap${{ inputs.script_extension }} ${{ inputs.working_dir }}/code --configuration ${{ inputs.configuration }} --no-interactive --no-hooks --debug
+          if("${{ inputs.repo_name }}" == "davidbrownell/v4-Common_Foundation") {
+            setup_statement = "${{ inputs.sudo_command }}${{ inputs.local_script_prefix }}Setup${{ inputs.script_extension }}";
+          } else {
+            var path = require("path");
+
+            setup_statement = "${{ inputs.sudo_command }}${{ inputs.local_script_prefix }}Bootstrap${{ inputs.script_extension }} \"" + path.join("${{ inputs.working_dir }}", "code") + "\"";
+          }
+
+          setup_statement += " --no-interactive --no-hooks --debug";
+
+          if("${{ inputs.configuration }}" != "None") {
+            setup_statement += " --configuration \"${{ inputs.configuration }}\"";
+          }
+
+          if("${{ inputs.branch_overrides }}" != "") {
+            setup_statement += " --branch-overrides \"${{ inputs.branch_overrides }}\"";
+          }
+
+          return setup_statement;
+
+    - name: Results
       shell: ${{ inputs.shell_name }}
+      run: |
+        echo "Setup Statement: ${{ steps.setup_statement.outputs.result }}"
+
+    - name: Execute Setup Statement
+      shell: ${{ inputs.shell_name }}
+      run: |
+        pushd "${{ inputs.repo_dir }}"
+        ${{ steps.setup_statement.outputs.result }}

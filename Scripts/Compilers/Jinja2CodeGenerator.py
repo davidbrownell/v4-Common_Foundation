@@ -15,6 +15,7 @@
 # ----------------------------------------------------------------------
 """Compiles Jinja2 template files."""
 
+import datetime
 import os
 import textwrap
 
@@ -98,6 +99,8 @@ class CodeGenerator(
         assert default_metadata["keep_trailing_newline"] is True
 
         return {
+            "code_gen_header_line_prefix": (str, typer.Option(None, "--code-gen-header-line-prefix", help="Prefix to use for a code generation header added to the template indicating that the file was generated; this prefix will most often be a comment character specific to the generated file type.")),
+
             "list_variables": (bool, typer.Option(default_metadata["list_variables"], "--list-variables", help="Lists all variables in the Jinja2 templates.")),
             "force": (bool, typer.Option(default_metadata["force"], "--force", help="Force the generation of content, even when no changes are detected.")),
             "ignore_errors": (bool, typer.Option(default_metadata["ignore_errors"], "--ignore-errors", help="Continue even when errors are encountered.")),
@@ -140,6 +143,8 @@ class CodeGenerator(
     # ----------------------------------------------------------------------
     @overridemethod
     def _EnumerateOptionalMetadata(self) -> Generator[Tuple[str, Any], None, None]:
+        yield "code_gen_header_line_prefix", None
+
         yield "list_variables", False
         yield "ignore_errors", False
         yield "jinja2_context", {}
@@ -369,7 +374,39 @@ class CodeGenerator(
 
                 try:
                     with input_filename.open() as f:
-                        template = env.from_string(f.read())
+                        template_content = f.read()
+
+                    if context["code_gen_header_line_prefix"]:
+                        template_content = textwrap.dedent(
+                            """\
+                            {line_prefix} ----------------------------------------------------------------------
+                            {line_prefix} ----------------------------------------------------------------------
+                            {line_prefix} ----------------------------------------------------------------------
+                            {line_prefix}
+                            {line_prefix} This file is the result of a code generation process; any changes made
+                            {line_prefix} to this file will be overwritten during the next code generation
+                            {line_prefix} invocation. Any changes MUST be made in the source file rather than in
+                            {line_prefix} this one.
+                            {line_prefix}
+                            {line_prefix}     Code Generator:         {name}
+                            {line_prefix}     Input Filename:         {input}
+                            {line_prefix}     Generated Date:         {date}
+                            {line_prefix}
+                            {line_prefix} ----------------------------------------------------------------------
+                            {line_prefix} ----------------------------------------------------------------------
+                            {line_prefix} ----------------------------------------------------------------------
+
+                            {template_content}
+                            """,
+                        ).format(
+                            line_prefix=context["code_gen_header_line_prefix"],
+                            name=self.name,
+                            input=Path(*input_filename.parts[len(context["input_root"].parts):]).as_posix(),
+                            date=datetime.datetime.now(),
+                            template_content=template_content.rstrip(),
+                        )
+
+                    template = env.from_string(template_content)
 
                     content = template.render(**context["jinja2_context"])
                 except Exception as ex:

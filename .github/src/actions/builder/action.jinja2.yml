@@ -17,6 +17,8 @@ name: Builder
 description: Runs `Builder` on the repository.
 
 inputs:
+  archive_prefix:                           {type: string, required: true}
+
   os:                                       {type: string, required: true}
   configuration:                            {type: string, required: true}
 
@@ -37,6 +39,6 @@ runs:
       if: always()
       uses: actions/upload-artifact@v3.1.1
       with:
-        name: "[${{ github.run_number }}] Builder Artifacts [${{ inputs.os }}, ${{ inputs.configuration }}]"
+        name: "${{ inputs.archive_prefix }} Builder Artifacts"
         path: ${{ inputs.working_dir }}/Builder
         if-no-files-found: ignore
