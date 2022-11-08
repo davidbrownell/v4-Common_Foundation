@@ -79,7 +79,7 @@ def Enlist(
     all_repositories_root: Path=typer.Argument(..., help="Root path to a directory where all dependencies are enlisted; this path may be shared by multiple repositories, each with their own set of dependencies."),
     scm_name: Scm=typer.Option(next(iter(Scm)).value, case_sensitive=False, help="Name of the SCM to use for enlistment."),  # type: ignore
     branch: Optional[str]=typer.Option(None, help="Name of branch to enlist in; the default branch associated with the SCM will be used if a branch is not provided."),
-    branch_overrides: Optional[str]=typer.Option(None, "--branch-overrides", help="BugBug"),
+    branch_overrides: Optional[str]=typer.Option(None, "--branch-overrides", help="Concatenated list of repositories and branches that should be applied when enlisting; format is `<repo_name1>:<branch_name1>;<repo_name2>:<branch_name2>`."),
     configurations: Optional[List[str]]=typer.Option(None, "--configuration", help="Configurations to determine dependencies for enlistment; all configurations will be used if explicit values are not provided."),
     traverse_all: bool=typer.Option(False, "--traverse-all", help="Traverse all dependencies, not just those that relate to the source repository; enable this flag if the all repositories root is shared by multiple repositories (not just this one)."),
     search_depth: int=typer.Option(6, min=1, help="Limit searches to N path-levels deep."),
@@ -179,7 +179,7 @@ def EnlistAndSetup(
     all_repositories_root: Path=typer.Argument(..., help="Root path to a directory where all dependencies are enlisted; this path may be shared by multiple repositories, each with their own set of dependencies."),
     scm_name: Scm=typer.Option(next(iter(Scm)).value, case_sensitive=False, help="Name of the SCM to use for enlistment."),  # type: ignore
     branch: Optional[str]=typer.Option(None, help="Name of branch to enlist in; the default branch associated with the SCM will be used if a branch is not provided."),
-    branch_overrides: Optional[str]=typer.Option(None, "--branch-overrides", help="BugBug"),
+    branch_overrides: Optional[str]=typer.Option(None, "--branch-overrides", help="Concatenated list of repositories and branches that should be applied when enlisting; format is `<repo_name1>:<branch_name1>;<repo_name2>:<branch_name2>`."),
     configurations: Optional[List[str]]=typer.Option(None, "--configuration", help="Configurations to determine dependencies for enlistment; all configurations will be used if explicit values are not provided."),
     traverse_all: bool=typer.Option(False, "--traverse-all", help="Traverse all dependencies, not just those that relate to the source repository; enable this flag if the all repositories root is shared by multiple repositories (not just this one)."),
     search_depth: int=typer.Option(6, min=1, help="Limit searches to N path-levels deep."),

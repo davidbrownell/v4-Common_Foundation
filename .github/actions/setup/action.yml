@@ -9,7 +9,7 @@
 #
 #     Code Generator:         Jinja2
 #     Input Filename:         actions/setup/action.jinja2.yml
-#     Generated Date:         2022-11-08 14:24:15.754322
+#     Generated Date:         2022-11-08 15:23:14.822759
 #
 # ----------------------------------------------------------------------
 # ----------------------------------------------------------------------
@@ -50,22 +50,6 @@ inputs:
 runs:
   using: composite
   steps:
-    # BugBug: Clean this up
-
-    - name: Setup (No Configuration)
-      if: ${{ inputs.repo_name == 'davidbrownell/v4-Common_Foundation' && inputs.configuration == 'None' }}
-      run: |
-        pushd "${{ inputs.repo_dir }}"
-        ${{ inputs.sudo_command }}${{ inputs.local_script_prefix }}Setup${{ inputs.script_extension }} --no-interactive --no-hooks --debug
-      shell: ${{ inputs.shell_name }}
-
-    - name: Setup (with Configuration)
-      if: ${{ inputs.repo_name == 'davidbrownell/v4-Common_Foundation' && inputs.configuration != 'None' }}
-      run: |
-        pushd "${{ inputs.repo_dir }}"
-        ${{ inputs.sudo_command }}${{ inputs.local_script_prefix }}Setup${{ inputs.script_extension }} --configuration ${{ inputs.configuration }} --no-interactive --no-hooks --debug
-      shell: ${{ inputs.shell_name }}
-
     # Do not let repositories in the '_actions' directory be used as dependency repositories during the bootstrap process
     # (as the fall outside the `all_repositories_root` directory and are therefore not setup).
 
@@ -123,33 +107,41 @@ runs:
         python -c "import os; os.remove('_clean_action_dir.py')"
       shell: ${{ inputs.shell_name }}
 
-    # BugBug: Remove branch name in all of these
-    # BugBug: Simplify this code if there is a ternary operator available
+    - name: Setup Statement
+      id: setup_statement
+      uses: actions/github-script@v6
+      with:
+        result-encoding: string
+        script: |
+          var setup_statement;
 
-    - name: Bootstrap (No Configuration)
-      if: ${{ inputs.repo_name != 'davidbrownell/v4-Common_Foundation' && inputs.configuration == 'None' && !inputs.branch_overrides }}
+          if("${{ inputs.repo_name }}" == "davidbrownell/v4-Common_Foundation") {
+            setup_statement = "${{ inputs.sudo_command }}${{ inputs.local_script_prefix }}Setup${{ inputs.script_extension }}";
+          } else {
+            var path = require("path");
+
+            setup_statement = "${{ inputs.sudo_command }}${{ inputs.local_script_prefix }}Bootstrap${{ inputs.script_extension }} \"" + path.join("${{ inputs.working_dir }}", "code") + "\"";
+          }
+
+          setup_statement += " --no-interactive --no-hooks --debug";
+
+          if("${{ inputs.configuration }}" != "None") {
+            setup_statement += " --configuration \"${{ inputs.configuration }}\"";
+          }
+
+          if("${{ inputs.branch_overrides }}" != "") {
+            setup_statement += " --branch-overrides \"${{ inputs.branch_overrides }}\"";
+          }
+
+          return setup_statement;
+
+    - name: Results
+      shell: ${{ inputs.shell_name }}
+      run: |
+        echo "Setup Statement: ${{ steps.setup_statement.outputs.result }}"
+
+    - name: Execute Setup Statement
+      shell: ${{ inputs.shell_name }}
       run: |
         pushd "${{ inputs.repo_dir }}"
-        ${{ inputs.sudo_command }}${{ inputs.local_script_prefix }}Bootstrap${{ inputs.script_extension }} ${{ inputs.working_dir }}/code --no-interactive --no-hooks --debug --branch davidbrownell_release
-      shell: ${{ inputs.shell_name }}
-
-    - name: Bootstrap (with Configuration)
-      if: ${{ inputs.repo_name != 'davidbrownell/v4-Common_Foundation' && inputs.configuration != 'None' && !inputs.branch_overrides }}
-      run: |
-        pushd "${{ inputs.repo_dir }}"
-        ${{ inputs.sudo_command }}${{ inputs.local_script_prefix }}Bootstrap${{ inputs.script_extension }} ${{ inputs.working_dir }}/code --configuration ${{ inputs.configuration }} --no-interactive --no-hooks --debug --branch davidbrownell_release
-      shell: ${{ inputs.shell_name }}
-
-    - name: Bootstrap (No Configuration, with Branch Overrides)
-      if: ${{ inputs.repo_name != 'davidbrownell/v4-Common_Foundation' && inputs.configuration == 'None' && inputs.branch_overrides }}
-      run: |
-        pushd "${{ inputs.repo_dir }}"
-        ${{ inputs.sudo_command }}${{ inputs.local_script_prefix }}Bootstrap${{ inputs.script_extension }} ${{ inputs.working_dir }}/code --no-interactive --no-hooks --debug --branch davidbrownell_release --branch-overrides "${{ inputs.branch_overrides }}"
-      shell: ${{ inputs.shell_name }}
-
-    - name: Bootstrap (with Configuration, with Branch Overrides)
-      if: ${{ inputs.repo_name != 'davidbrownell/v4-Common_Foundation' && inputs.configuration != 'None' && inputs.branch_overrides }}
-      run: |
-        pushd "${{ inputs.repo_dir }}"
-        ${{ inputs.sudo_command }}${{ inputs.local_script_prefix }}Bootstrap${{ inputs.script_extension }} ${{ inputs.working_dir }}/code --configuration ${{ inputs.configuration }} --no-interactive --no-hooks --debug --branch davidbrownell_release --branch-overrides "${{ inputs.branch_overrides }}"
-      shell: ${{ inputs.shell_name }}
+        ${{ steps.setup_statement.outputs.result }}

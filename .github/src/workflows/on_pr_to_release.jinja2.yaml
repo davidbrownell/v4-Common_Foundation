@@ -20,8 +20,6 @@ on:
   pull_request:
     branches:
       - release
-      - davidbrownell_release # BugBug
-  workflow_dispatch: # BugBug
 
 jobs:
   Common_Foundation:

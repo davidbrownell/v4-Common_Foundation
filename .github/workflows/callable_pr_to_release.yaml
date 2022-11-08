@@ -9,7 +9,7 @@
 #
 #     Code Generator:         Jinja2
 #     Input Filename:         workflows/callable_pr_to_release.jinja2.yaml
-#     Generated Date:         2022-11-08 14:24:15.759389
+#     Generated Date:         2022-11-08 15:23:14.827738
 #
 # ----------------------------------------------------------------------
 # ----------------------------------------------------------------------
@@ -40,7 +40,7 @@ jobs:
 
     steps:
       - name: "[Impl] Dump Contexts"
-        uses: davidbrownell/v4-Common_Foundation/.github/actions/dump_contexts@CI-vBugBug
+        uses: davidbrownell/v4-Common_Foundation/.github/actions/dump_contexts@CI-v1.1.0
 
       - name: Verify User
         shell: bash

@@ -16,15 +16,8 @@
 on:
   workflow_call:
     inputs:
-      source_branch:
-        type: string
-        required: true
-        description: BugBug1
-
-      dest_branch:
-        type: string
-        required: true
-        description: BugBug2
+      source_branch:                        {type: string, required: true}
+      dest_branch:                          {type: string, required: true}
 
 jobs:
   Workflow:
@@ -33,7 +26,7 @@ jobs:
 
     steps:
       - name: "[Impl] Dump Contexts"
-        uses: davidbrownell/v4-Common_Foundation/.github/actions/dump_contexts@CI-vBugBug
+        uses: davidbrownell/v4-Common_Foundation/.github/actions/dump_contexts@CI-v1.1.0
 
       - name: Checkout source
         uses: actions/checkout@v3

@@ -9,7 +9,7 @@
 #
 #     Code Generator:         Jinja2
 #     Input Filename:         workflows/on_push_to_main.jinja2.yaml
-#     Generated Date:         2022-11-08 14:24:15.772436
+#     Generated Date:         2022-11-08 15:23:14.840735
 #
 # ----------------------------------------------------------------------
 # ----------------------------------------------------------------------
@@ -37,7 +37,6 @@ on:
   push:
     branches:
       - main
-      - davidbrownell_main # BugBug
   workflow_dispatch:
 
 jobs:
@@ -47,12 +46,11 @@ jobs:
       setup_branch_overrides: "Common_Foundation:${{ github.ref_name }}"
       subject_repo_name: "davidbrownell/v4-Common_Foundation"
 
-  Common_PythonDevelopment:
-    uses: davidbrownell/v4-Common_PythonDevelopment/.github/workflows/exercise_main.yaml@CI-vBugBug
-    with:
-      setup_branch_overrides: "Common_Foundation:${{ github.ref_name }}"
-      subject_repo_name: "davidbrownell/v4-Common_PythonDevelopment"
-      subject_repo_branch: davidbrownell_main # BugBug
+  # TODO: Common_PythonDevelopment:
+  # TODO:   uses: davidbrownell/v4-Common_PythonDevelopment/.github/workflows/exercise_main.yaml@CI-v1.1.0
+  # TODO:   with:
+  # TODO:     setup_branch_overrides: "Common_Foundation:${{ github.ref_name }}"
+  # TODO:     subject_repo_name: "davidbrownell/v4-Common_PythonDevelopment"
 
   # ----------------------------------------------------------------------
   Promote:
@@ -60,11 +58,9 @@ jobs:
 
     needs:
       - Common_Foundation
-      - Common_PythonDevelopment
+      # TODO: - Common_PythonDevelopment
 
     uses: ./.github/workflows/callable_promote_to_release.yaml
     with:
-      # BugBug dest_branch: release
-
       source_branch: ${{ github.ref_name }}
-      dest_branch: davidbrownell_release
+      dest_branch: release

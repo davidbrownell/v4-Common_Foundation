@@ -9,7 +9,7 @@
 #
 #     Code Generator:         Jinja2
 #     Input Filename:         workflows/callable_promote_to_release.jinja2.yaml
-#     Generated Date:         2022-11-08 14:24:15.757910
+#     Generated Date:         2022-11-08 15:23:14.825778
 #
 # ----------------------------------------------------------------------
 # ----------------------------------------------------------------------
@@ -33,15 +33,8 @@
 on:
   workflow_call:
     inputs:
-      source_branch:
-        type: string
-        required: true
-        description: BugBug1
-
-      dest_branch:
-        type: string
-        required: true
-        description: BugBug2
+      source_branch:                        {type: string, required: true}
+      dest_branch:                          {type: string, required: true}
 
 jobs:
   Workflow:
@@ -50,7 +43,7 @@ jobs:
 
     steps:
       - name: "[Impl] Dump Contexts"
-        uses: davidbrownell/v4-Common_Foundation/.github/actions/dump_contexts@CI-vBugBug
+        uses: davidbrownell/v4-Common_Foundation/.github/actions/dump_contexts@CI-v1.1.0
 
       - name: Checkout source
         uses: actions/checkout@v3

@@ -23,7 +23,7 @@ jobs:
 
     steps:
       - name: "[Impl] Dump Contexts"
-        uses: davidbrownell/v4-Common_Foundation/.github/actions/dump_contexts@CI-vBugBug
+        uses: davidbrownell/v4-Common_Foundation/.github/actions/dump_contexts@CI-v1.1.0
 
       - name: Verify User
         shell: bash
