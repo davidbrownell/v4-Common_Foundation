@@ -14,7 +14,7 @@
 # |
 # ----------------------------------------------------------------------
 name: OnPush (main)
-run-name: ${{ github.run_number }} [${{ github.actor }}] on ${{ github.ref_name }} # BugBug: Change this
+run-name: ${{ github.run_number }} [${{ github.actor }}] on ${{ github.ref_name }}
 
 on:
   push:
@@ -27,13 +27,13 @@ jobs:
   Common_Foundation:
     uses: ./.github/workflows/exercise_main.yaml
     with:
-      setup_branch_overrides: "Common_Foundation:${{ github.base_ref }}"
+      setup_branch_overrides: "Common_Foundation:${{ github.ref_name }}"
       subject_repo_name: "davidbrownell/v4-Common_Foundation"
 
   Common_PythonDevelopment:
     uses: davidbrownell/v4-Common_PythonDevelopment/.github/workflows/exercise_main.yaml@CI-vBugBug
     with:
-      setup_branch_overrides: "Common_Foundation:${{ github.base_ref }}"
+      setup_branch_overrides: "Common_Foundation:${{ github.ref_name }}"
       subject_repo_name: "davidbrownell/v4-Common_PythonDevelopment"
       subject_repo_branch: davidbrownell_main # BugBug
 
@@ -49,5 +49,5 @@ jobs:
     with:
       # BugBug dest_branch: release
 
-      source_branch: ${{ github.base_ref }}
-      dest_branch: davidbrownell_release # BugBug: We should be able to get this
+      source_branch: ${{ github.ref_name }}
+      dest_branch: davidbrownell_release
