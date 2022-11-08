@@ -24,5 +24,5 @@ on:
   workflow_dispatch:
 
 jobs:
-  _:
+  OnPullRequest:
     uses: ./.github/workflows/callable_pr_to_main.yaml
