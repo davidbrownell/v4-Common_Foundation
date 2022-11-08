@@ -17,9 +17,9 @@ name: "OnPullRequest (main)"
 run-name: ${{ github.run_number }} [${{ github.event.pull_request.user.login }}] on ${{ github.ref_name }}
 
 on:
-  pull_request:
-    branches:
-      - main
+  # TODO: pull_request:
+  # TODO:   branches:
+  # TODO:     - main
   workflow_dispatch:
 
 jobs:

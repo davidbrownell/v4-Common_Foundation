@@ -9,7 +9,7 @@
 #
 #     Code Generator:         Jinja2
 #     Input Filename:         workflows/on_push_to_main.jinja2.yaml
-#     Generated Date:         2022-11-08 15:23:14.840735
+#     Generated Date:         2022-11-08 15:25:27.721843
 #
 # ----------------------------------------------------------------------
 # ----------------------------------------------------------------------
@@ -34,9 +34,9 @@ name: OnPush (main)
 run-name: ${{ github.run_number }} [${{ github.actor }}] on ${{ github.ref_name }}
 
 on:
-  push:
-    branches:
-      - main
+  # TODO: push:
+  # TODO:   branches:
+  # TODO:     - main
   workflow_dispatch:
 
 jobs:

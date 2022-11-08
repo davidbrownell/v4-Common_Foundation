@@ -9,7 +9,7 @@
 #
 #     Code Generator:         Jinja2
 #     Input Filename:         workflows/exercise_main-Impl.jinja2.yaml
-#     Generated Date:         2022-11-08 15:23:14.828740
+#     Generated Date:         2022-11-08 15:25:27.710868
 #
 # ----------------------------------------------------------------------
 # ----------------------------------------------------------------------
@@ -172,8 +172,6 @@ jobs:
         id: checkout_source
         uses: davidbrownell/v4-Common_Foundation/.github/actions/checkout_source@CI-v1.1.0
         with:
-          bugbug_test:                      ${{ steps.initialize.outputs.bugbug_test }}
-
           subject_repo_name:                ${{ inputs.subject_repo_name }}
           subject_repo_branch:              ${{ inputs.subject_repo_branch }}
 

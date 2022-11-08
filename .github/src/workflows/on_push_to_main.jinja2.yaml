@@ -17,9 +17,9 @@ name: OnPush (main)
 run-name: ${{ github.run_number }} [${{ github.actor }}] on ${{ github.ref_name }}
 
 on:
-  push:
-    branches:
-      - main
+  # TODO: push:
+  # TODO:   branches:
+  # TODO:     - main
   workflow_dispatch:
 
 jobs:

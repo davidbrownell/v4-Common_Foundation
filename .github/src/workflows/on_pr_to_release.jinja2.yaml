@@ -17,9 +17,10 @@ name: "OnPullRequest (release)"
 run-name: ${{ github.run_number }} [${{ github.event.pull_request.user.login }}] on ${{ github.ref_name }}
 
 on:
-  pull_request:
-    branches:
-      - release
+  # TODO: pull_request:
+  # TODO:   branches:
+  # TODO:     - release
+  workflow_dispatch:
 
 jobs:
   Common_Foundation:

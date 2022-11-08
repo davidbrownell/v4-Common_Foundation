@@ -9,7 +9,7 @@
 #
 #     Code Generator:         Jinja2
 #     Input Filename:         workflows/on_pr_to_main.jinja2.yaml
-#     Generated Date:         2022-11-08 15:23:14.837751
+#     Generated Date:         2022-11-08 15:25:27.718973
 #
 # ----------------------------------------------------------------------
 # ----------------------------------------------------------------------
@@ -34,9 +34,9 @@ name: "OnPullRequest (main)"
 run-name: ${{ github.run_number }} [${{ github.event.pull_request.user.login }}] on ${{ github.ref_name }}
 
 on:
-  pull_request:
-    branches:
-      - main
+  # TODO: pull_request:
+  # TODO:   branches:
+  # TODO:     - main
   workflow_dispatch:
 
 jobs:

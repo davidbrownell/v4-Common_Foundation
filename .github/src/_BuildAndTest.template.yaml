@@ -165,8 +165,6 @@ jobs:
         id: checkout_source
         uses: davidbrownell/v4-Common_Foundation/.github/actions/checkout_source@CI-v1.1.0
         with:
-          bugbug_test:                      ${{ steps.initialize.outputs.bugbug_test }}
-
           subject_repo_name:                ${{ inputs.subject_repo_name }}
           subject_repo_branch:              ${{ inputs.subject_repo_branch }}
 
