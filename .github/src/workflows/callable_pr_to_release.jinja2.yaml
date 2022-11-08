@@ -1,0 +1,29 @@
+# ----------------------------------------------------------------------
+# |
+# |  callable_pr_to_release.yaml
+# |
+# |  David Brownell <db@DavidBrownell.com>
+# |      2022-11-08 11:33:24
+# |
+# ----------------------------------------------------------------------
+# |
+# |  Copyright David Brownell 2022
+# |  Distributed under the Boost Software License, Version 1.0. See
+# |  accompanying file LICENSE_1_0.txt or copy at
+# |  http://www.boost.org/LICENSE_1_0.txt.
+# |
+# ----------------------------------------------------------------------
+name: callable_pr_to_release
+
+on:
+  workflow_call:
+
+jobs:
+  Workflow:
+    name: Standard
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: BugBug
+        run: fkljsdafjksal
+        shell: bash
