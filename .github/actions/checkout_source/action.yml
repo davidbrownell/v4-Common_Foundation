@@ -9,7 +9,7 @@
 #
 #     Code Generator:         Jinja2
 #     Input Filename:         actions/checkout_source/action.jinja2.yml
-#     Generated Date:         2022-11-08 10:46:08.328708
+#     Generated Date:         2022-11-08 10:50:31.936093
 #
 # ----------------------------------------------------------------------
 # ----------------------------------------------------------------------
@@ -98,7 +98,7 @@ runs:
 
           var path = require("path");
 
-          return path.join("${{ inputs.working_dir }}", "repo_under_test");
+          return path.join(String.raw`${{ inputs.working_dir }}`, "repo_under_test");
 
     - name: Results
       shell: ${{ steps.shell_name.outputs.result }}

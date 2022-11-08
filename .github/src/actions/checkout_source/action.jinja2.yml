@@ -67,7 +67,7 @@ runs:
       """\
           var path = require(\"path\");
 
-          return path.join(\"${{ inputs.working_dir }}\", \"repo_under_test\");
+          return path.join(String.raw`${{ inputs.working_dir }}`, \"repo_under_test\");
       """.rstrip(),
     ),
   ]
