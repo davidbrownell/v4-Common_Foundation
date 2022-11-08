@@ -297,7 +297,7 @@ def _EnlistImpl(
     # Parse the branch lookup info
     branch_lookup: Dict[str, str] = {}
 
-    for branch_override_value in branch_overrides.split(";"):
+    for branch_override_value in (branch_overrides or "").split(";"):
         branch_override_value = branch_override_value.strip()
         if not branch_override_value:
             continue

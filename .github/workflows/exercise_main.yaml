@@ -9,7 +9,7 @@
 #
 #     Code Generator:         Jinja2
 #     Input Filename:         workflows/exercise_main.jinja2.yaml
-#     Generated Date:         2022-11-08 13:59:32.176173
+#     Generated Date:         2022-11-08 14:24:15.767397
 #
 # ----------------------------------------------------------------------
 # ----------------------------------------------------------------------
@@ -50,7 +50,7 @@ on:
 
 jobs:
   Workflow:
-    name: "Common_Foundation ('${{ github.base_ref }}')"
+    name: "Common_Foundation ('${{ github.ref_name }}')"
 
     strategy:
       matrix:
