@@ -9,7 +9,7 @@
 #
 #     Code Generator:         Jinja2
 #     Input Filename:         actions/initialize/action.jinja2.yml
-#     Generated Date:         2022-11-08 09:57:42.491802
+#     Generated Date:         2022-11-08 10:05:19.723052
 #
 # ----------------------------------------------------------------------
 # ----------------------------------------------------------------------
@@ -69,51 +69,52 @@ runs:
       id: local_script_prefix
       uses: actions/github-script@v6
       with:
+        result-encoding: string
         script: |
           return "${{ inputs.os }}".startsWith("windows") ? "" : "./";
-        result-encoding: string
 
     - name: Script Extension
       id: script_extension
       uses: actions/github-script@v6
       with:
+        result-encoding: string
         script: |
           return "${{ inputs.os }}".startsWith("windows") ? ".cmd" : ".sh";
-        result-encoding: string
 
     - name: Shell Name
       id: shell_name
       uses: actions/github-script@v6
       with:
+        result-encoding: string
         script: |
           return "${{ inputs.os }}".startsWith("windows") ? "cmd" : "bash";
-        result-encoding: string
 
     - name: Source Command
       id: source_command
       uses: actions/github-script@v6
       with:
+        result-encoding: string
         script: |
           return "${{ inputs.os }}".startsWith("windows") ? "" : ". ";
-        result-encoding: string
 
     - name: Sudo Command
       id: sudo_command
       uses: actions/github-script@v6
       with:
+        result-encoding: string
         script: |
           return "${{ inputs.os }}".startsWith("windows") ? "" : "sudo ";
-        result-encoding: string
 
     - name: Working Directory
       id: working_directory
       uses: actions/github-script@v6
       with:
+        result-encoding: string
         script: |
           return "${{ inputs.os }}".startsWith("windows") ? process.env.RUNNER_TEMP : process.env.RUNNER_TEMP;
-        result-encoding: string
 
     - name: Results
+      shell: ${{ steps.shell_name.outputs.result }}
       run: |
         echo "Local Script Prefix: '${{ steps.local_script_prefix.outputs.result }}'"
         echo "Script Extension: '${{ steps.script_extension.outputs.result }}'"
@@ -121,4 +122,3 @@ runs:
         echo "Source Command: '${{ steps.source_command.outputs.result }}'"
         echo "Sudo Command: '${{ steps.sudo_command.outputs.result }}'"
         echo "Working Directory: '${{ steps.working_directory.outputs.result }}'"
-      shell: ${{ steps.shell_name.outputs.result }}

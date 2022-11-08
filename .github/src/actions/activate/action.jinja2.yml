@@ -39,9 +39,9 @@ runs:
           var activate_statement;
 
           if("${{ inputs.os }}".startsWith("windows")) {
-            activate_statement = "pushd \"${{ inputs.repo_dir }}\" && Activate.cmd";
+            activate_statement = "pushd \"" + "${{ inputs.repo_dir }}".replace("\\", "\\\\") + "\" && Activate.cmd";
           } else {
-            activate_statement = "pushd \"${{ inputs.repo_dir }}\" > /dev/null && . ./Activate.sh";
+            activate_statement = "pushd \"${{ inputs.repo_dir }}\" >> /dev/null && . ./Activate.sh";
           }
 
           if("${{ inputs.configuration }}" != "None") {
@@ -52,11 +52,11 @@ runs:
 
           return activate_statement;
 
-    - name: Activate
-      run: ${{ steps.activate_statement.outputs.result }}
-      shell: ${{ inputs.shell_name }}
-
     - name: Results
+      shell: ${{ inputs.shell_name }}
       run: |
         echo "Activate Statement: ${{ steps.activate_statement.outputs.result }}"
+
+    - name: Activate
       shell: ${{ inputs.shell_name }}
+      run: ${{ steps.activate_statement.outputs.result }}

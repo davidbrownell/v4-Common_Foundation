@@ -87,19 +87,19 @@ runs:
 <<< custom_statement >>>
 <<% endfor %>>
 
+    - name: Results
+      shell: ${{ steps.shell_name.outputs.result }}
+      run: |
+<<% for name, id, simple_value, custom_value in values %>>
+        echo "<<< name >>>: '${{ steps.<<< id >>>.outputs.result }}'"
+<<% endfor %>>
+
     - name: Checkout Source (Standard)
       uses: actions/checkout@v3
       if: ${{ !inputs.subject_repo_name }}
 
     - name: Checkout Source (Custom Repo)
       if: ${{ inputs.subject_repo_name }}
+      shell: ${{ inputs.shell_name }}
       run: |
         git clone -b ${{ inputs.subject_repo_branch || 'release' }} https://github.com/${{ inputs.subject_repo_name }} "${{ steps.repo_directory.outputs.result }}"
-      shell: ${{ inputs.shell_name }}
-
-    - name: Results
-      run: |
-<<% for name, id, simple_value, custom_value in values %>>
-        echo "<<< name >>>: '${{ steps.<<< id >>>.outputs.result }}'"
-<<% endfor %>>
-      shell: ${{ steps.shell_name.outputs.result }}

@@ -63,14 +63,14 @@ runs:
       id: <<< id >>>
       uses: actions/github-script@v6
       with:
+        result-encoding: string
         script: |
           return "${{ inputs.os }}".startsWith("windows") ? <<< windows_value >>> : <<< linux_value >>>;
-        result-encoding: string
 <<% endfor %>>
 
     - name: Results
+      shell: ${{ steps.shell_name.outputs.result }}
       run: |
 <<% for name, id, windows_value, linux_value in values %>>
         echo "<<< name >>>: '${{ steps.<<< id >>>.outputs.result }}'"
 <<% endfor %>>
-      shell: ${{ steps.shell_name.outputs.result }}
