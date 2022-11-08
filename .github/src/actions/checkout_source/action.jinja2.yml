@@ -29,82 +29,77 @@ inputs:
 outputs:
   archive_prefix:
     description: "Prefix that can be applied to archive names to prevent collisions."
-    value: ${{ steps.set_statements.outputs.archive_prefix }}
+    value: ${{ steps.archive_prefix.outputs.result }}
 
   repo_name:
     description: "Name of the repository under build."
-    value: ${{ steps.set_statements.outputs.repo_name }}
+    value: ${{ steps.repo_name.outputs.result }}
 
   repo_dir:
     description: "Directory to the repository under build."
-    value: ${{ steps.set_statements.outputs.repo_dir }}
+    value: ${{ steps.repo_directory.outputs.result }}
 
 runs:
   using: composite
   steps:
-    - name: BugBug
-      run: echo ${{ inputs.bugbug_test }}
-      shell: ${{ inputs.shell_name }}
+<<%
+  set values = [
+    (
+      "Archive Prefix",
+      "archive_prefix",
+      '"[${{ github.run_number }}, ${{ github.event.repository.name }}, ${{ inputs.os }}, ${{ inputs.configuration }}]"',
+      """\
+          var source_repo_name = \"${{ inputs.subject_repo_name }}\".split(\"/\", 1)[1];
 
-    # ----------------------------------------------------------------------
+          return \"[${{ github.run_number }}, \" + source_repo_name + \", ${{ inputs.os }}, ${{ inputs.configuration }}]\"
+      """.rstrip(),
+    ),
+    (
+      "Repo Name",
+      "repo_name",
+      '"${{ github.repository }}"',
+      '          return "${{ inputs.subject_repo_name }}";',
+    ),
+    (
+      "Repo Directory",
+      "repo_directory",
+      "process.cwd()",
+      """\
+          var path = require(\"path\");
+
+          return path.join(\"${{ inputs.working_dir }}\", \"repo_under_test\");
+      """.rstrip(),
+    ),
+  ]
+%>>
+<<% for name, id, simple_value, custom_statement in values %>>
+
+    - name: <<< name >>>
+      id: <<< id >>>
+      uses: actions/github-script@v6
+      with:
+        result-encoding: string
+        script: |
+          if(!"${{ inputs.subject_repo_name }}") {
+            return <<< simple_value >>>;
+          }
+
+<<< custom_statement >>>
+<<% endfor %>>
+
     - name: Checkout Source (Standard)
       uses: actions/checkout@v3
       if: ${{ !inputs.subject_repo_name }}
 
-    - name: "[Impl] Set Statement Variables (Standard, ubuntu)"
-      if: ${{ !inputs.subject_repo_name && startsWith(inputs.os, 'ubuntu') }}
-      run: |
-        echo "_archive_prefix=[${{ github.run_number }}, ${{ github.event.repository.name }}, ${{ inputs.os }}, ${{ inputs.configuration }}]" >> $GITHUB_ENV
-        echo "_repo_name=${{ github.repository }}" >> $GITHUB_ENV
-        echo "_repo_dir=`pwd`" >> $GITHUB_ENV
-      shell: bash
-
-    - name: "[Impl] Set Statement Variables (Standard, windows)"
-      if: ${{ !inputs.subject_repo_name && startsWith(inputs.os, 'windows') }}
-      run: |
-        echo "_archive_prefix=[${{ github.run_number }}, ${{ github.event.repository.name }}, ${{ inputs.os }}, ${{ inputs.configuration }}]" >> $env:GITHUB_ENV
-        echo "_repo_name=${{ github.repository }}" >> $env:GITHUB_ENV
-        echo "_repo_dir=$PWD" >> $env:GITHUB_ENV
-      shell: powershell
-
-    # ----------------------------------------------------------------------
     - name: Checkout Source (Custom Repo)
       if: ${{ inputs.subject_repo_name }}
       run: |
-        git clone -b ${{ inputs.subject_repo_branch || 'release' }} https://github.com/${{ inputs.subject_repo_name }} "${{ inputs.working_dir }}/repo_under_test"
+        git clone -b ${{ inputs.subject_repo_branch || 'release' }} https://github.com/${{ inputs.subject_repo_name }} "${{ steps.repo_directory.outputs.result }}"
       shell: ${{ inputs.shell_name }}
 
-    - name: "[Impl] Set Statement Variables (Custom, ubuntu)"
-      if: ${{ inputs.subject_repo_name && startsWith(inputs.os, 'ubuntu') }}
+    - name: Results
       run: |
-        subject_repo_name=`python -c "import sys; sys.stdout.write('${{ inputs.subject_repo_name }}'.split('/')[1]);"`
-
-        echo "_archive_prefix=[${{ github.run_number }}, ${subject_repo_name}, ${{ inputs.os }}, ${{ inputs.configuration }}]" >> $GITHUB_ENV
-        echo "_repo_name=${{ inputs.subject_repo_name }}" >> $GITHUB_ENV
-        echo "_repo_dir=${{ inputs.working_dir }}/repo_under_test" >> $GITHUB_ENV
-      shell: bash
-
-    - name: "[Impl] Set Statement Variables (Standard, windows)"
-      if: ${{ inputs.subject_repo_name && startsWith(inputs.os, 'windows') }}
-      run: |
-        $subject_repo_name = python -c "import sys; sys.stdout.write('${{ inputs.subject_repo_name }}'.split('/')[1]);"
-
-        echo "_archive_prefix=[${{ github.run_number }}, $($subject_repo_name), ${{ inputs.os }}, ${{ inputs.configuration }}]" >> $env:GITHUB_ENV
-        echo "_repo_name=${{ inputs.subject_repo_name }}" >> $env:GITHUB_ENV
-        echo "_repo_dir=${{ inputs.working_dir }}\repo_under_test" >> $env:GITHUB_ENV
-      shell: powershell
-
-    # ----------------------------------------------------------------------
-    - name: "[Impl] Set Statements"
-      id: set_statements
-      shell: ${{ inputs.shell_name }}
-      <<% import "../../_PersistEnvironmentVars.macro.yaml" as PersistEnvironmentVars %>>
-      <<<
-        PersistEnvironmentVars.Execute(
-          [
-            "archive_prefix",
-            "repo_name",
-            "repo_dir",
-          ],
-        )
-      >>>
+<<% for name, id, simple_value, custom_value in values %>>
+        echo "<<< name >>>: '${{ steps.<<< id >>>.outputs.result }}'"
+<<% endfor %>>
+      shell: ${{ steps.shell_name.outputs.result }}

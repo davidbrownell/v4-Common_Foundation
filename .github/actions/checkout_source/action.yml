@@ -9,7 +9,7 @@
 #
 #     Code Generator:         Jinja2
 #     Input Filename:         actions/checkout_source/action.jinja2.yml
-#     Generated Date:         2022-11-08 09:09:35.543980
+#     Generated Date:         2022-11-08 09:40:25.541121
 #
 # ----------------------------------------------------------------------
 # ----------------------------------------------------------------------
@@ -46,75 +46,73 @@ inputs:
 outputs:
   archive_prefix:
     description: "Prefix that can be applied to archive names to prevent collisions."
-    value: ${{ steps.set_statements.outputs.archive_prefix }}
+    value: ${{ steps.archive_prefix.outputs.result }}
 
   repo_name:
     description: "Name of the repository under build."
-    value: ${{ steps.set_statements.outputs.repo_name }}
+    value: ${{ steps.repo_name.outputs.result }}
 
   repo_dir:
     description: "Directory to the repository under build."
-    value: ${{ steps.set_statements.outputs.repo_dir }}
+    value: ${{ steps.repo_directory.outputs.result }}
 
 runs:
   using: composite
   steps:
-    - name: BugBug
-      run: echo ${{ inputs.bugbug_test }}
-      shell: ${{ inputs.shell_name }}
 
-    # ----------------------------------------------------------------------
+    - name: Archive Prefix
+      id: archive_prefix
+      uses: actions/github-script@v6
+      with:
+        result-encoding: string
+        script: |
+          if(!"${{ inputs.subject_repo_name }}") {
+            return "[${{ github.run_number }}, ${{ github.event.repository.name }}, ${{ inputs.os }}, ${{ inputs.configuration }}]";
+          }
+
+          var source_repo_name = "${{ inputs.subject_repo_name }}".split("/", 1)[1];
+
+          return "[${{ github.run_number }}, " + source_repo_name + ", ${{ inputs.os }}, ${{ inputs.configuration }}]"
+
+    - name: Repo Name
+      id: repo_name
+      uses: actions/github-script@v6
+      with:
+        result-encoding: string
+        script: |
+          if(!"${{ inputs.subject_repo_name }}") {
+            return "${{ github.repository }}";
+          }
+
+          return "${{ inputs.subject_repo_name }}";
+
+    - name: Repo Directory
+      id: repo_directory
+      uses: actions/github-script@v6
+      with:
+        result-encoding: string
+        script: |
+          if(!"${{ inputs.subject_repo_name }}") {
+            return process.cwd();
+          }
+
+          var path = require("path");
+
+          return path.join("${{ inputs.working_dir }}", "repo_under_test");
+
     - name: Checkout Source (Standard)
       uses: actions/checkout@v3
       if: ${{ !inputs.subject_repo_name }}
 
-    - name: "[Impl] Set Statement Variables (Standard, ubuntu)"
-      if: ${{ !inputs.subject_repo_name && startsWith(inputs.os, 'ubuntu') }}
-      run: |
-        echo "_archive_prefix=[${{ github.run_number }}, ${{ github.event.repository.name }}, ${{ inputs.os }}, ${{ inputs.configuration }}]" >> $GITHUB_ENV
-        echo "_repo_name=${{ github.repository }}" >> $GITHUB_ENV
-        echo "_repo_dir=`pwd`" >> $GITHUB_ENV
-      shell: bash
-
-    - name: "[Impl] Set Statement Variables (Standard, windows)"
-      if: ${{ !inputs.subject_repo_name && startsWith(inputs.os, 'windows') }}
-      run: |
-        echo "_archive_prefix=[${{ github.run_number }}, ${{ github.event.repository.name }}, ${{ inputs.os }}, ${{ inputs.configuration }}]" >> $env:GITHUB_ENV
-        echo "_repo_name=${{ github.repository }}" >> $env:GITHUB_ENV
-        echo "_repo_dir=$PWD" >> $env:GITHUB_ENV
-      shell: powershell
-
-    # ----------------------------------------------------------------------
     - name: Checkout Source (Custom Repo)
       if: ${{ inputs.subject_repo_name }}
       run: |
-        git clone -b ${{ inputs.subject_repo_branch || 'release' }} https://github.com/${{ inputs.subject_repo_name }} "${{ inputs.working_dir }}/repo_under_test"
+        git clone -b ${{ inputs.subject_repo_branch || 'release' }} https://github.com/${{ inputs.subject_repo_name }} "${{ steps.repo_directory.outputs.result }}"
       shell: ${{ inputs.shell_name }}
 
-    - name: "[Impl] Set Statement Variables (Custom, ubuntu)"
-      if: ${{ inputs.subject_repo_name && startsWith(inputs.os, 'ubuntu') }}
+    - name: Results
       run: |
-        subject_repo_name=`python -c "import sys; sys.stdout.write('${{ inputs.subject_repo_name }}'.split('/')[1]);"`
-
-        echo "_archive_prefix=[${{ github.run_number }}, ${subject_repo_name}, ${{ inputs.os }}, ${{ inputs.configuration }}]" >> $GITHUB_ENV
-        echo "_repo_name=${{ inputs.subject_repo_name }}" >> $GITHUB_ENV
-        echo "_repo_dir=${{ inputs.working_dir }}/repo_under_test" >> $GITHUB_ENV
-      shell: bash
-
-    - name: "[Impl] Set Statement Variables (Standard, windows)"
-      if: ${{ inputs.subject_repo_name && startsWith(inputs.os, 'windows') }}
-      run: |
-        $subject_repo_name = python -c "import sys; sys.stdout.write('${{ inputs.subject_repo_name }}'.split('/')[1]);"
-
-        echo "_archive_prefix=[${{ github.run_number }}, $($subject_repo_name), ${{ inputs.os }}, ${{ inputs.configuration }}]" >> $env:GITHUB_ENV
-        echo "_repo_name=${{ inputs.subject_repo_name }}" >> $env:GITHUB_ENV
-        echo "_repo_dir=${{ inputs.working_dir }}\repo_under_test" >> $env:GITHUB_ENV
-      shell: powershell
-
-    # ----------------------------------------------------------------------
-    - name: "[Impl] Set Statements"
-      id: set_statements
-      shell: ${{ inputs.shell_name }}
-      run: |
-        python -c "import os; f = open(os.getenv('GITHUB_OUTPUT'), 'a+'); f.write('archive_prefix={}\nrepo_name={}\nrepo_dir={}\n'.format(os.getenv('_archive_prefix'), os.getenv('_repo_name'), os.getenv('_repo_dir'))); f.close();"
-        python -c "import os; f = open(os.getenv('GITHUB_ENV'), 'a+'); f.write('_archive_prefix=\n_repo_name=\n_repo_dir=\n'); f.close();"
+        echo "Archive Prefix: '${{ steps.archive_prefix.outputs.result }}'"
+        echo "Repo Name: '${{ steps.repo_name.outputs.result }}'"
+        echo "Repo Directory: '${{ steps.repo_directory.outputs.result }}'"
+      shell: ${{ steps.shell_name.outputs.result }}
