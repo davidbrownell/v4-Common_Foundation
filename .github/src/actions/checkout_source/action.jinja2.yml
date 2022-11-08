@@ -1,0 +1,112 @@
+# ----------------------------------------------------------------------
+# |
+# |  action.yml
+# |
+# |  David Brownell <db@DavidBrownell.com>
+# |      2022-11-07 16:19:23
+# |
+# ----------------------------------------------------------------------
+# |
+# |  Copyright David Brownell 2022
+# |  Distributed under the Boost Software License, Version 1.0. See
+# |  accompanying file LICENSE_1_0.txt or copy at
+# |  http://www.boost.org/LICENSE_1_0.txt.
+# |
+# ----------------------------------------------------------------------
+name: Checkout Source
+description: Checks out source code.
+
+inputs:
+  subject_repo_name:                        {type: string, required: false}
+  subject_repo_branch:                      {type: string, required: false}
+
+  os:                                       {type: string, required: true}
+  configuration:                            {type: string, required: true}
+
+  shell_name:                               {type: string, required: true}
+  working_dir:                              {type: string, required: true}
+
+outputs:
+  archive_prefix:
+    description: "Prefix that can be applied to archive names to prevent collisions."
+    value: ${{ steps.set_statements.outputs.archive_prefix }}
+
+  repo_name:
+    description: "Name of the repository under build."
+    value: ${{ steps.set_statements.outputs.repo_name }}
+
+  repo_dir:
+    description: "Directory to the repository under build."
+    value: ${{ steps.set_statements.outputs.repo_dir }}
+
+runs:
+  using: composite
+  steps:
+    # ----------------------------------------------------------------------
+    - name: Checkout Source (Standard)
+      uses: actions/checkout@v3
+      if: ${{ !inputs.subject_repo_name }}
+
+    - name: "[Impl] Set Statement Variables (Standard, ubuntu)"
+      if: ${{ !inputs.subject_repo_name && startsWith(inputs.os, 'ubuntu') }}
+      run: |
+        echo "_archive_prefix=[${{ github.run_number }}, ${{ github.event.repository.name }}, ${{ inputs.os }}, ${{ inputs.configuration }}]" >> $GITHUB_ENV
+        echo "_repo_name=${{ github.repository }}" >> $GITHUB_ENV
+        echo "_repo_dir=`pwd`" >> $GITHUB_ENV
+      shell: bash
+
+    - name: "[Impl] Set Statement Variables (Standard, windows)"
+      if: ${{ !inputs.subject_repo_name && startsWith(inputs.os, 'windows') }}
+      run: |
+        echo "_archive_prefix=[${{ github.run_number }}, ${{ github.event.repository.name }}, ${{ inputs.os }}, ${{ inputs.configuration }}]" >> $env:GITHUB_ENV
+        echo "_repo_name=${{ github.repository }}" >> $env:GITHUB_ENV
+        echo "_repo_dir=$PWD" >> $env:GITHUB_ENV
+      shell: powershell
+
+    # ----------------------------------------------------------------------
+    - name: Checkout Source (Custom Repo)
+      if: ${{ inputs.subject_repo_name && inputs.subject_repo_branch }}
+      run: |
+        git clone -b ${{ inputs.subject_repo_branch }} https://github.com/${{ inputs.subject_repo_name }} "${{ inputs.working_dir }}/repo_under_test"
+      shell: ${{ steps.initialize.outputs.shell_name }}
+
+    - name: Checkout Source (Custom Repo)
+      if: ${{ inputs.subject_repo_name && !inputs.subject_repo_branch }}
+      run: |
+        git clone -b release https://github.com/${{ inputs.subject_repo_name }} "${{ inputs.working_dir }}/repo_under_test"
+      shell: ${{ steps.initialize.outputs.shell_name }}
+
+    - name: "[Impl] Set Statement Variables (Custom, ubuntu)"
+      if: ${{ inputs.subject_repo_name && startsWith(inputs.os, 'ubuntu') }}
+      run: |
+        subject_repo_name=`python -c "import sys; sys.stdout.write('${{ inputs.subject_repo_name }}'.split('/')[1]);"`
+
+        echo "_archive_prefix=[${{ github.run_number }}, ${subject_repo_name}, ${{ inputs.os }}, ${{ inputs.configuration }}]" >> $GITHUB_ENV
+        echo "_repo_name=${{ inputs.subject_repo_name }}" >> $GITHUB_ENV
+        echo "_repo_dir=${{ inputs.working_dir }}/repo_under_test" >> $GITHUB_ENV
+      shell: bash
+
+    - name: "[Impl] Set Statement Variables (Standard, windows)"
+      if: ${{ inputs.subject_repo_name && startsWith(inputs.os, 'windows') }}
+      run: |
+        $subject_repo_name = python -c "import sys; sys.stdout.write('${{ inputs.subject_repo_name }}'.split('/')[1]);"
+
+        echo "_archive_prefix=[${{ github.run_number }}, $($subject_repo_name), ${{ inputs.os }}, ${{ inputs.configuration }}]" >> $env:GITHUB_ENV
+        echo "_repo_name=${{ inputs.subject_repo_name }}" >> $env:GITHUB_ENV
+        echo "_repo_dir=${{ inputs.working_dir }}\repo_under_test" >> $env:GITHUB_ENV
+      shell: powershell
+
+    # ----------------------------------------------------------------------
+    - name: "[Impl] Set Statements"
+      id: set_statements
+      shell: ${{ inputs.shell_name }}
+      <<% import "../../_PersistEnvironmentVars.macro.yaml" as PersistEnvironmentVars %>>
+      <<<
+        PersistEnvironmentVars.Execute(
+          [
+            "archive_prefix",
+            "repo_name",
+            "repo_dir",
+          ],
+        )
+      >>>

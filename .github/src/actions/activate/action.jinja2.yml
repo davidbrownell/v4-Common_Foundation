@@ -17,6 +17,7 @@ name: Activate
 description: Runs `Activate` on the repository.
 
 inputs:
+  repo_dir:                                 {type: string, required: true}
   os:                                       {type: string, required: true}
   configuration:                            {type: string, required: true}
   shell_name:                               {type: string, required: true}
@@ -37,9 +38,9 @@ runs:
       if: ${{ startsWith(inputs.os, 'ubuntu') }}
       run: |
         if [[ "${{ inputs.configuration }}" == "None" ]]; then
-          export _activate_statement=". ./Activate.sh --debug"
+          export _activate_statement="pushd ${{ inputs.repo_dir }} > /dev/null && . ./Activate.sh --debug"
         else
-          export _activate_statement=". ./Activate.sh ${{ inputs.configuration }} --debug"
+          export _activate_statement="pushd ${{ inputs.repo_dir }} > /dev/null && . ./Activate.sh ${{ inputs.configuration }} --debug"
         fi
 
         echo "_activate_statement=${_activate_statement}" >> $GITHUB_ENV
@@ -50,10 +51,10 @@ runs:
       if: ${{ startsWith(inputs.os, 'windows') }}
       run: |
         if ( "${{ inputs.configuration }}" -eq "None" ) {
-          $env:_activate_statement="Activate.cmd --debug"
+          $env:_activate_statement="pushd ${{ inputs.repo_dir }} && Activate.cmd --debug"
         }
         else {
-          $env:_activate_statement="Activate.cmd ${{ inputs.configuration }} --debug"
+          $env:_activate_statement="pushd ${{ inputs.repo_dir }} && Activate.cmd ${{ inputs.configuration }} --debug"
         }
 
         echo "_activate_statement=$env:_activate_statement" >> $env:GITHUB_ENV

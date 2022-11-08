@@ -73,7 +73,7 @@ runs:
         echo "_working_dir=$env:RUNNER_TEMP" >> $env:GITHUB_ENV
       shell: powershell
 
-    - name: Set Statements
+    - name: "[Impl] Set Statements"
       id: set_statements
       shell: ${{ env._shell_name }}
       <<% import "../../_PersistEnvironmentVars.macro.yaml" as PersistEnvironmentVars %>>

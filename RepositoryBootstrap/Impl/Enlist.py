@@ -79,6 +79,7 @@ def Enlist(
     all_repositories_root: Path=typer.Argument(..., help="Root path to a directory where all dependencies are enlisted; this path may be shared by multiple repositories, each with their own set of dependencies."),
     scm_name: Scm=typer.Option(next(iter(Scm)).value, case_sensitive=False, help="Name of the SCM to use for enlistment."),  # type: ignore
     branch: Optional[str]=typer.Option(None, help="Name of branch to enlist in; the default branch associated with the SCM will be used if a branch is not provided."),
+    branch_overrides: Optional[str]=typer.Option(None, "--branch-overrides", help="BugBug"),
     configurations: Optional[List[str]]=typer.Option(None, "--configuration", help="Configurations to determine dependencies for enlistment; all configurations will be used if explicit values are not provided."),
     traverse_all: bool=typer.Option(False, "--traverse-all", help="Traverse all dependencies, not just those that relate to the source repository; enable this flag if the all repositories root is shared by multiple repositories (not just this one)."),
     search_depth: int=typer.Option(6, min=1, help="Limit searches to N path-levels deep."),
@@ -115,6 +116,7 @@ def Enlist(
             all_repositories_root,
             scm_name.value,
             branch,
+            branch_overrides,
             configurations,
             traverse_all=traverse_all,
             search_depth=search_depth,
@@ -177,6 +179,7 @@ def EnlistAndSetup(
     all_repositories_root: Path=typer.Argument(..., help="Root path to a directory where all dependencies are enlisted; this path may be shared by multiple repositories, each with their own set of dependencies."),
     scm_name: Scm=typer.Option(next(iter(Scm)).value, case_sensitive=False, help="Name of the SCM to use for enlistment."),  # type: ignore
     branch: Optional[str]=typer.Option(None, help="Name of branch to enlist in; the default branch associated with the SCM will be used if a branch is not provided."),
+    branch_overrides: Optional[str]=typer.Option(None, "--branch-overrides", help="BugBug"),
     configurations: Optional[List[str]]=typer.Option(None, "--configuration", help="Configurations to determine dependencies for enlistment; all configurations will be used if explicit values are not provided."),
     traverse_all: bool=typer.Option(False, "--traverse-all", help="Traverse all dependencies, not just those that relate to the source repository; enable this flag if the all repositories root is shared by multiple repositories (not just this one)."),
     search_depth: int=typer.Option(6, min=1, help="Limit searches to N path-levels deep."),
@@ -210,6 +213,7 @@ def EnlistAndSetup(
                 all_repositories_root,
                 scm_name.value,
                 branch,
+                branch_overrides,
                 configurations,
                 traverse_all=traverse_all,
                 search_depth=search_depth,
@@ -277,6 +281,7 @@ def _EnlistImpl(
     all_repositories_root: Path,
     scm_name: str,
     branch: Optional[str],
+    branch_overrides: Optional[str],
     configurations: Optional[List[str]],
     *,
     traverse_all: bool,
@@ -288,6 +293,26 @@ def _EnlistImpl(
 
     if PathEx.IsDescendant(all_repositories_root, source_repository):
         raise typer.BadParameter("The path for all repositories cannot be a descendant of the path for the source repository.")
+
+    # Parse the branch lookup info
+    branch_lookup: Dict[str, str] = {}
+
+    for branch_override_value in branch_overrides.split(";"):
+        branch_override_value = branch_override_value.strip()
+        if not branch_override_value:
+            continue
+
+        branch_override_parts = branch_override_value.split(":")
+
+        if len(branch_override_parts) != 2:
+            raise typer.BadParameter("'{}' is not a valid branch override value.".format(branch_override_value))
+
+        repo_name, branch = branch_override_parts
+
+        if repo_name in branch_lookup:
+            raise typer.BadParameter("The repository '{}' has already been defined.".format(repo_name))
+
+        branch_lookup[repo_name] = branch
 
     all_repositories_root.mkdir(parents=True, exist_ok=True)
 
@@ -454,18 +479,20 @@ def _EnlistImpl(
                         ),
                     )
 
+                this_branch = branch_lookup.get(data.name, branch)
+
                 output: List[str] = []
 
                 if isinstance(repo, DistributedRepository):
-                    result = repo.Pull(branch)
+                    result = repo.Pull(this_branch)
                     result.RaiseOnError()
 
                     output.append(result.output)
 
                 update_arg = None
 
-                if branch is not None:
-                    update_arg = UpdateMergeArgs.Branch(branch)
+                if this_branch is not None:
+                    update_arg = UpdateMergeArgs.Branch(this_branch)
 
                 result = repo.Update(update_arg)
                 result.RaiseOnError()

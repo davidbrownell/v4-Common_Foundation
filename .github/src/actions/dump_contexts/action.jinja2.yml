@@ -1,0 +1,44 @@
+# ----------------------------------------------------------------------
+# |
+# |  action.yml
+# |
+# |  David Brownell <db@DavidBrownell.com>
+# |      2022-11-07 22:10:25
+# |
+# ----------------------------------------------------------------------
+# |
+# |  Copyright David Brownell 2022
+# |  Distributed under the Boost Software License, Version 1.0. See
+# |  accompanying file LICENSE_1_0.txt or copy at
+# |  http://www.boost.org/LICENSE_1_0.txt.
+# |
+# ----------------------------------------------------------------------
+name: Dump Contexts
+description: Dumps different contexts.
+
+runs:
+  using: composite
+  steps:
+    - name: Dump GitHub context
+      run: echo '${{ toJSON(github) }}'
+      shell: bash
+
+    - name: Dump job context
+      run: echo '${{ toJSON(job) }}'
+      shell: bash
+
+    - name: Dump steps context
+      run: echo '${{ toJSON(steps) }}'
+      shell: bash
+
+    - name: Dump runner context
+      run: echo '${{ toJSON(runner) }}'
+      shell: bash
+
+    - name: Dump strategy context
+      run: echo '${{ toJSON(strategy) }}'
+      shell: bash
+
+    - name: Dump matrix context
+      run: echo '${{ toJSON(matrix) }}'
+      shell: bash

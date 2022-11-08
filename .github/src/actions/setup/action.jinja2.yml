@@ -17,6 +17,10 @@ name: Setup
 description: Runs `Setup` or `Bootstrap` on the repository.
 
 inputs:
+  repo_name:                                {type: string, required: true}
+  repo_dir:                                 {type: string, required: true}
+  branch_overrides:                         {type: string, required: false}
+
   os:                                       {type: string, required: true}
   configuration:                            {type: string, required: true}
 
@@ -30,14 +34,16 @@ runs:
   using: composite
   steps:
     - name: Setup (No Configuration)
-      if: ${{ github.event.repository.name == 'v4-Common_Foundation' && inputs.configuration == 'None' }}
+      if: ${{ inputs.repo_name == 'davidbrownell/v4-Common_Foundation' && inputs.configuration == 'None' }}
       run: |
+        pushd "${{ inputs.repo_dir }}"
         ${{ inputs.sudo_command }}${{ inputs.local_script_prefix }}Setup${{ inputs.script_extension }} --no-interactive --no-hooks --debug
       shell: ${{ inputs.shell_name }}
 
     - name: Setup (with Configuration)
-      if: ${{ github.event.repository.name == 'v4-Common_Foundation' && inputs.configuration != 'None' }}
+      if: ${{ inputs.repo_name == 'davidbrownell/v4-Common_Foundation' && inputs.configuration != 'None' }}
       run: |
+        pushd "${{ inputs.repo_dir }}"
         ${{ inputs.sudo_command }}${{ inputs.local_script_prefix }}Setup${{ inputs.script_extension }} --configuration ${{ inputs.configuration }} --no-interactive --no-hooks --debug
       shell: ${{ inputs.shell_name }}
 
@@ -46,7 +52,7 @@ runs:
 
     # There are probably shell scripts to do this cleaning, but it feels easier to do the work in python
     - name: Generate Clean Actions (ubuntu)
-      if: ${{ github.event.repository.name != 'v4-Common_Foundation' && startsWith(inputs.os, 'ubuntu') }}
+      if: ${{ inputs.repo_name != 'davidbrownell/v4-Common_Foundation' && startsWith(inputs.os, 'ubuntu') }}
       run: |
           cat > _clean_action_dir.py <<EOF
           import os
@@ -68,7 +74,7 @@ runs:
       shell: bash
 
     - name: Generate Clean Actions (windows)
-      if: ${{ github.event.repository.name != 'v4-Common_Foundation' && startsWith(inputs.os, 'windows') }}
+      if: ${{ inputs.repo_name != 'davidbrownell/v4-Common_Foundation' && startsWith(inputs.os, 'windows') }}
       run: |
         $python_content = @"
         import os
@@ -92,20 +98,38 @@ runs:
       shell: powershell
 
     - name: Clean Actions
-      if: ${{ github.event.repository.name != 'v4-Common_Foundation' }}
+      if: ${{ inputs.repo_name != 'davidbrownell/v4-Common_Foundation' }}
       run: |
         python _clean_action_dir.py
         python -c "import os; os.remove('_clean_action_dir.py')"
       shell: ${{ inputs.shell_name }}
 
+    # BugBug: Remove branch name in all of these
+
     - name: Bootstrap (No Configuration)
-      if: ${{ github.event.repository.name != 'v4-Common_Foundation' && inputs.configuration == 'None' }}
+      if: ${{ inputs.repo_name != 'davidbrownell/v4-Common_Foundation' && inputs.configuration == 'None' && !inputs.branch_overrides }}
       run: |
-        ${{ inputs.sudo_command }}${{ inputs.local_script_prefix }}Bootstrap${{ inputs.script_extension }} ${{ inputs.working_dir }}/code --no-interactive --no-hooks --debug
+        pushd "${{ inputs.repo_dir }}"
+        ${{ inputs.sudo_command }}${{ inputs.local_script_prefix }}Bootstrap${{ inputs.script_extension }} ${{ inputs.working_dir }}/code --no-interactive --no-hooks --debug --branch davidbrownell_releaseCI
       shell: ${{ inputs.shell_name }}
 
     - name: Bootstrap (with Configuration)
-      if: ${{ github.event.repository.name != 'v4-Common_Foundation' && inputs.configuration != 'None' }}
+      if: ${{ inputs.repo_name != 'davidbrownell/v4-Common_Foundation' && inputs.configuration != 'None' && !inputs.branch_overrides }}
       run: |
-        ${{ inputs.sudo_command }}${{ inputs.local_script_prefix }}Bootstrap${{ inputs.script_extension }} ${{ inputs.working_dir }}/code --configuration ${{ inputs.configuration }} --no-interactive --no-hooks --debug
+        pushd "${{ inputs.repo_dir }}"
+        ${{ inputs.sudo_command }}${{ inputs.local_script_prefix }}Bootstrap${{ inputs.script_extension }} ${{ inputs.working_dir }}/code --configuration ${{ inputs.configuration }} --no-interactive --no-hooks --debug --branch davidbrownell_releaseCI
+      shell: ${{ inputs.shell_name }}
+
+    - name: Bootstrap (No Configuration, with Branch Overrides)
+      if: ${{ inputs.repo_name != 'davidbrownell/v4-Common_Foundation' && inputs.configuration == 'None' && inputs.branch_overrides }}
+      run: |
+        pushd "${{ inputs.repo_dir }}"
+        ${{ inputs.sudo_command }}${{ inputs.local_script_prefix }}Bootstrap${{ inputs.script_extension }} ${{ inputs.working_dir }}/code --no-interactive --no-hooks --debug --branch davidbrownell_releaseCI --branch-overrides "${{ inputs.branch_overrides }}"
+      shell: ${{ inputs.shell_name }}
+
+    - name: Bootstrap (with Configuration, with Branch Overrides)
+      if: ${{ inputs.repo_name != 'davidbrownell/v4-Common_Foundation' && inputs.configuration != 'None' && inputs.branch_overrides }}
+      run: |
+        pushd "${{ inputs.repo_dir }}"
+        ${{ inputs.sudo_command }}${{ inputs.local_script_prefix }}Bootstrap${{ inputs.script_extension }} ${{ inputs.working_dir }}/code --configuration ${{ inputs.configuration }} --no-interactive --no-hooks --debug --branch davidbrownell_releaseCI --branch-overrides "${{ inputs.branch_overrides }}"
       shell: ${{ inputs.shell_name }}
