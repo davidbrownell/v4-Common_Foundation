@@ -13,7 +13,7 @@
 # |  http://www.boost.org/LICENSE_1_0.txt.
 # |
 # ----------------------------------------------------------------------
-name: pr_to_release
+name: "OnPullRequest (release)"
 
 run-name: ${{ github.run_number }} [${{ github.actor }}] on ${{ github.ref_name }}
 
@@ -25,4 +25,5 @@ on:
 
 jobs:
   Workflow:
+    name: "BugBug (can be ignored?)"
     uses: ./.github/workflows/callable_pr_to_release.yaml

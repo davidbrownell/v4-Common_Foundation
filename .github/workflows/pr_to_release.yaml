@@ -9,7 +9,7 @@
 #
 #     Code Generator:         Jinja2
 #     Input Filename:         workflows/pr_to_release.jinja2.yaml
-#     Generated Date:         2022-11-08 12:05:20.200389
+#     Generated Date:         2022-11-08 12:11:43.450916
 #
 # ----------------------------------------------------------------------
 # ----------------------------------------------------------------------
@@ -30,7 +30,7 @@
 # |  http://www.boost.org/LICENSE_1_0.txt.
 # |
 # ----------------------------------------------------------------------
-name: pr_to_release
+name: "OnPullRequest (release)"
 
 run-name: ${{ github.run_number }} [${{ github.actor }}] on ${{ github.ref_name }}
 
@@ -42,4 +42,5 @@ on:
 
 jobs:
   Workflow:
+    name: "BugBug (can be ignored?)"
     uses: ./.github/workflows/callable_pr_to_release.yaml

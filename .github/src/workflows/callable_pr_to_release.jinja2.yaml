@@ -20,7 +20,7 @@ on:
 
 jobs:
   Workflow:
-    name: Standard
+    name: "Validate Pull request Source (${{ github.base_ref }})"
     runs-on: ubuntu-latest
 
     steps:
