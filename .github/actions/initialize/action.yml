@@ -9,7 +9,7 @@
 #
 #     Code Generator:         Jinja2
 #     Input Filename:         actions/initialize/action.jinja2.yml
-#     Generated Date:         2022-11-08 09:04:25.727652
+#     Generated Date:         2022-11-08 09:09:35.550664
 #
 # ----------------------------------------------------------------------
 # ----------------------------------------------------------------------
@@ -112,3 +112,12 @@ runs:
           return "${{ inputs.os }}".startsWith("windows") ? process.env.RUNNER_TEMP : process.env.RUNNER_TEMP;
         result-encoding: string
 
+    - name: Results
+      run: |
+        echo "Local Script Prefix: ${{ steps.local_script_prefix.outputs.result }}"
+        echo "Script Extension: ${{ steps.script_extension.outputs.result }}"
+        echo "Shell Name: ${{ steps.shell_name.outputs.result }}"
+        echo "Source Command: ${{ steps.source_command.outputs.result }}"
+        echo "Sudo Command: ${{ steps.sudo_command.outputs.result }}"
+        echo "Working Directory: ${{ steps.working_directory.outputs.result }}"
+      shell: ${{ steps.shell_name.outputs.result }}

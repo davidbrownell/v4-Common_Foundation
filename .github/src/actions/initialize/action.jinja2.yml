@@ -47,17 +47,17 @@ outputs:
 runs:
   using: composite
   steps:
-    <<%
-      set values = [
-        ("Local Script Prefix", "local_script_prefix", '""', '"./"'),
-        ("Script Extension", "script_extension", '".cmd"', '".sh"'),
-        ("Shell Name", "shell_name", '"cmd"', '"bash"'),
-        ("Source Command", "source_command", '""', '". "'),
-        ("Sudo Command", "sudo_command", '""', '"sudo "'),
-        ("Working Directory", "working_directory", "process.env.RUNNER_TEMP", "process.env.RUNNER_TEMP"),
-      ]
-    %>>
-    <<% for name, id, windows_value, linux_value in values %>>
+<<%
+  set values = [
+    ("Local Script Prefix", "local_script_prefix", '""', '"./"'),
+    ("Script Extension", "script_extension", '".cmd"', '".sh"'),
+    ("Shell Name", "shell_name", '"cmd"', '"bash"'),
+    ("Source Command", "source_command", '""', '". "'),
+    ("Sudo Command", "sudo_command", '""', '"sudo "'),
+    ("Working Directory", "working_directory", "process.env.RUNNER_TEMP", "process.env.RUNNER_TEMP"),
+  ]
+%>>
+<<% for name, id, windows_value, linux_value in values %>>
     - name: <<< name >>>
       id: <<< id >>>
       uses: actions/github-script@v6
@@ -66,4 +66,10 @@ runs:
           return "${{ inputs.os }}".startsWith("windows") ? <<< windows_value >>> : <<< linux_value >>>;
         result-encoding: string
 
-    <<% endfor %>>
+<<% endfor %>>
+    - name: Results
+      run: |
+<<% for name, id, windows_value, linux_value in values %>>
+        echo "<<< name >>>: ${{ steps.<<< id >>>.outputs.result }}"
+<<% endfor %>>
+      shell: ${{ steps.shell_name.outputs.result }}
