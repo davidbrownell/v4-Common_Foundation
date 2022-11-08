@@ -9,7 +9,7 @@
 #
 #     Code Generator:         Jinja2
 #     Input Filename:         actions/initialize/action.jinja2.yml
-#     Generated Date:         2022-11-08 08:41:10.442165
+#     Generated Date:         2022-11-08 08:49:53.159392
 #
 # ----------------------------------------------------------------------
 # ----------------------------------------------------------------------
@@ -72,7 +72,7 @@ runs:
       uses: actions/github-script@v6
       with:
         script: |
-          return "This is a test!!!"
+          return "${{ inputs.os }}".startsWith("windows") ? "This is a test!!! (windows)" : "This is a test!!! (linux)";
         result-encoding: string
 
     # This code is attempting to create the activate command given the following constraints:

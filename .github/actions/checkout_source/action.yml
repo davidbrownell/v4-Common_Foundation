@@ -9,7 +9,7 @@
 #
 #     Code Generator:         Jinja2
 #     Input Filename:         actions/checkout_source/action.jinja2.yml
-#     Generated Date:         2022-11-08 08:41:10.434011
+#     Generated Date:         2022-11-08 08:49:53.150887
 #
 # ----------------------------------------------------------------------
 # ----------------------------------------------------------------------
@@ -34,8 +34,6 @@ name: Checkout Source
 description: Checks out source code.
 
 inputs:
-  bugbug_test: {type: string, required: true }
-
   subject_repo_name:                        {type: string, required: false}
   subject_repo_branch:                      {type: string, required: false}
 

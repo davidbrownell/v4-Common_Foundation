@@ -55,7 +55,7 @@ runs:
       uses: actions/github-script@v6
       with:
         script: |
-          return "This is a test!!!"
+          return "${{ inputs.os }}".startsWith("windows") ? "This is a test!!! (windows)" : "This is a test!!! (linux)";
         result-encoding: string
 
     # This code is attempting to create the activate command given the following constraints:
