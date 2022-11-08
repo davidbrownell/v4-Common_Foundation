@@ -1,4 +1,21 @@
 # ----------------------------------------------------------------------
+# ----------------------------------------------------------------------
+# ----------------------------------------------------------------------
+#
+# This file is the result of a code generation process; any changes made
+# to this file will be overwritten during the next code generation
+# invocation. Any changes MUST be made in the source file rather than in
+# this one.
+#
+#     Code Generator:         Jinja2
+#     Input Filename:         workflows/callable_release.jinja2.yaml
+#     Generated Date:         2022-11-08 08:01:45.828314
+#
+# ----------------------------------------------------------------------
+# ----------------------------------------------------------------------
+# ----------------------------------------------------------------------
+
+# ----------------------------------------------------------------------
 # |
 # |  callable_release.yaml
 # |
@@ -15,6 +32,16 @@
 # ----------------------------------------------------------------------
 on:
   workflow_call:
+    inputs:
+      source_branch:
+        type: string
+        required: true
+        description: BugBug1
+
+      dest_branch:
+        type: string
+        required: true
+        description: BugBug2
 
 jobs:
   ReleaseJob:

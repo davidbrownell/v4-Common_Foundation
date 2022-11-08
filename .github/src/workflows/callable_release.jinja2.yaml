@@ -15,6 +15,16 @@
 # ----------------------------------------------------------------------
 on:
   workflow_call:
+    inputs:
+      source_branch:
+        type: string
+        required: true
+        description: BugBug1
+
+      dest_branch:
+        type: string
+        required: true
+        description: BugBug2
 
 jobs:
   ReleaseJob:

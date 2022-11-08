@@ -118,7 +118,7 @@ class BuildInfo(BuildInfoBase):
     ]:
         root_dir = Path(__file__).parent.parent
 
-        command_line = 'Jinja2CodeGenerator Generate "{input_dir}" "{output_dir}" --variable-start "<<<" --variable-end ">>>" --block-start "<<%" --block-end "%>>" --comment-start "<<#" --comment-end "#>>" --single-task{debug}{verbose}{list_variables}{force}'.format(
+        command_line = 'Jinja2CodeGenerator Generate "{input_dir}" "{output_dir}" --variable-start "<<<" --variable-end ">>>" --block-start "<<%" --block-end "%>>" --comment-start "<<#" --comment-end "#>>" --single-task --code-gen-header-line-prefix "#" {debug}{verbose}{list_variables}{force}'.format(
             input_dir=PathEx.EnsureDir(root_dir / "src"),
             output_dir=root_dir,
             debug=" --debug" if is_debug else "",

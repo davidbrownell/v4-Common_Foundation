@@ -43,3 +43,6 @@ jobs:
       - Common_PythonDevelopment
 
     uses: ./.github/workflows/callable_release.yaml
+    with:
+      source_branch: main
+      dest_branch: release

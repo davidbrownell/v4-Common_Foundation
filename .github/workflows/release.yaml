@@ -1,4 +1,21 @@
 # ----------------------------------------------------------------------
+# ----------------------------------------------------------------------
+# ----------------------------------------------------------------------
+#
+# This file is the result of a code generation process; any changes made
+# to this file will be overwritten during the next code generation
+# invocation. Any changes MUST be made in the source file rather than in
+# this one.
+#
+#     Code Generator:         Jinja2
+#     Input Filename:         workflows/release.jinja2.yaml
+#     Generated Date:         2022-11-08 08:01:45.831315
+#
+# ----------------------------------------------------------------------
+# ----------------------------------------------------------------------
+# ----------------------------------------------------------------------
+
+# ----------------------------------------------------------------------
 # |
 # |  release.yaml
 # |
@@ -43,3 +60,6 @@ jobs:
       - Common_PythonDevelopment
 
     uses: ./.github/workflows/callable_release.yaml
+    with:
+      source_branch: main
+      dest_branch: release

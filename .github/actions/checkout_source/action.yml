@@ -1,4 +1,21 @@
 # ----------------------------------------------------------------------
+# ----------------------------------------------------------------------
+# ----------------------------------------------------------------------
+#
+# This file is the result of a code generation process; any changes made
+# to this file will be overwritten during the next code generation
+# invocation. Any changes MUST be made in the source file rather than in
+# this one.
+#
+#     Code Generator:         Jinja2
+#     Input Filename:         actions/checkout_source/action.jinja2.yml
+#     Generated Date:         2022-11-08 08:01:45.804877
+#
+# ----------------------------------------------------------------------
+# ----------------------------------------------------------------------
+# ----------------------------------------------------------------------
+
+# ----------------------------------------------------------------------
 # |
 # |  action.yml
 # |
@@ -42,6 +59,11 @@ outputs:
 runs:
   using: composite
   steps:
+    - name: BugBug
+      run: |
+        echo "${{ inputs.subject_repo_name || 'BugBug' }}"
+      shell: ${{ inputs.shell_name }}
+
     # ----------------------------------------------------------------------
     - name: Checkout Source (Standard)
       uses: actions/checkout@v3
@@ -68,13 +90,13 @@ runs:
       if: ${{ inputs.subject_repo_name && inputs.subject_repo_branch }}
       run: |
         git clone -b ${{ inputs.subject_repo_branch }} https://github.com/${{ inputs.subject_repo_name }} "${{ inputs.working_dir }}/repo_under_test"
-      shell: ${{ steps.initialize.outputs.shell_name }}
+      shell: ${{ inputs.shell_name }}
 
     - name: Checkout Source (Custom Repo)
       if: ${{ inputs.subject_repo_name && !inputs.subject_repo_branch }}
       run: |
         git clone -b release https://github.com/${{ inputs.subject_repo_name }} "${{ inputs.working_dir }}/repo_under_test"
-      shell: ${{ steps.initialize.outputs.shell_name }}
+      shell: ${{ inputs.shell_name }}
 
     - name: "[Impl] Set Statement Variables (Custom, ubuntu)"
       if: ${{ inputs.subject_repo_name && startsWith(inputs.os, 'ubuntu') }}
