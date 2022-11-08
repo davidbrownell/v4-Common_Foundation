@@ -9,7 +9,7 @@
 #
 #     Code Generator:         Jinja2
 #     Input Filename:         actions/checkout_source/action.jinja2.yml
-#     Generated Date:         2022-11-08 10:32:17.847262
+#     Generated Date:         2022-11-08 10:46:08.328708
 #
 # ----------------------------------------------------------------------
 # ----------------------------------------------------------------------
@@ -70,7 +70,7 @@ runs:
             return "[${{ github.run_number }}, ${{ github.event.repository.name }}, ${{ inputs.os }}, ${{ inputs.configuration }}]";
           }
 
-          var source_repo_name = "${{ inputs.subject_repo_name }}".split("/", 1)[1];
+          var source_repo_name = "${{ inputs.subject_repo_name }}".split("/", 2)[1];
 
           return "[${{ github.run_number }}, " + source_repo_name + ", ${{ inputs.os }}, ${{ inputs.configuration }}]"
 
