@@ -39,7 +39,7 @@ runs:
           var activate_statement;
 
           if("${{ inputs.os }}".startsWith("windows")) {
-            activate_statement = "pushd \"" + "${{ inputs.repo_dir }}".replace("\\", "\\\\") + "\" && Activate.cmd";
+            activate_statement = "pushd \"" + "${{ inputs.repo_dir }}".replaceAll("\\", "\\\\") + "\" && Activate.cmd";
           } else {
             activate_statement = "pushd \"${{ inputs.repo_dir }}\" >> /dev/null && . ./Activate.sh";
           }
