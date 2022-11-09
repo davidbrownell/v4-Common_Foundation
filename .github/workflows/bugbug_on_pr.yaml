@@ -7,9 +7,9 @@ on:
       - davidbrownell_release
       - 'davidbrownell_release/**'
       - 'davidbrownell_release/'
-      - refs/heads/davidbrownell_release
-      - 'refs/heads/davidbrownell_release/'
-      - 'refs/heads/davidbrownell_release/**'
+      # - refs/heads/davidbrownell_release
+      # - 'refs/heads/davidbrownell_release/'
+      # - 'refs/heads/davidbrownell_release/**'
   workflow_dispatch:
 
 
