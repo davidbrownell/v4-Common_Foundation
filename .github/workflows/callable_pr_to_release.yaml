@@ -32,12 +32,10 @@
 # ----------------------------------------------------------------------
 on:
   workflow_call:
-    inputs:
-      repo_name:                            {type: string, required: true}
 
 jobs:
   _f3fb4717-f6fe-4a39-8a00-a88eed2b6d54:
-    name: "[${{ inputs.repo_name }} ] Validate Pull Request to '${{ github.base_ref }}'"
+    name: "Validate Pull Request to '${{ github.base_ref }}'"
     runs-on: ubuntu-latest
 
     steps:

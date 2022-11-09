@@ -33,13 +33,12 @@
 on:
   workflow_call:
     inputs:
-      repo_name:                            {type: string, required: true}
       source_branch:                        {type: string, required: true}
       dest_branch:                          {type: string, required: true}
 
 jobs:
   _c29f4dc3-f949-4b4f-b4c4-16d3a63aad1c:
-    name: "[${{ inputs.repo_name }}] Push Changes from '${{ inputs.source_branch }}' to '${{ inputs.dest_branch }}'"
+    name: "Push Changes from '${{ inputs.source_branch }}' to '${{ inputs.dest_branch }}'"
     runs-on: ubuntu-latest
 
     steps:

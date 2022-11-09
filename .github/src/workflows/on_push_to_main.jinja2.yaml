@@ -40,7 +40,7 @@ jobs:
 
   # ----------------------------------------------------------------------
   _cf27c74d-9586-486e-a184-9bdc45ee6e3b:
-    name: "Promote (Common_Foundation)"
+    name: "Promote"
 
     needs:
       - _1fc90631-2837-44fc-b70c-ea41ed5beae7
@@ -48,6 +48,5 @@ jobs:
 
     uses: ./.github/workflows/callable_promote_to_release.yaml
     with:
-      repo_name: Common_Foundation
       source_branch: ${{ github.ref_name }}
       dest_branch: release
