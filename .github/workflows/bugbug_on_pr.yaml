@@ -1,0 +1,18 @@
+name: "OnPR"
+run-name: ${{ github.run_number }} [${{ github.actor }}] on ${{ github.ref_name }}
+
+on:
+  pull_request:
+    branches:
+      - 'davidbrownell_release/**'
+  workflow_dispatch:
+
+
+
+jobs:
+  BugBug:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Test
+        run: echo "BugBug"
+        shell: bash
