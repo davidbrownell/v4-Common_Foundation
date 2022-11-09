@@ -33,7 +33,7 @@ on:
 
 jobs:
   Workflow:
-    name: "Common_Foundation ('${{ github.ref_name }}')"
+    name: "Common_Foundation"
 
     strategy:
       matrix:

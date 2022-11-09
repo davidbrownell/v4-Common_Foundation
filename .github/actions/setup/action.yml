@@ -9,7 +9,7 @@
 #
 #     Code Generator:         Jinja2
 #     Input Filename:         actions/setup/action.jinja2.yml
-#     Generated Date:         2022-11-08 15:53:12.498147
+#     Generated Date:         2022-11-08 16:07:39.589863
 #
 # ----------------------------------------------------------------------
 # ----------------------------------------------------------------------
@@ -121,16 +121,16 @@ runs:
             var path = require("path");
 
             setup_statement = "${{ inputs.sudo_command }}${{ inputs.local_script_prefix }}Bootstrap${{ inputs.script_extension }} \"" + path.join("${{ inputs.working_dir }}", "code") + "\"";
+
+            if("${{ inputs.branch_overrides }}" != "") {
+              setup_statement += " --branch-overrides \"${{ inputs.branch_overrides }}\"";
+            }
           }
 
           setup_statement += " --no-interactive --no-hooks --debug";
 
           if("${{ inputs.configuration }}" != "None") {
             setup_statement += " --configuration \"${{ inputs.configuration }}\"";
-          }
-
-          if("${{ inputs.branch_overrides }}" != "") {
-            setup_statement += " --branch-overrides \"${{ inputs.branch_overrides }}\"";
           }
 
           return setup_statement;
