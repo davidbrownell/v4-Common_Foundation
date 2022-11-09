@@ -24,6 +24,7 @@ on:
 
 jobs:
   _90d83a98-cd85-4d4e-983c-0cfc1ed495f1:
+    name: "branch: ${{ github.base_ref }}"
     uses: ./.github/workflows/callable_pr_to_release.yaml
     with:
       repo_name: Common_Foundation
