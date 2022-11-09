@@ -4,7 +4,7 @@ run-name: ${{ github.run_number }} [${{ github.actor }}] on ${{ github.ref_name 
 on:
   push:
     branches:
-      - davidbrownell_relese
+      - davidbrownell_release
   workflow_dispatch:
 
 
