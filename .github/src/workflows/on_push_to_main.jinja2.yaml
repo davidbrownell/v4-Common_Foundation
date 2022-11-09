@@ -28,6 +28,7 @@ jobs:
     with:
       setup_branch_overrides: "Common_Foundation:${{ github.ref_name }}"
       subject_repo_name: "davidbrownell/v4-Common_Foundation"
+      subject_repo_branch: main
 
   # TODO: Common_PythonDevelopment:
   # TODO:   uses: davidbrownell/v4-Common_PythonDevelopment/.github/workflows/exercise_main.yaml@CI-v1.1.0
