@@ -9,7 +9,7 @@
 #
 #     Code Generator:         Jinja2
 #     Input Filename:         workflows/on_pr_to_main.jinja2.yaml
-#     Generated Date:         2022-11-08 16:07:39.610375
+#     Generated Date:         2022-11-08 16:40:54.044503
 #
 # ----------------------------------------------------------------------
 # ----------------------------------------------------------------------
@@ -30,7 +30,7 @@
 # |  http://www.boost.org/LICENSE_1_0.txt.
 # |
 # ----------------------------------------------------------------------
-name: "OnPullRequest (main)"
+name: OnPullRequest
 run-name: ${{ github.run_number }} [${{ github.event.pull_request.user.login }}] on ${{ github.ref_name }}
 
 on:
@@ -40,5 +40,5 @@ on:
   workflow_dispatch:
 
 jobs:
-  OnPullRequest:
+  main:
     uses: ./.github/workflows/exercise_main.yaml
