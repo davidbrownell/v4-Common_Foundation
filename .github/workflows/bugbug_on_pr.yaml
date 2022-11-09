@@ -4,7 +4,12 @@ run-name: ${{ github.run_number }} [${{ github.actor }}] on ${{ github.ref_name 
 on:
   pull_request:
     branches:
+      - davidbrownell_release
       - 'davidbrownell_release/**'
+      - 'davidbrownell_release/'
+      - refs/heads/davidbrownell_release
+      - 'refs/heads/davidbrownell_release/'
+      - 'refs/heads/davidbrownell_release/**'
   workflow_dispatch:
 
 
