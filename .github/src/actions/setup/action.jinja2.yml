@@ -103,7 +103,7 @@ runs:
           } else {
             var path = require("path");
 
-            setup_statement = "${{ inputs.sudo_command }}${{ inputs.local_script_prefix }}Bootstrap${{ inputs.script_extension }} \"" + path.join("${{ inputs.working_dir }}", "code") + "\"";
+            setup_statement = "${{ inputs.sudo_command }}${{ inputs.local_script_prefix }}Bootstrap${{ inputs.script_extension }} \"" + path.join(String.raw`${{ inputs.working_dir }}`, "code") + "\"";
 
             if("${{ inputs.branch_overrides }}" != "") {
               setup_statement += " --branch-overrides \"${{ inputs.branch_overrides }}\"";

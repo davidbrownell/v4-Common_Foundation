@@ -30,7 +30,7 @@ github_src_root = PathEx.EnsureDir(foundation_root_dir / ".github" / "src")
 
 sys.path.insert(0, str(github_src_root))
 with ExitStack(lambda: sys.path.pop(0)):
-    from BuildImpl import CreateBuildInfoInstance  # type: ignore
+    from BuildImpl import CreateBuildInfoInstance  # type: ignore  # pylint: disable=import-error
 
 
 # ----------------------------------------------------------------------
