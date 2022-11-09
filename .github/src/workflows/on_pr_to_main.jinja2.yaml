@@ -13,7 +13,7 @@
 # |  http://www.boost.org/LICENSE_1_0.txt.
 # |
 # ----------------------------------------------------------------------
-name: OnPullRequest
+name: "OnPullRequest (main)"
 run-name: ${{ github.run_number }} [${{ github.event.pull_request.user.login }}] on ${{ github.ref_name }}
 
 on:
@@ -23,5 +23,6 @@ on:
   workflow_dispatch:
 
 jobs:
-  main:
+  _7a87a26d-b601-4b29-bb5e-e86ec174ac3b:
+    name: "branch: ${{ github.base_ref }}"
     uses: ./.github/workflows/exercise_main.yaml

@@ -26,25 +26,25 @@ from .Shell.All import CurrentShell
 
 # ----------------------------------------------------------------------
 def EnsureExists(
-    path: Path,
+    path: Optional[Path],
 ) -> Path:
-    assert path.exists(), path
+    assert path is not None and path.exists(), path
     return path
 
 
 # ----------------------------------------------------------------------
 def EnsureFile(
-    path: Path,
+    path: Optional[Path],
 ) -> Path:
-    assert path.is_file(), path
+    assert path is not None and path.is_file(), path
     return path
 
 
 # ----------------------------------------------------------------------
 def EnsureDir(
-    path: Path,
+    path: Optional[Path],
 ) -> Path:
-    assert path.is_dir(), path
+    assert path is not None and path.is_dir(), path
     return path
 
 

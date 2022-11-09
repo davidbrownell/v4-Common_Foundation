@@ -32,8 +32,8 @@ on:
         description: "See ../_BuildAndTest.template.yaml for more info."
 
 jobs:
-  Workflow:
-    name: Common_Foundation
+  _df144c14-1b55-49be-82fd-96f825e97b45:
+    name: "[Common_Foundation] Build and Test"
 
     strategy:
       matrix:

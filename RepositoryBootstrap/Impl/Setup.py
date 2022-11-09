@@ -138,6 +138,8 @@ def Setup(
                 ] = []
 
                 activities += [
+                    # Note that setup bootstrap MUST be the first activity invoked, as it creates
+                    # information leveraged by the other activities.
                     lambda **kwargs: _SetupBootstrap(
                         **{
                             **kwargs,
@@ -752,8 +754,23 @@ def _SetupBootstrap(
             ],
         )
 
+    # Find the foundation repository
+    foundation_repo = None
+    foundation_repo_id = uuid.UUID("DD6FCD30-B043-4058-B0D5-A6C8BC0374F4")
+
+    for repo in all_repos:
+        if repo.id == foundation_repo_id:
+            foundation_repo = repo
+            break
+
+    assert foundation_repo is not None
+
+    # Update the environment so this value is used by the other activities
+    os.environ[Constants.DE_FOUNDATION_ROOT_NAME] = str(foundation_repo.root)
+
+    # Create the bootstrap data
     EnvironmentBootstrap(
-        Utilities.GetFoundationRepository(),
+        foundation_repo.root,
         repo_data.configurations,
         fingerprints,
         dependencies,

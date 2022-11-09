@@ -9,7 +9,7 @@
 #
 #     Code Generator:         Jinja2
 #     Input Filename:         workflows/exercise_main-Impl.jinja2.yaml
-#     Generated Date:         2022-11-08 16:40:54.037519
+#     Generated Date:         2022-11-09
 #
 # ----------------------------------------------------------------------
 # ----------------------------------------------------------------------
@@ -30,57 +30,6 @@
 # |  http://www.boost.org/LICENSE_1_0.txt.
 # |
 # ----------------------------------------------------------------------
-
-# Sample implementation in the calling workflow:
-#
-# name: SampleWorkflow
-# run-name: ${{ github.run_number }} [${{ github.actor }}] on ${{ github.ref_name }}
-#
-# on:
-#   pull_request:
-#     branches:
-#       - main
-#   push:
-#     branches:
-#       - main
-#   workflow_dispatch:
-#
-# jobs:
-#   <repo_name_here>:
-#     strategy:
-#       matrix:
-#         os:
-#           - ubuntu-latest
-#           - windows-latest
-#
-#         configuration:
-#           # Enter repository configurations here, or "None" (without quotes) for repositories that aren't configurable
-#           - Enter_a_valid_configuration_name_here
-#
-#     uses: /davidbrownell/v4-Common_Foundation/.github/workflows/callable_BuildAndTest.yaml@CI-v1.0.0
-#     with:
-#       os:                                   ${{ matrix.os }}
-#       configuration:                        ${{ matrix.configuration }}
-#
-#       checkout_source:                      true
-#
-#       run_Builder:                          true
-#
-#       # Use the following values to control how different test types are run:
-#       #
-#       #   0: Do not run these test types
-#       #   1: Run these test types without code coverage
-#       #   2: Run these test types with code coverage
-#       #   3: Run these test types with and without code coverage
-#
-#       execute_UnitTests:                    3
-#       execute_FunctionalTests:              1
-#       execute_IntegrationTests:             1
-#       execute_SystemTests:                  1
-#       execute_LocalEndToEndTests:           1
-#       execute_EndToEndTests:                0
-#       execute_BuildVerificationTests:       0
-#       execute_PerformanceTests:             0
 
 on:
   workflow_call:
@@ -131,11 +80,9 @@ on:
       execute_BuildVerificationTests:       {type: number, required: true, default: 0}
       execute_PerformanceTests:             {type: number, required: true, default: 0}
 
-      # ----------------------------------------------------------------------
-      # |  Child Inputs
 
 jobs:
-  Steps:
+  _8fb649ac-dac3-4de2-8bb5-a3eb6b7c5b70:
     name: "[${{ inputs.os }}, ${{ inputs.configuration }}]"
     runs-on: ${{ inputs.os }}
 

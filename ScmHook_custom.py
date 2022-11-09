@@ -28,6 +28,8 @@ from rich import get_console
 from rich.console import Console, Group
 from rich.panel import Panel
 
+from Common_Foundation.ContextlibEx import ExitStack
+from Common_Foundation.Shell.All import CurrentShell
 from Common_Foundation.SourceControlManagers.SourceControlManager import Repository
 from Common_Foundation.Streams.Capabilities import Capabilities
 from Common_Foundation.Streams.DoneManager import DoneManager
@@ -155,8 +157,17 @@ def DecorateCommitMessage(
         if value is None:
             return None
 
-        command_line = 'python {} Transform "{}"'.format(commit_emojis_dir, value)
-        result = SubprocessEx.Run(command_line)
+        temp_filename = CurrentShell.CreateTempFilename()
+
+        with temp_filename.open(
+            "w",
+            encoding="UTF-8",
+        ) as f:
+            f.write(value)
+
+        with ExitStack(lambda: PathEx.RemoveFile(temp_filename)):
+            command_line = 'python {} Transform "{}"'.format(commit_emojis_dir, temp_filename)
+            result = SubprocessEx.Run(command_line)
 
         assert result.returncode == 0, (result.returncode, result.output)
         return result.output

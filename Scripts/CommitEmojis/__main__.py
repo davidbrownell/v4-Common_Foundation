@@ -129,9 +129,16 @@ def Display(
 # ----------------------------------------------------------------------
 @app.command("Transform", no_args_is_help=True)
 def Transform(
-    message: str=typer.Argument(..., help="Message to transform."),
+    message_or_filename: str=typer.Argument(..., help="Message to transform (or filename that contains the message)."),
 ) -> None:
     """Transforms a message that contains emoji text placeholders."""
+
+    potential_path = Path(message_or_filename)
+    if potential_path.is_file():
+        with potential_path.open(encoding="UTF-8") as f:
+            message = f.read()
+    else:
+        message = message_or_filename
 
     emojis = _CreateEmojiTables()
 
