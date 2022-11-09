@@ -104,16 +104,16 @@ runs:
             var path = require("path");
 
             setup_statement = "${{ inputs.sudo_command }}${{ inputs.local_script_prefix }}Bootstrap${{ inputs.script_extension }} \"" + path.join("${{ inputs.working_dir }}", "code") + "\"";
+
+            if("${{ inputs.branch_overrides }}" != "") {
+              setup_statement += " --branch-overrides \"${{ inputs.branch_overrides }}\"";
+            }
           }
 
           setup_statement += " --no-interactive --no-hooks --debug";
 
           if("${{ inputs.configuration }}" != "None") {
             setup_statement += " --configuration \"${{ inputs.configuration }}\"";
-          }
-
-          if("${{ inputs.branch_overrides }}" != "") {
-            setup_statement += " --branch-overrides \"${{ inputs.branch_overrides }}\"";
           }
 
           return setup_statement;
