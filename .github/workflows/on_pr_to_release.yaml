@@ -36,7 +36,16 @@ run-name: ${{ github.run_number }} [${{ github.event.pull_request.user.login }}]
 on:
   pull_request:
     branches:
+      # I'm working pretty hard to get this workflow to respond to events. In practice, it seems that
+      # the first variation is the only one required when the branch name is something like 'davidbrownell_release',
+      # but I haven't been able to get this workflow to fire on this branch in practice.
       - release
+      - 'release/'
+      - 'release/**'
+      - 'refs/heads/release'
+      - 'refs/heads/release/'
+      - 'refs/heads/release/**'
+
   workflow_dispatch:
 
 jobs:
