@@ -23,5 +23,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  Common_Foundation:
+  _90d83a98-cd85-4d4e-983c-0cfc1ed495f1:
     uses: ./.github/workflows/callable_pr_to_release.yaml
+    with:
+      repo_name: Common_Foundation

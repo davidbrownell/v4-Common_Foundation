@@ -29,6 +29,7 @@ from jinja2.defaults import BLOCK_START_STRING, BLOCK_END_STRING, COMMENT_START_
 
 from typer.core import TyperGroup
 
+from Common_Foundation import PathEx
 from Common_Foundation.Streams.DoneManager import DoneManager
 from Common_Foundation.Types import overridemethod
 
@@ -100,6 +101,7 @@ class CodeGenerator(
 
         return {
             "code_gen_header_line_prefix": (str, typer.Option(None, "--code-gen-header-line-prefix", help="Prefix to use for a code generation header added to the template indicating that the file was generated; this prefix will most often be a comment character specific to the generated file type.")),
+            "code_gen_header_input_filename": (str, typer.Option(None, "--code-gen-header-input-filename", help="Filename to use in a generated header (if any).")),
 
             "list_variables": (bool, typer.Option(default_metadata["list_variables"], "--list-variables", help="Lists all variables in the Jinja2 templates.")),
             "force": (bool, typer.Option(default_metadata["force"], "--force", help="Force the generation of content, even when no changes are detected.")),
@@ -144,6 +146,7 @@ class CodeGenerator(
     @overridemethod
     def _EnumerateOptionalMetadata(self) -> Generator[Tuple[str, Any], None, None]:
         yield "code_gen_header_line_prefix", None
+        yield "code_gen_header_input_filename", None
 
         yield "list_variables", False
         yield "ignore_errors", False
@@ -194,11 +197,14 @@ class CodeGenerator(
         if preserve_dir_structure:
             output_filenames: ListType[Path] = []
 
-            input_root = metadata[AtomicInputProcessorMixin.INPUT_ROOT_ATTRIBUTE_NAME]
-            input_root_parts_len = len(input_root.parts)
+            if len(metadata[AtomicInputProcessorMixin.ATTRIBUTE_NAME]) == 1:
+                output_filenames.append(output_dir / metadata[AtomicInputProcessorMixin.ATTRIBUTE_NAME][0].name)
+            else:
+                input_root = metadata[AtomicInputProcessorMixin.INPUT_ROOT_ATTRIBUTE_NAME]
+                input_root_parts_len = len(input_root.parts)
 
-            for input_filename in metadata[AtomicInputProcessorMixin.ATTRIBUTE_NAME]:
-                output_filenames.append(output_dir / Path(*input_filename.parts[input_root_parts_len:]))
+                for input_filename in metadata[AtomicInputProcessorMixin.ATTRIBUTE_NAME]:
+                    output_filenames.append(output_dir / Path(*input_filename.parts[input_root_parts_len:]))
 
         else:
             output_filenames_lookup: Dict[
@@ -401,8 +407,11 @@ class CodeGenerator(
                         ).format(
                             line_prefix=context["code_gen_header_line_prefix"],
                             name=self.name,
-                            input=Path(*input_filename.parts[len(context["input_root"].parts):]).as_posix(),
-                            date=datetime.datetime.now(),
+                            input=(
+                                context["code_gen_header_input_filename"]
+                                or PathEx.CreateRelativePath(context["input_root"], input_filename).as_posix()
+                            ),
+                            date=datetime.datetime.now().strftime('%Y-%m-%d'),
                             template_content=template_content.rstrip(),
                         )
 

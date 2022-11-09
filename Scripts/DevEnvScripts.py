@@ -19,8 +19,10 @@ import json
 import os
 import sys
 
+from enum import Enum
+from io import StringIO
 from pathlib import Path
-from typing import Any, List
+from typing import Any, Dict, List, Optional, Tuple
 
 import typer
 
@@ -47,23 +49,33 @@ app                                         = typer.Typer()
 
 
 # ----------------------------------------------------------------------
+class CommandSentinel(str, Enum):
+    display                                 = "display"
+    location                                = "location"
+
+
+# ----------------------------------------------------------------------
+# Keeping this as a single method so the default behavior is to display the script info when no arguments
+# are provided
 @app.command("EntryPoint")
-def EntryPoint():
+def EntryPoint(
+    location_sentinel: CommandSentinel=typer.Argument(CommandSentinel.display),
+    script_name: Optional[str]=typer.Argument(None),
+):
+    if location_sentinel == CommandSentinel.display:
+        _OnDisplay()
+    elif location_sentinel == CommandSentinel.location:
+        _OnLocation(script_name)
+    else:
+        assert False, location_sentinel
+
+
+# ----------------------------------------------------------------------
+# ----------------------------------------------------------------------
+# ----------------------------------------------------------------------
+def _OnDisplay() -> None:
     with DoneManager.CreateCommandLine() as dm:
-        with dm.Nested(
-            "Loading script content...",
-            suffix="\n",
-        ) as load_dm:
-            json_filename = Path(
-                Types.EnsureValid(os.getenv(RepositoryBootstrapConstants.DE_REPO_GENERATED_NAME)),
-            ) / "Scripts" / RepositoryBootstrapConstants.SCRIPT_DATA_NAME
-
-            if not json_filename.is_file():
-                load_dm.WriteError("The file '{}' does not exist.\n".format(json_filename))
-                load_dm.ExitOnError()
-
-            with json_filename.open() as f:
-                content = json.load(f)
+        content = _LoadScriptContent(dm)
 
         # ----------------------------------------------------------------------
         def CreateRepositoryPanel(
@@ -112,7 +124,7 @@ def EntryPoint():
                 subtitle_align="right",
                 title=(
                     "{} ({})".format(repo_name, repo_root)
-                    if load_dm.capabilities.is_headless
+                    if dm.capabilities.is_headless
                     else "[link=file:///{}]{}[/]".format(
                         Path(repo_root).as_posix(),
                         repo_name,
@@ -135,6 +147,64 @@ def EntryPoint():
                 border_style="bold blue",
             ),
         )
+
+
+# ----------------------------------------------------------------------
+def _OnLocation(
+    script_name: Optional[str],
+) -> None:
+    if script_name is None:
+        raise typer.BadParameter("A script name must be provided when extracting a location")
+
+    sink = StringIO()
+
+    with DoneManager.CreateCommandLine(sink) as dm:
+        try:
+            content = _LoadScriptContent(dm)
+
+            for _, _, script_infos in content.values():
+                for script_info in script_infos:
+                    if (
+                        script_info["name"] == script_name
+                        or os.path.splitext(script_info["name"])[0] == script_name
+                    ):
+                        sys.stdout.write(script_info["filename"])
+                        return
+
+            dm.WriteError("The script '{}' was not found.\n".format(script_name))
+
+        finally:
+            if dm.result != 0:
+                sys.stdout.write(sink.getvalue())
+
+
+# ----------------------------------------------------------------------
+def _LoadScriptContent(
+    dm: DoneManager,
+) -> Dict[
+    str,                                    # Repo Id
+    Tuple[
+        str,                                # Repo name
+        str,                                # Repo location
+        List[Dict[str, str]],               # Script info
+    ],
+]:
+    with dm.Nested(
+        "Loading script content...",
+        suffix="\n",
+    ) as load_dm:
+        json_filename = Path(
+            Types.EnsureValid(os.getenv(RepositoryBootstrapConstants.DE_REPO_GENERATED_NAME)),
+        ) / "Scripts" / RepositoryBootstrapConstants.SCRIPT_DATA_NAME
+
+        if not json_filename.is_file():
+            load_dm.WriteError("The file '{}' does not exist.\n".format(json_filename))
+            load_dm.ExitOnError()
+
+        with json_filename.open() as f:
+            content = json.load(f)
+
+        return content
 
 
 # ----------------------------------------------------------------------

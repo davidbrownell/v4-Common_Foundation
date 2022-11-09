@@ -9,7 +9,7 @@
 #
 #     Code Generator:         Jinja2
 #     Input Filename:         workflows/on_push_to_main.jinja2.yaml
-#     Generated Date:         2022-11-08 16:40:54.048504
+#     Generated Date:         2022-11-09
 #
 # ----------------------------------------------------------------------
 # ----------------------------------------------------------------------
@@ -30,7 +30,7 @@
 # |  http://www.boost.org/LICENSE_1_0.txt.
 # |
 # ----------------------------------------------------------------------
-name: OnPush (main)
+name: "OnPush (main)"
 run-name: ${{ github.run_number }} [${{ github.actor }}] on ${{ github.ref_name }}
 
 on:
@@ -40,28 +40,31 @@ on:
   workflow_dispatch:
 
 jobs:
-  Common_Foundation:
+  _1fc90631-2837-44fc-b70c-ea41ed5beae7:
+    name: "[Common_Foundation]"
     uses: ./.github/workflows/exercise_main.yaml
     with:
       setup_branch_overrides: "Common_Foundation:${{ github.ref_name }}"
       subject_repo_name: "davidbrownell/v4-Common_Foundation"
       subject_repo_branch: main
 
-  # TODO: Common_PythonDevelopment:
+  # TODO: _5e328479-e73d-4578-8da8-4082491c40e9:
+  # TODO:   name: "[Common_PythonDevelopment]"
   # TODO:   uses: davidbrownell/v4-Common_PythonDevelopment/.github/workflows/exercise_main.yaml@CI-v1.1.0
   # TODO:   with:
   # TODO:     setup_branch_overrides: "Common_Foundation:${{ github.ref_name }}"
   # TODO:     subject_repo_name: "davidbrownell/v4-Common_PythonDevelopment"
 
   # ----------------------------------------------------------------------
-  Promote:
+  _cf27c74d-9586-486e-a184-9bdc45ee6e3b:
     name: "Promote (Common_Foundation)"
 
     needs:
-      - Common_Foundation
-      # TODO: - Common_PythonDevelopment
+      - _1fc90631-2837-44fc-b70c-ea41ed5beae7
+      # TODO: - _5e328479-e73d-4578-8da8-4082491c40e9
 
     uses: ./.github/workflows/callable_promote_to_release.yaml
     with:
+      repo_name: Common_Foundation
       source_branch: ${{ github.ref_name }}
       dest_branch: release

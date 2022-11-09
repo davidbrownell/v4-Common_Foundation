@@ -9,7 +9,7 @@
 #
 #     Code Generator:         Jinja2
 #     Input Filename:         workflows/callable_promote_to_release.jinja2.yaml
-#     Generated Date:         2022-11-08 16:40:54.033511
+#     Generated Date:         2022-11-09
 #
 # ----------------------------------------------------------------------
 # ----------------------------------------------------------------------
@@ -33,12 +33,13 @@
 on:
   workflow_call:
     inputs:
+      repo_name:                            {type: string, required: true}
       source_branch:                        {type: string, required: true}
       dest_branch:                          {type: string, required: true}
 
 jobs:
-  Workflow:
-    name: "Push Changes from '${{ inputs.source_branch }}' to '${{ inputs.dest_branch }}'"
+  _c29f4dc3-f949-4b4f-b4c4-16d3a63aad1c:
+    name: "[${{ inputs.repo_name }}] Push Changes from '${{ inputs.source_branch }}' to '${{ inputs.dest_branch }}'"
     runs-on: ubuntu-latest
 
     steps:

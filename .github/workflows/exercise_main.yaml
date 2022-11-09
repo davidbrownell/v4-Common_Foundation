@@ -9,7 +9,7 @@
 #
 #     Code Generator:         Jinja2
 #     Input Filename:         workflows/exercise_main.jinja2.yaml
-#     Generated Date:         2022-11-08 16:40:54.042504
+#     Generated Date:         2022-11-09
 #
 # ----------------------------------------------------------------------
 # ----------------------------------------------------------------------
@@ -49,8 +49,8 @@ on:
         description: "See ../_BuildAndTest.template.yaml for more info."
 
 jobs:
-  Workflow:
-    name: Common_Foundation
+  _df144c14-1b55-49be-82fd-96f825e97b45:
+    name: "[Common_Foundation] Build and Test"
 
     strategy:
       matrix:

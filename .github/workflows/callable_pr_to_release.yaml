@@ -9,7 +9,7 @@
 #
 #     Code Generator:         Jinja2
 #     Input Filename:         workflows/callable_pr_to_release.jinja2.yaml
-#     Generated Date:         2022-11-08 16:40:54.035505
+#     Generated Date:         2022-11-09
 #
 # ----------------------------------------------------------------------
 # ----------------------------------------------------------------------
@@ -32,10 +32,12 @@
 # ----------------------------------------------------------------------
 on:
   workflow_call:
+    inputs:
+      repo_name:                            {type: string, required: true}
 
 jobs:
-  Workflow:
-    name: "Validate Pull Requests to '${{ github.base_ref }}'"
+  _f3fb4717-f6fe-4a39-8a00-a88eed2b6d54:
+    name: "[${{ inputs.repo_name }} ] Validate Pull Request to '${{ github.base_ref }}'"
     runs-on: ubuntu-latest
 
     steps:

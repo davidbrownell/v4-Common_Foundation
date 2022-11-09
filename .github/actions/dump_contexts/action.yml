@@ -9,7 +9,7 @@
 #
 #     Code Generator:         Jinja2
 #     Input Filename:         actions/dump_contexts/action.jinja2.yml
-#     Generated Date:         2022-11-08 16:40:54.014503
+#     Generated Date:         2022-11-09
 #
 # ----------------------------------------------------------------------
 # ----------------------------------------------------------------------
@@ -37,25 +37,44 @@ runs:
   using: composite
   steps:
     - name: Dump GitHub context
-      run: echo '${{ toJSON(github) }}'
       shell: bash
+      run: |
+        echo "github:"
+        echo ""
+        echo '${{ toJSON(github) }}'
+
 
     - name: Dump job context
-      run: echo '${{ toJSON(job) }}'
       shell: bash
+      run: |
+        echo "job:"
+        echo ""
+        echo '${{ toJSON(job) }}'
 
     - name: Dump steps context
-      run: echo '${{ toJSON(steps) }}'
       shell: bash
+      run: |
+        echo "steps:"
+        echo ""
+        echo '${{ toJSON(steps) }}'
 
     - name: Dump runner context
-      run: echo '${{ toJSON(runner) }}'
       shell: bash
+      run: |
+        echo "runner:"
+        echo ""
+        echo '${{ toJSON(runner) }}'
 
     - name: Dump strategy context
-      run: echo '${{ toJSON(strategy) }}'
       shell: bash
+      run: |
+        echo "strategy:"
+        echo ""
+        echo '${{ toJSON(strategy) }}'
 
     - name: Dump matrix context
-      run: echo '${{ toJSON(matrix) }}'
       shell: bash
+      run: |
+        echo "matrix:"
+        echo ""
+        echo '${{ toJSON(matrix) }}'

@@ -268,7 +268,7 @@ class CompilerImpl(
             if input_item.is_file():
                 if self.input_type == InputType.Files:
                     if self.IsSupported(input_item):
-                        all_input_items[input_item] = [input_item, ]
+                        all_input_items[input_item.parent] = [input_item, ]
                 elif self.input_type == InputType.Directories:
                     raise Exception("The filename '{}' was provided as an input, but '{}' operates on directories.".format(input_item, self.name))
                 else:
