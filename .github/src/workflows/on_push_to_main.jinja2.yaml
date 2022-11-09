@@ -31,12 +31,12 @@ jobs:
       subject_repo_name: "davidbrownell/v4-Common_Foundation"
       subject_repo_branch: main
 
-  # TODO: _5e328479-e73d-4578-8da8-4082491c40e9:
-  # TODO:   name: "[Common_PythonDevelopment]"
-  # TODO:   uses: davidbrownell/v4-Common_PythonDevelopment/.github/workflows/exercise_main.yaml@CI-v1.1.0
-  # TODO:   with:
-  # TODO:     setup_branch_overrides: "Common_Foundation:${{ github.ref_name }}"
-  # TODO:     subject_repo_name: "davidbrownell/v4-Common_PythonDevelopment"
+  _5e328479-e73d-4578-8da8-4082491c40e9:
+    name: "[Common_PythonDevelopment]"
+    uses: davidbrownell/v4-Common_PythonDevelopment/.github/workflows/exercise_main.yaml@CI-v1.1.0
+    with:
+      setup_branch_overrides: "Common_Foundation:${{ github.ref_name }}"
+      subject_repo_name: "davidbrownell/v4-Common_PythonDevelopment"
 
   # ----------------------------------------------------------------------
   _cf27c74d-9586-486e-a184-9bdc45ee6e3b:
@@ -44,7 +44,7 @@ jobs:
 
     needs:
       - _1fc90631-2837-44fc-b70c-ea41ed5beae7
-      # TODO: - _5e328479-e73d-4578-8da8-4082491c40e9
+      - _5e328479-e73d-4578-8da8-4082491c40e9
 
     uses: ./.github/workflows/callable_promote_to_release.yaml
     with:
