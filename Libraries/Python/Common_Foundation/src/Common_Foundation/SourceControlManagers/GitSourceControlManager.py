@@ -928,7 +928,10 @@ class Repository(DistributedRepositoryBase):
         self,
         branch_or_branches: Union[None, str, List[str]]=None,
     ) -> str:
-        commands: List[str] = []
+        commands: List[str] = [
+            "git fetch --all",
+            "git fetch --all --tags",
+        ]
 
         if branch_or_branches is not None:
             if isinstance(branch_or_branches, list):
@@ -936,15 +939,16 @@ class Repository(DistributedRepositoryBase):
             else:
                 branches = [branch_or_branches, ]
 
-            commands += [
-                'git checkout -B "{name}" "origin/{name}"'.format(name=branch)
-                for branch in branches
-            ]
+            # Determine if these are branches or tags
+            for branch in branches:
+                result = GitSourceControlManager.Execute(
+                    self._GetCommandLine('git ls-remote --exit-code --heads . "{}"'.format(branch)),
+                )
 
-        commands += [
-            "git fetch --all",
-            "git fetch --all --tags",
-        ]
+                if result.returncode == 0:
+                    commands.append('git checkout -B "{name}" "origin/{name}"'.format(name=branch))
+                else:
+                    commands.append('git checkout "tags/{}"'.format(branch))
 
         return self._GetCommandLine(" && ".join(commands))
 
