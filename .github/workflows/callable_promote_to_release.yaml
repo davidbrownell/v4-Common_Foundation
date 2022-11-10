@@ -38,7 +38,7 @@ on:
 
 jobs:
   _c29f4dc3-f949-4b4f-b4c4-16d3a63aad1c:
-    name: "Push changes for merge from '${{ inputs.source_branch }}' to '${{ inputs.dest_branch }}'"
+    name: "Merge from '${{ inputs.source_branch }}' to '${{ inputs.dest_branch }}'"
     runs-on: ubuntu-latest
 
     steps:

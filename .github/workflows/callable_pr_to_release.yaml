@@ -32,13 +32,10 @@
 # ----------------------------------------------------------------------
 on:
   workflow_call:
-    inputs:
-      username:                             {type: string, required: true}
-      dest_branch:                          {type: string, required: true}
 
 jobs:
   _f3fb4717-f6fe-4a39-8a00-a88eed2b6d54:
-    name: "Validate Pull Request to '${{ inputs.dest_branch }}'"
+    name: "Validate Pull Request to '${{ github.base_ref }}'"
     runs-on: ubuntu-latest
 
     steps:
@@ -48,9 +45,9 @@ jobs:
       - name: Verify User
         shell: bash
         run: |
-          if [[ "${{ inputs.username }}" == "github-actions[bot]" ]]; then
+          if [[ "${{ github.actor }}" == "github-actions[bot]" ]]; then
             exit 0
           fi
 
-          echo "Pull requests to the branch '${{ inputs.dest_branch }}' should only be initiated by the CI machine ('${{ github.event.pull_request.user.login }}' was found)."
+          echo "Pull requests to the branch '${{ github.base_ref }}' should only be initiated by the CI machine ('${{ github.actor }}' was found)."
           exit -1
