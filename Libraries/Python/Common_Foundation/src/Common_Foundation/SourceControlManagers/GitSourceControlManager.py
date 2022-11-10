@@ -48,7 +48,7 @@ class GitSourceControlManager(SourceControlManager):
 
     @property
     def release_branch_name(self) -> str:
-        return "release"
+        return "main_stable"
 
     @property
     def tip(self) -> str:

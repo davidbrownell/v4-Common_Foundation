@@ -120,7 +120,7 @@ if not exist "%_COMMON_CODE_ABSOLUTE_DIR%\Common\Foundation" (
     echo Enlisting in Common_Fundation...
     echo.
 
-    git clone -b main_stable https://github.com/davidbrownell/v4-Common_Foundation.git "%_COMMON_CODE_ABSOLUTE_DIR%\Common\Foundation.tmp"
+    git clone --branch main_stable https://github.com/davidbrownell/v4-Common_Foundation.git "%_COMMON_CODE_ABSOLUTE_DIR%\Common\Foundation.tmp"
     if %ERRORLEVEL% NEQ 0 (
         set _ERRORLEVEL=%ERRORLEVEL%
         goto Exit
