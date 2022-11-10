@@ -44,7 +44,7 @@ runs:
             activate_statement = "pushd \"" + String.raw`${{ inputs.repo_dir }}` + "\" >> /dev/null && . ./Activate.sh";
           }
 
-          if("${{ inputs.configuration }}" != "None") {
+          if("${{ inputs.configuration }}" !== "None") {
             activate_statement += " ${{ inputs.configuration }}";
           }
 

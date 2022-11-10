@@ -113,27 +113,45 @@ runs:
       with:
         result-encoding: string
         script: |
-          var setup_statement;
+          var setup_statement = "pushd \" + String.raw`${{ inputs.repo_dir }}` + "\" && ";
 
-          if("${{ inputs.repo_name }}" == "davidbrownell/v4-Common_Foundation") {
-            setup_statement = "${{ inputs.sudo_command }}${{ inputs.local_script_prefix }}Setup${{ inputs.script_extension }}";
+          if("${{ inputs.repo_name }}" === "davidbrownell/v4-Common_Foundation") {
+
+            # Handle the case where the repo under test is v4-Common_Foundation and the request is for
+            # a branch/tag. In all other cases, this scenario is handled by Bootstrap/Enlist.
+            if("${{ inputs.branch_overrides }}" !== "") {
+              # In this scenario, the repo will be associated with the 'main_stable' branch. Switch
+              # to the desired branch since this repo is the repo under test.
+              var elements;
+
+              elements = "${{ inputs.branch_overrides }}".split(";");
+              console.assert(elements.length === 1, "%o", {elements});
+
+              elements = elements[0].split(":");
+              console.assert(elements.length === 2, "%o", {elements});
+              console.assert(elements[0] === "Common_Foundation", "%o", {elements[0]});
+
+              setup_statement += `git checkout "${elements[1]}" && `;
+            }
+
+            setup_statement += "${{ inputs.sudo_command }}${{ inputs.local_script_prefix }}Setup${{ inputs.script_extension }}";
           } else {
             var path = require("path");
 
-            setup_statement = "${{ inputs.sudo_command }}${{ inputs.local_script_prefix }}Bootstrap${{ inputs.script_extension }} \"" + path.join(String.raw`${{ inputs.working_dir }}`, "code") + "\"";
+            setup_statement += "${{ inputs.sudo_command }}${{ inputs.local_script_prefix }}Bootstrap${{ inputs.script_extension }} \"" + path.join(String.raw`${{ inputs.working_dir }}`, "code") + "\"";
 
-            if("${{ inputs.branch_overrides }}" != "") {
+            if("${{ inputs.branch_overrides }}" !== "") {
               setup_statement += " --branch-overrides \"${{ inputs.branch_overrides }}\"";
             }
           }
 
           setup_statement += " --no-interactive --no-hooks --debug";
 
-          if("${{ inputs.configuration }}" != "None") {
+          if("${{ inputs.configuration }}" !== "None") {
             setup_statement += " --configuration \"${{ inputs.configuration }}\"";
           }
 
-          return "pushd \"" + String.raw`${{ inputs.repo_dir }}` + "\" && " + setup_statement;
+          return setup_statement;
 
     - name: Results
       shell: ${{ inputs.shell_name }}
