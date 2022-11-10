@@ -14,15 +14,21 @@
 # |
 # ----------------------------------------------------------------------
 name: "OnPullRequest (release)"
-run-name: ${{ github.run_number }} [${{ github.event.pull_request.user.login }}] on ${{ github.ref_name }}
+run-name: ${{ github.run_number }} [${{ github.event.pull_request.user.login || github.event.repository.sender.login }}]
 
 on:
   pull_request:
     branches:
       - release
   workflow_dispatch:
+    inputs:
+      username:                             {type: string, required: true}
+      dest_branch:                          {type: string, required: true}
 
 jobs:
   _90d83a98-cd85-4d4e-983c-0cfc1ed495f1:
-    name: "branch: ${{ github.base_ref }}"
+    name: "branch: ${{ github.base_ref || inputs.dest_branch }}"
     uses: ./.github/workflows/callable_pr_to_release.yaml
+    with:
+      username: ${{ github.event.pull_request.user.login || inputs.username }}
+      dest_branch: ${{ github.base_ref || inputs.dest_branch }}
