@@ -38,3 +38,12 @@ jobs:
           gh pr create --base ${{ inputs.dest_branch }} --head ${{ inputs.source_branch }} --title ':robot: Merge "${{ inputs.source_branch }}" into "${{ inputs.dest_branch }}"' --body "Created by Github action." --no-maintainer-edit
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # A workflow will not trigger another workflow (to avoid recursive workflows). More info is available at
+      # https://docs.github.com/en/actions/using-workflows/triggering-a-workflow#triggering-a-workflow-from-a-workflow.
+      # To work around this, we manually trigger the workflow here.
+      - name: Trigger Workflow
+        run: |
+          gh workflow run "OnPullRequest (release)"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
