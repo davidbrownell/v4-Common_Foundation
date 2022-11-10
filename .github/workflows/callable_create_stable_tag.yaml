@@ -8,7 +8,7 @@
 # this one.
 #
 #     Code Generator:         Jinja2
-#     Input Filename:         workflows/callable_pr_to_release.jinja2.yaml
+#     Input Filename:         workflows/callable_create_stable_tag.jinja2.yaml
 #     Generated Date:         2022-11-09
 #
 # ----------------------------------------------------------------------
@@ -17,10 +17,10 @@
 
 # ----------------------------------------------------------------------
 # |
-# |  callable_pr_to_release.yaml
+# |  callable_create_stable_tag.yaml
 # |
 # |  David Brownell <db@DavidBrownell.com>
-# |      2022-11-08 11:33:24
+# |      2022-11-07 13:48:26
 # |
 # ----------------------------------------------------------------------
 # |
@@ -32,22 +32,29 @@
 # ----------------------------------------------------------------------
 on:
   workflow_call:
+    inputs:
+      branch:                               {type: string, required: true}
+      commit:                               {type: string, required: true}
 
 jobs:
-  _f3fb4717-f6fe-4a39-8a00-a88eed2b6d54:
-    name: "Validate Pull Request to '${{ github.base_ref }}'"
+  _c29f4dc3-f949-4b4f-b4c4-16d3a63aad1c:
+    name: "Create 'stable' tag on '${{ inputs.branch }}'"
     runs-on: ubuntu-latest
 
     steps:
       - name: "[Impl] Dump Contexts"
         uses: davidbrownell/v4-Common_Foundation/.github/actions/dump_contexts@CI-v1.1.0
 
-      - name: Verify User
+      - name: Checkout source
+        uses: actions/checkout@v3
+        with:
+          ref: refs/heads/${{ inputs.branch }}
+
+      - name: Create Tag
         shell: bash
         run: |
-          if [[ "${{ github.event.pull_request.user.login }}" == "github-actions[bot]" ]]; then
-            exit 0
-          fi
+          git config user.name "Github Action Bot"
+          git config user.email "<>"
 
-          echo "Pull requests to the branch '${{ github.base_ref }}' should only be initiated by the CI machine ('${{ github.event.pull_request.user.login }}' was found)."
-          exit -1
+          git tag --annotate --force -m "Stability Verified" "${{ inputs.branch }}_stable" ${{ inputs.commit }}
+          git push origin "${{ inputs.branch }}_stable" --force

@@ -46,7 +46,7 @@ jobs:
       - _1fc90631-2837-44fc-b70c-ea41ed5beae7
       - _5e328479-e73d-4578-8da8-4082491c40e9
 
-    uses: ./.github/workflows/callable_promote_to_release.yaml
+    uses: ./.github/workflows/callable_create_stable_tag.yaml
     with:
-      source_branch: ${{ github.ref_name }}
-      dest_branch: release
+      branch: ${{ github.ref_name }}
+      commit: ${{ github.sha }}
