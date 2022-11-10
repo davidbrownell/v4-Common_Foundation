@@ -113,15 +113,15 @@ runs:
       with:
         result-encoding: string
         script: |
-          var setup_statement = "pushd \" + String.raw`${{ inputs.repo_dir }}` + "\" && ";
+          var setup_statement = "pushd \"" + String.raw`${{ inputs.repo_dir }}` + "\" && ";
 
           if("${{ inputs.repo_name }}" === "davidbrownell/v4-Common_Foundation") {
 
-            # Handle the case where the repo under test is v4-Common_Foundation and the request is for
-            # a branch/tag. In all other cases, this scenario is handled by Bootstrap/Enlist.
+            // Handle the case where the repo under test is v4-Common_Foundation and the request is for
+            // a branch/tag. In all other cases, this scenario is handled by Bootstrap/Enlist.
             if("${{ inputs.branch_overrides }}" !== "") {
-              # In this scenario, the repo will be associated with the 'main_stable' branch. Switch
-              # to the desired branch since this repo is the repo under test.
+              // In this scenario, the repo will be associated with the 'main_stable' branch. Switch
+              // to the desired branch since this repo is the repo under test.
               var elements;
 
               elements = "${{ inputs.branch_overrides }}".split(";");
@@ -129,7 +129,7 @@ runs:
 
               elements = elements[0].split(":");
               console.assert(elements.length === 2, "%o", {elements});
-              console.assert(elements[0] === "Common_Foundation", "%o", {elements[0]});
+              console.assert(elements[0] === "Common_Foundation", "%o", {elements});
 
               setup_statement += `git checkout "${elements[1]}" && `;
             }
