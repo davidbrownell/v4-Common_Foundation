@@ -294,25 +294,35 @@ def _EnlistImpl(
     if PathEx.IsDescendant(all_repositories_root, source_repository):
         raise typer.BadParameter("The path for all repositories cannot be a descendant of the path for the source repository.")
 
-    # Parse the branch lookup info
-    branch_lookup: Dict[str, str] = {}
+    # ----------------------------------------------------------------------
+    def CalculateBranchInfo() -> Tuple[str, Dict[str, str]]:
+        branch_lookup: Dict[str, str] = {}
 
-    for branch_override_value in (branch_overrides or "").split(";"):
-        branch_override_value = branch_override_value.strip()
-        if not branch_override_value:
-            continue
+        for branch_override_value in (branch_overrides or "").split(";"):
+            branch_override_value = branch_override_value.strip()
+            if not branch_override_value:
+                continue
 
-        branch_override_parts = branch_override_value.split(":")
+            branch_override_parts = branch_override_value.split(":")
 
-        if len(branch_override_parts) != 2:
-            raise typer.BadParameter("'{}' is not a valid branch override value.".format(branch_override_value))
+            if len(branch_override_parts) != 2:
+                raise typer.BadParameter("'{}' is not a valid branch override value.".format(branch_override_value))
 
-        repo_name, branch = branch_override_parts
+            repo_name, override_branch = branch_override_parts
 
-        if repo_name in branch_lookup:
-            raise typer.BadParameter("The repository '{}' has already been defined.".format(repo_name))
+            if repo_name in branch_lookup:
+                raise typer.BadParameter("The repository '{}' has already been defined.".format(repo_name))
 
-        branch_lookup[repo_name] = branch
+            branch_lookup[repo_name] = override_branch
+
+        return (
+            branch or scm.release_branch_name,
+            branch_lookup,
+        )
+
+    # ----------------------------------------------------------------------
+
+    branch, branch_lookup = CalculateBranchInfo()
 
     all_repositories_root.mkdir(parents=True, exist_ok=True)
 

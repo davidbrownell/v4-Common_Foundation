@@ -116,15 +116,13 @@ runs:
             setup_statement += " --configuration \"${{ inputs.configuration }}\"";
           }
 
-          return setup_statement;
+          return "pushd \"" + String.raw`${{ inputs.repo_dir }}` + "\" && " + setup_statement;
 
     - name: Results
       shell: ${{ inputs.shell_name }}
       run: |
         echo "Setup Statement: ${{ steps.setup_statement.outputs.result }}"
 
-    - name: Execute Setup Statement
+    - name: Setup
       shell: ${{ inputs.shell_name }}
-      run: |
-        pushd "${{ inputs.repo_dir }}"
-        ${{ steps.setup_statement.outputs.result }}
+      run: ${{ steps.setup_statement.outputs.result }}
