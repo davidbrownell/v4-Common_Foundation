@@ -63,6 +63,8 @@ class Configuration(object):
     include_scm_hook: bool                  = field(kw_only=True)
     include_pyright_config: bool            = field(kw_only=True)
 
+    include_github_workflows: bool          = field(kw_only=True)
+
 
 # ----------------------------------------------------------------------
 def EntryPoint():
@@ -144,6 +146,22 @@ def EntryPoint():
 
         setattr(readmes, attribute_name, doc_format)
 
+    sys.stdout.write("\n")
+
+    include_github_workflows = False
+
+    if _Prompt("With this repository be hosted on Github? ", "yes").lower() in ["yes", "y"]:
+        include_github_workflows = _Prompt("Include Github Continuous Integration workflows? ", "yes").lower() in ["yes", "y"]
+
+        if include_github_workflows:
+            if not support_git:
+                sys.stdout.write("NOTE: Git support is required by Github workflows and will be added.\n")
+                support_git = True
+
+            if not include_bootstrap:
+                sys.stdout.write("NOTE: Bootstrap files are required by Github workflows and will be added.\n")
+                include_bootstrap = True
+
     return Execute(
         Configuration(
             repo_dir,
@@ -158,6 +176,7 @@ def EntryPoint():
             include_bootstrap=include_bootstrap,
             include_scm_hook=include_scm_hook,
             include_pyright_config=include_pyright_config,
+            include_github_workflows=include_github_workflows,
         ),
     )
 
@@ -165,6 +184,8 @@ def EntryPoint():
 def Execute(
     config: Configuration,
 ) -> None:
+    template_path = Path(__file__).parent / "Templates"
+
     # Get a list of files to copy and todo actions
     files_to_copy: List[str] = [
         "Setup_custom.py",
@@ -270,6 +291,54 @@ def Execute(
             ),
         )
 
+    if config.include_github_workflows:
+        workflow_files = [
+            os.path.join(".github", "workflows", filename)
+            for filename in [
+                "build_and_test.yaml",
+                "exercise_main.yaml",
+                "main.yaml",
+                "on_pr_to_main.yaml",
+            ]
+        ]
+
+        files_to_copy += workflow_files
+
+        actions.append(
+            textwrap.dedent(
+                """\
+                Github workflow files:
+
+                {}
+
+                Search for instances of "<< Populate (github_workflow): ... >>" in these files and make updates
+                following the instructions provided with each using information specific to this repository being
+                initialized.
+
+                    Friendly Name of this repo: {}
+                """,
+            ).format(
+                "\n".join('    - "{}"'.format(filename) for filename in workflow_files),
+                config.friendly_name,
+            ),
+        )
+
+    actions.append(
+        textwrap.dedent(
+            """\
+            After making these changes, consider...
+
+                a) Committing using the message:
+
+                    "🎉 [started_project] Initial project scaffolding."
+
+                b) Creating a tag (git) / branch (hg) based on that commit named
+
+                    "main_stable"
+            """,
+        ),
+    )
+
     # Copy the files
     with DoneManager.Create(
         sys.stdout,
@@ -277,8 +346,6 @@ def Execute(
             inflect.no("file", len(files_to_copy)),
         ),
     ):
-        template_path = Path(__file__).parent / "Templates"
-
         for file_to_copy in files_to_copy:
             source = template_path / file_to_copy
             dest = config.root / file_to_copy
@@ -286,6 +353,7 @@ def Execute(
             if dest.is_file():
                 continue
 
+            dest.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(str(source), str(dest))
 
         # Create the repo id

@@ -1,0 +1,40 @@
+name: main
+run-name: ${{ github.run_number }} [${{ github.actor }}] on ${{ github.ref_name }}
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  _a3fa3751-1863-4670-a89c-3e60a602ac0f:
+    name: "<< Populate (github_workflow): Friendly name of your repository>>"
+
+    uses: ./.github/workflows/exercise_main.yaml
+    with:
+      subject_repo_name: "<< Populate (github_workflow): Specify the name of your repository on Github in the form '<username>/<repo_name>' (e.g. 'davidbrownell/v4-Common_PythonDevelopment') >>"
+      subject_repo_branch: "${{ github.ref_name }}"
+
+  # << Populate (github_workflow): Add any additional jobs associated with repositories that should be validated upon any push in this repository >>
+  # _fa2cf2bc-3a15-4fde-8c27-656456fbf43d:
+  #   name: <Friendly name of the additional repo>
+  #
+  #   uses: <username>/<repo_name>/.github/workflows/<your workflow yaml file>.yaml@<your CI-specific tag or commit>
+  #   with:
+  #     subject_repo_name: <username>/<repo_name>
+  #     setup_branch_overrides: "<this_repo_friendly_name>:${{ github.ref_name }}"
+
+  # ----------------------------------------------------------------------
+  _d85d7987-f66b-4730-bfbc-faa03ee06958:
+    name: Promote
+
+    needs:
+      - _a3fa3751-1863-4670-a89c-3e60a602ac0f
+      # << Populate (github_workflow): Uncomment this item if you added additional jobs in the section above
+      # - _fa2cf2bc-3a15-4fde-8c27-656456fbf43d
+
+    uses: davidbrownell/v4-Common_Foundation/.github/workflows/callable_create_stable_tag.yaml@CI-v1.1.0
+    with:
+      branch: ${{ github.ref_name }}
+      commit: ${{ github.sha }}

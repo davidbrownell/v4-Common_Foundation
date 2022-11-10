@@ -1,0 +1,64 @@
+on:
+    workflow_call:
+    inputs:
+      setup_branch_overrides:
+        type: string
+        required: false
+        description: "See https://github.com/davidbrownell/v4-Common_Foundation/.github/src/_BuildAndTest.template.yaml"
+
+      subject_repo_name:
+        type: string
+        required: false
+        description: "See https://github.com/davidbrownell/v4-Common_Foundation/.github/src/_BuildAndTest.template.yaml"
+
+      subject_repo_branch:
+        type: string
+        required: false
+        description: "See https://github.com/davidbrownell/v4-Common_Foundation/.github/src/_BuildAndTest.template.yaml"
+
+jobs:
+  _2fd39e81-41e2-443b-9141-48e61bb53de2:
+    name: "<< Populate (github_workflow): Friendly name of your repository>>"
+
+    strategy:
+      matrix:
+        os:
+          # << Populate (github_workflow): Add or remove operating systems to exercise>>
+          - ubuntu-latest
+          - windows-latest
+
+        configuration:
+          - "<< Populate (github_workflow): Add configurations for your repository or 'None' if the repository is not configurable>>"
+
+    # << Populate (github_workflow):: Uncomment one of the following based on the characteristics of your repository>>
+
+    # uses: davidbrownell/v4-Common_Foundation/.github/workflows/exercise_main-Impl.yaml@CI-v1.1.0
+    # uses: davidbrownell/v4-Common_PythonDevelopment/.github/workflows/exercise_main-Impl.yaml@CI-v1.1.0
+
+    with:
+      setup_branch_overrides:               ${{ inputs.setup_branch_overrides }}
+      subject_repo_name:                    ${{ inputs.subject_repo_name }}
+      subject_repo_branch:                  ${{ inputs.subject_repo_branch }}
+
+      os:                                   ${{ matrix.os }}
+      configuration:                        ${{ matrix.configuration }}
+
+      run_Builder:                          true        # << Populate (github_workflow): set to false if necessary >>
+      # run_PylintVerifier:                   true        # << Populate (github_workflow): Enable if necessary; only valid for davidbrownell/v4-Common_PythonDevelopment/.github/workflows/exercise_main-Impl.yaml@CI-v1.1.0 >>
+
+      # Use the following values to control how different test types are run:
+      #
+      #   0: Do not run these test types
+      #   1: Run these test types without code coverage
+      #   2: Run these test types with code coverage
+      #   3: Run these test types with and without code coverage
+
+      # << Populate (github_workflow): Update these values as necessary >>
+      execute_UnitTests:                    3
+      execute_FunctionalTests:              1
+      execute_IntegrationTests:             1
+      execute_SystemTests:                  1
+      execute_LocalEndToEndTests:           1
+      execute_EndToEndTests:                0
+      execute_BuildVerificationTests:       0
+      execute_PerformanceTests:             0
