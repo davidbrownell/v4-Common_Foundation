@@ -31,13 +31,12 @@
 # |
 # ----------------------------------------------------------------------
 name: "OnPullRequest (main)"
-run-name: ${{ github.run_number }} [${{ github.event.pull_request.user.login }}] on ${{ github.ref_name }}
+run-name: ${{ github.run_number }} [${{ github.actor }}] on ${{ github.ref_name }}
 
 on:
   pull_request:
     branches:
       - main
-  workflow_dispatch:
 
 jobs:
   _7a87a26d-b601-4b29-bb5e-e86ec174ac3b:
