@@ -92,7 +92,12 @@ if [[ ${should_continue} == 1 ]]; then
         echo "Enlisting in Common_Foundation..."
         echo ""
 
-        git clone --branch main_stable https://github.com/davidbrownell/v4-Common_Foundation.git "$1/Common/Foundation.tmp"
+        git clone https://github.com/davidbrownell/v4-Common_Foundation.git "$1/Common/Foundation.tmp"
+
+        pushd "$1/Common/Foundation.tmp" > /dev/null
+        git checkout tags/main_stable
+        popd > /dev/null
+
         mv "$1/Common/Foundation.tmp" "$1/Common/Foundation"
 
         echo ""

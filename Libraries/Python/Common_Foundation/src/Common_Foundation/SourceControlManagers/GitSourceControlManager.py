@@ -19,11 +19,11 @@ import re
 import textwrap
 
 from datetime import datetime
+from enum import auto, Enum
 from pathlib import Path
-from typing import Any, Dict, List, Generator, Optional, Union
+from typing import Any, Dict, List, Generator, Optional, Tuple, Union
 
 from Common_Foundation.ContextlibEx import ExitStack
-from Common_Foundation import RegularExpression
 from Common_Foundation.Shell.All import CurrentShell
 from Common_Foundation.SourceControlManagers.SourceControlManager import DistributedRepository as DistributedRepositoryBase, SourceControlManager, UpdateMergeArgs
 from Common_Foundation import SubprocessEx
@@ -199,10 +199,6 @@ class GitSourceControlManager(SourceControlManager):
 # ----------------------------------------------------------------------
 class Repository(DistributedRepositoryBase):
     # ----------------------------------------------------------------------
-    DetachedHeadPseudoBranchName            = "__DetachedHeadPseudoBranchName_{index}_{branch_name}__"
-    _DetachedHeadPseudoBranchName_regex     = RegularExpression.TemplateStringToRegex(DetachedHeadPseudoBranchName)
-
-    # ----------------------------------------------------------------------
     def GetGetUniqueNameCommandLine(self) -> str:
         return self._GetCommandLine("git remote -v")
 
@@ -271,18 +267,7 @@ class Repository(DistributedRepositoryBase):
 
     # ----------------------------------------------------------------------
     def GetCurrentBranch(self) -> str:
-        result = GitSourceControlManager.Execute(self.GetGetCurrentBranchCommandLine())
-        assert result.returncode == 0, result.output
-
-        if result.output:
-            regex = re.compile(r"\s*\*\s+(?P<name>.+)")
-
-            for line in result.output.split("\n"):
-                match = regex.match(line)
-                if match:
-                    return match.group("name")
-
-        return self.scm.default_branch_name
+        return self._GetCurrentBranchEx()[1]
 
     # ----------------------------------------------------------------------
     def GetGetMostRecentBranchCommandLine(self) -> str:
@@ -502,41 +487,28 @@ class Repository(DistributedRepositoryBase):
             UpdateMergeArgs.BranchAndDate,
         ],
     ) -> str:
-        branch = self.GetCurrentBranch()
+        branch_type, branch_name = self._GetCurrentBranchEx()
+
+        if branch_type == Repository._BranchType.Standard:
+            command_suffix = " origin/{}".format(branch_name)
+        elif branch_type == Repository._BranchType.Tag:
+            command_suffix = " tags/{}".format(branch_name)
+        elif branch_type == Repository._BranchType.Commit:
+            raise Exception("A branch in a 'DETACHED HEAD' state based on a commit cannot be updated")
+        else:
+            assert False, branch_type  # pragma: no cover
 
         commands: List[str] = [
-            'git merge --ff-only "origin/{}"'.format(branch),
+            'git merge --ff-only{}'.format(command_suffix),
         ]
 
         if update_arg is None:
             pass
         elif isinstance(update_arg, UpdateMergeArgs.Branch):
             commands.insert(0, 'git checkout "{}"'.format(update_arg.branch))
-        elif isinstance(update_arg, (UpdateMergeArgs.Change, UpdateMergeArgs.Branch, UpdateMergeArgs.BranchAndDate)):
+        elif isinstance(update_arg, (UpdateMergeArgs.Change, UpdateMergeArgs.BranchAndDate)):
             revision = self._GetUpdateMergeArgCommandLine(update_arg)
-
-            # Updating to a specific revision within Git is interesting, as one will find
-            # themselves in a "DETACHED HEAD" state. While this makes a lot of sense from
-            # a commit perspective, it doesn't make as much sense from a reading perspective
-            # (especially in scenarios where it is necessary to derive the branch name from the
-            # current state, as will be the case during Reset). To work around this, Update to
-            # a new branch that is cleverly named in a way that can be parsed by commands that
-            # need this sort of information.
-            existing_branch_names = set(self.EnumBranches())
-
-            index = 0
-            while True:
-                potential_branch_name = self.DetachedHeadPseudoBranchName.format(
-                    index=index,
-                    branch_name=branch,
-                )
-
-                if potential_branch_name not in existing_branch_names:
-                    break
-
-                index += 1
-
-            commands.append('git checkout {} -b "{}"'.format(revision, potential_branch_name))
+            commands.append('git checkout {}'.format(revision))
         else:
             assert False, update_arg  # pragma: no cover
 
@@ -586,13 +558,13 @@ class Repository(DistributedRepositoryBase):
         # ----------------------------------------------------------------------
 
         if source_merge_arg is None:
-            source_branch = self.GetCurrentBranch()
+            source_branch = self._GetCurrentBranchEx(detached_is_error=True)[1]
 
         elif isinstance(source_merge_arg, UpdateMergeArgs.Change):
             source_branch = self._GetBranchAssociatedWithChange(source_merge_arg.change)
 
         elif isinstance(source_merge_arg, UpdateMergeArgs.Date):
-            source_branch = self.GetCurrentBranch()
+            source_branch = self._GetCurrentBranchEx(detached_is_error=True)[1]
 
             additional_filters.append(
                 '--{}="{}"'.format(
@@ -790,21 +762,13 @@ class Repository(DistributedRepositoryBase):
 
         # See if we are looking at a detached head pseudo branch. If so, extract the actual branch
         # name and switch to that before running other commands.
-        branch = self.GetCurrentBranch()
-
-        match = self._DetachedHeadPseudoBranchName_regex.match(branch)
-        if match:
-            branch = match.group("branch_name")
-            commands.append('get checkout "{}"'.format(branch))
-
-        # Remove any of the pseudo branches that have been created
-        for potential_delete_branch in self.EnumBranches():
-            if self._DetachedHeadPseudoBranchName_regex.match(potential_delete_branch):
-                commands.append('git branch -D "{}"'.format(potential_delete_branch))
+        branch_type, branch_name = self._GetCurrentBranchEx()
 
         commands += [
             "git clean -xdf",
-            'git reset --hard "origin/{}"'.format(branch),
+            'git reset --hard{}'.format(
+                " origin/{}".format(branch_name) if branch_type == Repository._BranchType.Standard else "",
+            ),
         ]
 
         return self._GetCommandLine(" && ".join(commands))
@@ -867,7 +831,9 @@ class Repository(DistributedRepositoryBase):
             " && ".join(
                 [
                     "git remote update origin",
-                    'git --no-pager log "origin/{}..HEAD" --format="%H"'.format(self.GetCurrentBranch()),
+                    'git --no-pager log "origin/{}..HEAD" --format="%H"'.format(
+                        self._GetCurrentBranchEx(detached_is_error=True)[1],
+                    ),
                 ],
             ),
         )
@@ -915,7 +881,9 @@ class Repository(DistributedRepositoryBase):
             " && ".join(
                 [
                     "git remote update origin",
-                    'git --no-pager log "HEAD..origin/{}" --format="%H"'.format(self.GetCurrentBranch()),
+                    'git --no-pager log "HEAD..origin/{}" --format="%H"'.format(
+                        self._GetCurrentBranchEx(detached_is_error=True)[1],
+                    ),
                 ],
             ),
         )
@@ -949,7 +917,9 @@ class Repository(DistributedRepositoryBase):
         ]
 
         if create_remote_branch:
-            commands[0] += ' --set-upstream origin "{}"'.format(self.GetCurrentBranch())
+            commands[0] += ' --set-upstream origin "{}"'.format(
+                self._GetCurrentBranchEx(detached_is_error=True)[1],
+            )
 
         return " && ".join(commands)
 
@@ -979,7 +949,24 @@ class Repository(DistributedRepositoryBase):
         return self._GetCommandLine(" && ".join(commands))
 
     # ----------------------------------------------------------------------
+    # |
+    # |  Private Types
+    # |
     # ----------------------------------------------------------------------
+    class _BranchType(Enum):
+        # Branch is a standard branch
+        Standard                            = auto()
+
+        # Branch is based on a tag (in a detached head state)
+        Tag                                 = auto()
+
+        # Branch is based on a specific commit (in a detached head state)
+        Commit                              = auto()
+
+    # ----------------------------------------------------------------------
+    # |
+    # |  Private Methods
+    # |
     # ----------------------------------------------------------------------
     def _Execute(self, *args, **kwargs) -> SubprocessEx.RunResult:
         return GitSourceControlManager.Execute(*args, **kwargs)
@@ -990,6 +977,60 @@ class Repository(DistributedRepositoryBase):
         command_line: str,
     ) -> str:
         return command_line.replace("git ", 'git -C "{}" '.format(str(self.repo_root)))
+
+    # ----------------------------------------------------------------------
+    def _GetCurrentBranchEx(
+        self,
+        *,
+        detached_is_error: bool=False,
+        detached_error_template: str="The requested operation is not valid on a branch in a 'DETACHED HEAD' state ({}).",
+    ) -> Tuple["Repository._BranchType", str]:
+        # Get the branch name
+        branch_name: Optional[str] = None
+
+        result = GitSourceControlManager.Execute("git branch --no-color")
+        assert result.returncode == 0, result.output
+
+        if result.output:
+            regex = re.compile(r"\s*\*\s+(?P<name>.+)")
+
+            for line in result.output.split("\n"):
+                match = regex.match(line)
+                if match:
+                    branch_name = match.group("name")
+                    break
+
+        if branch_name is None:
+            branch_name = self.scm.default_branch_name
+
+        # Get the branch type
+        detached_head_match = re.match(
+            r"^\(HEAD detached at (?P<value>.+?)\)$",
+            branch_name,
+        )
+
+        if detached_head_match:
+            branch_name = detached_head_match.group("value")
+
+            # If here, we are either looking at a branch based off of a specific commit
+            # or a branch based off of a tag.
+            result = GitSourceControlManager.Execute("git tag --points-at HEAD")
+
+            if result.returncode == 0 and result.output:
+                branch_type = Repository._BranchType.Tag
+            else:
+                branch_type = Repository._BranchType.Commit
+
+            # Note that I wouldn't be surprised if there are other types here that are missed
+
+            if detached_is_error:
+                raise Exception(detached_error_template.format(branch_type))
+
+        else:
+            branch_type = Repository._BranchType.Standard
+
+        assert branch_name is not None
+        return branch_type, branch_name
 
     # ----------------------------------------------------------------------
     def _GetUpdateMergeArgCommandLine(
@@ -1011,7 +1052,10 @@ class Repository(DistributedRepositoryBase):
             if branch:
                 branches = [branch]
             else:
-                branches = [self.GetCurrentBranch(), self.scm.default_branch_name]
+                branches = [
+                    self._GetCurrentBranchEx(detached_is_error=True)[1],
+                    self.scm.default_branch_name,
+                ]
 
             if not greater_than:
                 operator = "until"
