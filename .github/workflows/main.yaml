@@ -9,7 +9,7 @@
 #
 #     Code Generator:         Jinja2
 #     Input Filename:         workflows/main.jinja2.yaml
-#     Generated Date:         2022-11-09
+#     Generated Date:         2022-11-10
 #
 # ----------------------------------------------------------------------
 # ----------------------------------------------------------------------
@@ -46,7 +46,6 @@ jobs:
     with:
       setup_branch_overrides: "Common_Foundation:${{ github.ref_name }}"
       subject_repo_name: "davidbrownell/v4-Common_Foundation"
-      subject_repo_branch: main
 
   # TODO: _5e328479-e73d-4578-8da8-4082491c40e9:
   # TODO:   name: "[Common_PythonDevelopment]"
