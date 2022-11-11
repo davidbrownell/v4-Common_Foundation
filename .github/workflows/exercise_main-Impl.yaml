@@ -9,7 +9,7 @@
 #
 #     Code Generator:         Jinja2
 #     Input Filename:         workflows/exercise_main-Impl.jinja2.yaml
-#     Generated Date:         2022-11-10
+#     Generated Date:         2022-11-11
 #
 # ----------------------------------------------------------------------
 # ----------------------------------------------------------------------
@@ -135,7 +135,6 @@ jobs:
           repo_dir:                         ${{ steps.checkout_source.outputs.repo_dir }}
           branch_overrides:                 ${{ inputs.setup_branch_overrides }}
 
-          os:                               ${{ inputs.os }}
           configuration:                    ${{ inputs.configuration }}
 
           local_script_prefix:              ${{ steps.initialize.outputs.local_script_prefix }}

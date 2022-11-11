@@ -110,7 +110,9 @@ if [[ ${should_continue} == 1 ]]; then
         echo ""
 
         pushd "$1/Common/Foundation" > /dev/null
-        git pull
+
+        git fetch origin main_stable
+
         popd > /dev/null
 
         echo ""

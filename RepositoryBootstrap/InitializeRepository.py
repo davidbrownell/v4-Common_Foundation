@@ -328,11 +328,15 @@ def Execute(
             """\
             After making these changes, consider...
 
-                a) Committing using the message:
+                a) Adding execution permissions for all .sh files:
+
+                    `chmod a+x *.sh`
+
+                b) Committing using the message:
 
                     "🎉 [started_project] Initial project scaffolding."
 
-                b) Creating a tag (git) / branch (hg) based on that commit named
+                c) Creating a tag (git) / branch (hg) based on that commit named
 
                     "main_stable"
             """,

@@ -406,9 +406,15 @@ class RepositoryMapCalculator(ABC):
                                 for drive in win32api.GetLogicalDriveStrings().split("\000")
                                 if drive and win32file.GetDriveType(drive) == win32file.DRIVE_FIXED  # type: ignore
                             ]:
-                                search_dirs.append((Path(drive), False))  # type: ignore
+                                drive = Path(drive)
+
+                                if is_valid_ancestor_func(drive):
+                                    search_dirs.append((drive, False))  # type: ignore
                         else:
-                            search_dirs.append((Path(repository_root.root), False))  # type: ignore
+                            repo_root = Path(repository_root.root)
+
+                            if is_valid_ancestor_func(repo_root):
+                                search_dirs.append((repo_root, False))  # type: ignore
 
                         # Execute the search
                         searched_dirs: Set[Path] = set()
