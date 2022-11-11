@@ -698,7 +698,15 @@ def _SetupImpl(
         )
 
         for setup_path, setup_configurations in setup_info.items():
-            command_suffixes: List[str] = []
+            command_suffixes: List[str] = [
+                "--search-depth", str(search_depth),
+                "--required-ancestor-dir", str(all_repositories_root),
+            ]
+
+            if max_num_searches is not None:
+                command_suffixes += [
+                    "--max-num-searches", str(max_num_searches),
+                ]
 
             if not traverse_all and setup_configurations:
                 command_suffixes += [

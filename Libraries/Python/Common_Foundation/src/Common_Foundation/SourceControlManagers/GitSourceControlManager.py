@@ -1007,7 +1007,7 @@ class Repository(DistributedRepositoryBase):
 
         # Get the branch type
         detached_head_match = re.match(
-            r"^\(HEAD detached at (?P<value>.+?)\)$",
+            r"^\(HEAD detached (?:at|from) (?P<value>.+?)\)$",
             branch_name,
         )
 

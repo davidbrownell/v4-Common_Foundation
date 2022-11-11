@@ -75,7 +75,7 @@ app                                         = typer.Typer(
 
 
 # ----------------------------------------------------------------------
-MAX_DISPLAY_COLS                            = 160
+DEFAULT_SEARCH_DEPTH                        = 6
 
 
 # ----------------------------------------------------------------------
@@ -84,7 +84,7 @@ def Setup(
     output_filename_or_stdout: str=typer.Argument(..., help="Filename for generated content or standard output if the value is 'stdout'."),
     repository_root: Path=typer.Argument(..., exists=True, file_okay=False, resolve_path=True, help="Root of the repository."),
     configurations: Optional[List[str]]=typer.Option(None, "--configuration", help="Configurations to setup; all configurations will be setup if explicit values are not provided."),
-    search_depth: Optional[int]=typer.Option(6, min=1, help="Limit searches to N path-levels deep."),
+    search_depth: Optional[int]=typer.Option(DEFAULT_SEARCH_DEPTH, min=1, help="Limit searches to N path-levels deep."),
     max_num_searches: Optional[int]=typer.Option(None, min=1, help="Limit the number of directories searched when looking for dependencies; this value can be used to reduce the overall time it takes to search for dependencies that ultimately can't be found."),
     required_ancestor_dirs: Optional[List[Path]]=typer.Option(None, "--required-ancestor-dir", exists=True, file_okay=False, resolve_path=True, help="When searching for dependencies, limit the search to directories that are descendants of this ancestor."),
     no_hooks: bool=typer.Option(False, "--no-hooks", help="Do not setup SCM hooks."),
@@ -107,6 +107,15 @@ def Setup(
 
     if any(config == "None" for config in (configurations or [])):
         raise typer.BadParameter("'None' is not a valid configuration.")
+
+    # Update the search depth based on the require dir info
+    if required_ancestor_dirs and search_depth == DEFAULT_SEARCH_DEPTH:
+        if len(required_ancestor_dirs) == 1:
+            max_num_required_dirs = len(required_ancestor_dirs[0].parts)
+        else:
+            max_num_required_dirs = max(*(len(path.parts) for path in required_ancestor_dirs))
+
+        search_depth += max_num_required_dirs
 
     with RepositoryMapCalculator.GetCustomizationMod(repository_root) as customization_mod:
         # ----------------------------------------------------------------------
@@ -624,7 +633,7 @@ def _SetupBootstrap(
             required_ancestor_dirs or None,
             recurse=False,
             explicit_configurations=configurations or None,
-            additional_search_dirs=None,
+            additional_search_dirs=required_ancestor_dirs or None,
         )
 
         nested_dm.PreserveStatus()
