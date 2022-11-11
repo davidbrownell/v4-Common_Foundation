@@ -763,7 +763,7 @@ def _SetupBootstrap(
             ],
         )
 
-    # Find the foundation repository
+    # Find the foundation repository (we will only find this if the repo has a direct dependency on it)
     foundation_repo = None
     foundation_repo_id = uuid.UUID("DD6FCD30-B043-4058-B0D5-A6C8BC0374F4")
 
@@ -772,14 +772,14 @@ def _SetupBootstrap(
             foundation_repo = repo
             break
 
-    assert foundation_repo is not None
+    foundation_repo_root = foundation_repo.root if foundation_repo else Utilities.GetFoundationRepositoryRoot()
 
     # Update the environment so this value is used by the other activities
-    os.environ[Constants.DE_FOUNDATION_ROOT_NAME] = str(foundation_repo.root)
+    os.environ[Constants.DE_FOUNDATION_ROOT_NAME] = str(foundation_repo_root)
 
     # Create the bootstrap data
     EnvironmentBootstrap(
-        foundation_repo.root,
+        foundation_repo_root,
         repo_data.configurations,
         fingerprints,
         dependencies,
