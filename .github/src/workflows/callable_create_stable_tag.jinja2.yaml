@@ -39,5 +39,5 @@ jobs:
           git config user.name "Github Action Bot"
           git config user.email "<>"
 
-          git tag --annotate --force -m "Stability Verified" "${{ inputs.branch }}_stable" ${{ inputs.commit }}
+          git tag --annotate --force -m "🤖 Stability Verified" "${{ inputs.branch }}_stable" ${{ inputs.commit }}
           git push origin "${{ inputs.branch }}_stable" --force
