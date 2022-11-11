@@ -105,9 +105,9 @@ class StreamDecorator(TextWriter):
         self._isatty                        = any(getattr(stream, "isatty", lambda: False)() for stream in self._streams)
 
         # Set the capabilities for this stream
-        lowest_capabilities: Optional[Capabilities] = None
-
         if self._streams:
+            lowest_capabilities: Optional[Capabilities] = None
+
             for stream in self._streams:
                 capabilities = Capabilities.Get(stream)
 
@@ -115,7 +115,16 @@ class StreamDecorator(TextWriter):
                     lowest_capabilities = capabilities
 
             assert lowest_capabilities is not None
+
             Capabilities.Set(self, lowest_capabilities)
+        else:
+            Capabilities.Create(
+                self,
+                columns=Capabilities.DEFAULT_CONSOLE_WIDTH,
+                is_interactive=False,
+                supports_colors=False,
+                is_headless=True,
+            )
 
     # ----------------------------------------------------------------------
     @property

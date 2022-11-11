@@ -164,7 +164,7 @@ class Capabilities(object):
         stream: Union[TextIO, TextWriter],
         capabilities: "Capabilities",
     ) -> None:
-        assert getattr(stream, cls._EMBEDDED_CAPABILITIES_ATTRIBUTE_NAME, None) is None, stream
+        assert getattr(stream, cls._EMBEDDED_CAPABILITIES_ATTRIBUTE_NAME, None) is None
         setattr(stream, cls._EMBEDDED_CAPABILITIES_ATTRIBUTE_NAME, capabilities)
 
     # ----------------------------------------------------------------------
@@ -262,91 +262,83 @@ class Capabilities(object):
         is_headless: Optional[bool]=None,
     ) -> "Capabilities":
         # columns
+        forced_columns = False
+
         if columns is not None:
-            value = columns
-            columns = True
+            forced_columns = True
         else:
             value = os.getenv(cls.SIMULATE_TERMINAL_COLUMNS_ENV_VAR)
             if value is not None:
-                value = int(value)
-                columns = True
-
+                columns = int(value)
+                forced_columns = True
             else:
-                value = cls.DEFAULT_CONSOLE_WIDTH
-
-        # The columns value should always signal that we had a forced value,
-        # as we are applying a default.
-        columns = True
-        final_columns = value
+                columns = cls.DEFAULT_CONSOLE_WIDTH
+                forced_columns = True
 
         # is_interactive
-        if is_interactive is not None:
-            value = is_interactive
-            is_interactive = True
+        forced_is_interactive = False
+
+        if is_interactive:
+            forced_is_interactive = True
         else:
             value = os.getenv(cls.SIMULATE_TERMINAL_INTERACTIVE_ENV_VAR)
             if value is not None:
-                value = not value == "0"
-                is_interactive = True
-
+                is_interactive = not value == "0"
+                forced_is_interactive = True
             else:
-                value = stream.isatty()
-
-        final_is_interactive = value
+                is_interactive = stream.isatty()
 
         # supports_colors
+        forced_supports_colors = False
+
         if supports_colors is not None:
-            value = supports_colors
-            supports_colors = True
+            forced_supports_colors = True
         else:
             value = os.getenv(cls.SIMULATE_TERMINAL_COLORS_ENV_VAR)
             if value is not None:
-                value = not value == "0"
-                supports_colors = True
-
+                supports_colors = not value == "0"
+                forced_supports_colors = True
             else:
-                value = final_is_interactive
-
-        final_supports_colors = value
+                supports_colors = is_interactive
 
         # is_headless
+        forced_is_headless = False
+
         if is_headless is not None:
-            value = is_headless
-            is_headless = True
+            forced_is_headless = True
         else:
             value = os.getenv(cls.SIMULATE_TERMINAL_HEADLESS_ENV_VAR)
             if value is not None:
-                value = not value == "0"
-                is_headless = True
-
+                is_headless = not value == "0"
+                forced_is_headless = True
             else:
+                # default is based on interactive
+                is_headless = not is_interactive
+
                 try:
                     from ..Shell.All import CurrentShell
 
-                    value = CurrentShell.IsContainerEnvironment()
-
-                    if not final_is_interactive:
-                        value = True
+                    is_headless = CurrentShell.IsContainerEnvironment()
 
                 except Exception as ex:
                     # This functionality can be invoked very early during the activation process. If so,
                     # catch this error and assume that we are headless until we know otherwise.
                     if "No shell found for" in str(ex):
-                        value = True
+                        is_headless = True
                     else:
                         raise
 
-        final_is_headless = value
+        assert is_headless is not None
 
         return Capabilities(
-            columns=final_columns,
-            is_interactive=final_is_interactive,
-            supports_colors=final_supports_colors,
-            is_headless=final_is_headless,
-            _forced_columns=columns is True,
-            _forced_is_interactive=is_interactive is True,
-            _forced_supports_colors=supports_colors is True,
-            _forced_is_headless=is_headless is True,
+            columns=columns,
+            is_interactive=is_interactive,
+            supports_colors=supports_colors,
+            is_headless=is_headless,
+            _forced_columns=forced_columns,
+            _forced_is_interactive=forced_is_interactive,
+            _forced_supports_colors=forced_supports_colors,
+            _forced_is_headless=forced_is_headless,
         )
 
     # ----------------------------------------------------------------------

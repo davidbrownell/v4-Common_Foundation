@@ -17,6 +17,7 @@
 
 import datetime
 import multiprocessing
+import sys
 import threading
 import time
 import traceback
@@ -27,12 +28,14 @@ from contextlib import contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Iterator, List, Optional, Protocol, Tuple, TypeVar
+from unittest.mock import MagicMock
 
 from rich.progress import Progress, TaskID, TimeElapsedColumn
 
 from Common_Foundation.ContextlibEx import ExitStack
 from Common_Foundation import PathEx
 from Common_Foundation.Shell.All import CurrentShell
+from Common_Foundation.Streams.Capabilities import Capabilities
 from Common_Foundation.Streams.DoneManager import DoneManager
 from Common_Foundation.Streams.StreamDecorator import StreamDecorator
 from Common_Foundation import TextwrapEx
@@ -455,11 +458,18 @@ def _GenerateStatusInfo(
         with execute_dm.YieldStdout() as stdout_context:
             stdout_context.persist_content = False
 
+            # Technically speaking, it would be more correct to use `stdout_context.stream` here
+            # rather than referencing `sys.stdout` directly, but it is really hard to get work with
+            # this object when using a mock. So, use sys.stdout directly to avoid that particular
+            # problem.
+            assert stdout_context.stream is sys.stdout or isinstance(stdout_context.stream, MagicMock), stdout_context.stream
+
             # Create the progress bar
             progress_bar = Progress(
                 *Progress.get_default_columns(),
                 TimeElapsedColumn(),
                 "{task.fields[status]}",
+                console=Capabilities.Get(sys.stdout).CreateRichConsole(sys.stdout),
                 transient=True,
                 refresh_per_second=refresh_per_second or 10,
             )
