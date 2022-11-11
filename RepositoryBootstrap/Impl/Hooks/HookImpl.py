@@ -27,8 +27,6 @@ from collections import namedtuple
 from pathlib import Path
 from typing import Dict, Generator, List, Optional, Set, Union
 
-from rich import reconfigure, get_console
-
 from Common_Foundation.ContextlibEx import ExitStack
 from Common_Foundation.Shell.All import CurrentShell
 from Common_Foundation.SourceControlManagers.SourceControlManager import Repository

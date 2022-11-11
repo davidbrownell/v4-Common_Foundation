@@ -21,7 +21,6 @@ inputs:
   repo_dir:                                 {type: string, required: true}
   branch_overrides:                         {type: string, required: false}
 
-  os:                                       {type: string, required: true}
   configuration:                            {type: string, required: true}
 
   local_script_prefix:                      {type: string, required: true}
@@ -33,63 +32,6 @@ inputs:
 runs:
   using: composite
   steps:
-    # Do not let repositories in the '_actions' directory be used as dependency repositories during the bootstrap process
-    # (as the fall outside the `all_repositories_root` directory and are therefore not setup).
-
-    # There are probably shell scripts to do this cleaning, but it feels easier to do the work in python
-    - name: Generate Clean Actions (ubuntu)
-      if: ${{ inputs.repo_name != 'davidbrownell/v4-Common_Foundation' && startsWith(inputs.os, 'ubuntu') }}
-      run: |
-          cat > _clean_action_dir.py <<EOF
-          import os
-          from pathlib import Path
-
-          for parent in Path.cwd().parents:
-            potential_folder = parent / '_actions'
-            if potential_folder.is_dir():
-              for root, _, filenames in os.walk(potential_folder):
-                for filename in filenames:
-                  if filename == '__RepositoryId__':
-                    fullpath = Path(root) / filename
-                    print(fullpath)
-
-                    fullpath.unlink()
-
-              break
-          EOF
-      shell: bash
-
-    - name: Generate Clean Actions (windows)
-      if: ${{ inputs.repo_name != 'davidbrownell/v4-Common_Foundation' && startsWith(inputs.os, 'windows') }}
-      run: |
-        $python_content = @"
-        import os
-        from pathlib import Path
-
-        for parent in Path.cwd().parents:
-          potential_folder = parent / '_actions'
-          if potential_folder.is_dir():
-            for root, _, filenames in os.walk(potential_folder):
-              for filename in filenames:
-                if filename == '__RepositoryId__':
-                  fullpath = Path(root) / filename
-                  print(fullpath)
-
-                  fullpath.unlink()
-
-            break
-        "@
-
-        Add-Content "_clean_action_dir.py" $python_content
-      shell: powershell
-
-    - name: Clean Actions
-      if: ${{ inputs.repo_name != 'davidbrownell/v4-Common_Foundation' }}
-      run: |
-        python _clean_action_dir.py
-        python -c "import os; os.remove('_clean_action_dir.py')"
-      shell: ${{ inputs.shell_name }}
-
     - name: Setup Statement
       id: setup_statement
       uses: actions/github-script@v6

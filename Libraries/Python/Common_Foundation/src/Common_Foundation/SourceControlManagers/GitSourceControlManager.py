@@ -494,7 +494,8 @@ class Repository(DistributedRepositoryBase):
         elif branch_type == Repository._BranchType.Tag:
             command_suffix = " tags/{}".format(branch_name)
         elif branch_type == Repository._BranchType.Commit:
-            raise Exception("A branch in a 'DETACHED HEAD' state based on a commit cannot be updated")
+            # Nothing to do here
+            return ""
         else:
             assert False, branch_type  # pragma: no cover
 
@@ -928,27 +929,24 @@ class Repository(DistributedRepositoryBase):
         self,
         branch_or_branches: Union[None, str, List[str]]=None,
     ) -> str:
-        commands: List[str] = [
-            "git fetch --all",
-            "git fetch --all --tags",
-        ]
+        commands: List[str] = []
 
-        if branch_or_branches is not None:
+        if branch_or_branches:
             if isinstance(branch_or_branches, list):
                 branches = branch_or_branches
             else:
                 branches = [branch_or_branches, ]
 
-            # Determine if these are branches or tags
-            for branch in branches:
-                result = GitSourceControlManager.Execute(
-                    self._GetCommandLine('git ls-remote --exit-code --heads . "{}"'.format(branch)),
-                )
+            commands += [
+                'git fetch origin {}'.format(branch)
+                for branch in branches
+            ]
 
-                if result.returncode == 0:
-                    commands.append('git checkout -B "{name}" "origin/{name}"'.format(name=branch))
-                else:
-                    commands.append('git checkout "tags/{}"'.format(branch))
+        else:
+            commands += [
+                "git fetch --all",
+                "git fetch --all --tags",
+            ]
 
         return self._GetCommandLine(" && ".join(commands))
 
