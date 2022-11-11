@@ -32,7 +32,7 @@ from .. import DataTypes
 # |  Public Functions
 # |
 # ----------------------------------------------------------------------
-def GetFoundationRepository() -> Path:
+def GetFoundationRepositoryRoot() -> Path:
     """Returns the path to the foundation repository"""
 
     # Try to get the value from the environment
