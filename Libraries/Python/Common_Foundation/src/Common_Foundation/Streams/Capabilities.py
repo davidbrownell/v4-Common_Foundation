@@ -315,18 +315,19 @@ class Capabilities(object):
                 # default is based on interactive
                 is_headless = not is_interactive
 
-                try:
-                    from ..Shell.All import CurrentShell
+                if not is_headless:
+                    try:
+                        from ..Shell.All import CurrentShell
 
-                    is_headless = CurrentShell.IsContainerEnvironment()
+                        is_headless = CurrentShell.IsContainerEnvironment()
 
-                except Exception as ex:
-                    # This functionality can be invoked very early during the activation process. If so,
-                    # catch this error and assume that we are headless until we know otherwise.
-                    if "No shell found for" in str(ex):
-                        is_headless = True
-                    else:
-                        raise
+                    except Exception as ex:
+                        # This functionality can be invoked very early during the activation process. If so,
+                        # catch this error and assume that we are headless until we know otherwise.
+                        if "No shell found for" in str(ex):
+                            is_headless = True
+                        else:
+                            raise
 
         assert is_headless is not None
 
