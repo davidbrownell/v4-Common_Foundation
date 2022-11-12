@@ -73,8 +73,9 @@ class GitSourceControlManager(SourceControlManager):
         *,
         strip: bool=False,
         add_newline: bool=False,
+        cwd: Optional[Path]=None,
     ) -> SubprocessEx.RunResult:
-        result = SubprocessEx.Run(command_line)
+        result = SubprocessEx.Run(command_line, cwd=cwd)
 
         # Sanitize the output
         output: List[str] = []
@@ -1015,8 +1016,13 @@ class Repository(DistributedRepositoryBase):
             branch_name = detached_head_match.group("value")
 
             # If here, we are either looking at a branch based off of a specific commit
-            # or a branch based off of a tag.
-            result = GitSourceControlManager.Execute(self._GetCommandLine("git tag --points-at HEAD"))
+            # or a branch based off of a tag. Note that we can't use the -C method to
+            # perform the command in a different directory, so we have to change the
+            # working directory instead.
+            result = GitSourceControlManager.Execute(
+                "git tag --points-at HEAD",
+                cwd=self.repo_root,
+            )
 
             if result.returncode == 0 and result.output:
                 branch_type = Repository._BranchType.Tag
