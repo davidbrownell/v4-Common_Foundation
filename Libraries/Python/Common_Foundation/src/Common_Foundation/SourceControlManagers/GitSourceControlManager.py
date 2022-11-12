@@ -1016,7 +1016,7 @@ class Repository(DistributedRepositoryBase):
 
             # If here, we are either looking at a branch based off of a specific commit
             # or a branch based off of a tag.
-            result = GitSourceControlManager.Execute("git tag --points-at HEAD")
+            result = GitSourceControlManager.Execute(self._GetCommandLine("git tag --points-at HEAD"))
 
             if result.returncode == 0 and result.output:
                 branch_type = Repository._BranchType.Tag
