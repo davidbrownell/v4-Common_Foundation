@@ -990,7 +990,7 @@ class Repository(DistributedRepositoryBase):
         # Get the branch name
         branch_name: Optional[str] = None
 
-        result = GitSourceControlManager.Execute("git branch --no-color")
+        result = GitSourceControlManager.Execute(self._GetCommandLine("git branch --no-color"))
         assert result.returncode == 0, result.output
 
         if result.output:
