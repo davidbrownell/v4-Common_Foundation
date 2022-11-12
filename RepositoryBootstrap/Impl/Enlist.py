@@ -565,11 +565,7 @@ def _EnlistImpl(
                 clone_uri = _GetCloneUri(data, scm)
                 this_output_dir = all_repositories_root.joinpath(*data.friendly_name.split("_"))
 
-                scm.Clone(
-                    clone_uri,
-                    this_output_dir,
-                    branch,
-                )
+                scm.Clone(clone_uri, this_output_dir)
 
             # ----------------------------------------------------------------------
 
