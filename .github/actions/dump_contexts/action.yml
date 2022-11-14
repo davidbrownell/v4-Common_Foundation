@@ -33,48 +33,84 @@
 name: Dump GitHub Action Contexts
 description: Dumps different contexts.
 
+# For these steps, I want to print the json content. Unfortunately, I haven't been able to figure out
+# a way to escape characters required to display the json content (for example, "echo '${{ toJson(...) }}'
+# runs into problems when the json content contains "'" chars.
+#
+# What follows feels like a MASSIVE hack.
+
 runs:
   using: composite
   steps:
-    - name: Dump GitHub context
+    - name: Dump github Context
       shell: bash
       run: |
         echo "github:"
         echo ""
-        echo ${{ toJSON(github) }}
 
+        cat > _github_context <<EOL
+        ${{ toJSON(github) }}
+        EOL
 
-    - name: Dump job context
+        cat _github_context
+
+    - name: Dump job Context
       shell: bash
       run: |
         echo "job:"
         echo ""
-        echo ${{ toJSON(job) }}
 
-    - name: Dump steps context
+        cat > _job_context <<EOL
+        ${{ toJSON(job) }}
+        EOL
+
+        cat _job_context
+
+    - name: Dump steps Context
       shell: bash
       run: |
         echo "steps:"
         echo ""
-        echo ${{ toJSON(steps) }}
 
-    - name: Dump runner context
+        cat > _steps_context <<EOL
+        ${{ toJSON(steps) }}
+        EOL
+
+        cat _steps_context
+
+    - name: Dump runner Context
       shell: bash
       run: |
         echo "runner:"
         echo ""
-        echo ${{ toJSON(runner) }}
 
-    - name: Dump strategy context
+        cat > _runner_context <<EOL
+        ${{ toJSON(runner) }}
+        EOL
+
+        cat _runner_context
+
+    - name: Dump strategy Context
       shell: bash
       run: |
         echo "strategy:"
         echo ""
-        echo ${{ toJSON(strategy) }}
 
-    - name: Dump matrix context
+        cat > _strategy_context <<EOL
+        ${{ toJSON(strategy) }}
+        EOL
+
+        cat _strategy_context
+
+    - name: Dump matrix Context
       shell: bash
       run: |
         echo "matrix:"
         echo ""
-        echo ${{ toJSON(matrix) }}
+
+        cat > _matrix_context <<EOL
+        ${{ toJSON(matrix) }}
+        EOL
+
+        cat _matrix_context
+

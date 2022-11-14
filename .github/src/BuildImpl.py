@@ -236,7 +236,10 @@ def CreateBuildInfoInstance(
 
                         file_dm.WriteVerbose("Command Line: {}\n\n".format(command_line))
 
-                        result = SubprocessEx.Run(command_line)
+                        result = SubprocessEx.Run(
+                            command_line,
+                            supports_colors=file_dm.capabilities.supports_colors,
+                        )
 
                         file_dm.result = result.returncode
 
