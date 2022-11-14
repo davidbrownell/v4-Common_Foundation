@@ -359,9 +359,11 @@ class _StatusFactory(object):
                 if not self._factory_self._is_verbose:
                     return
 
-                prefix = "[bright_black]VERBOSE: [/]"
+                assert TextwrapEx.VERBOSE_COLOR_ON == "\033[;7m", "Ensure that the colors stay in sync"
+                prefix = "[black on white]VERBOSE:[/] "
             else:
-                prefix = "[bright_black]INFO: [/]"
+                assert TextwrapEx.INFO_COLOR_ON == "\033[;7m", "Ensure that the colors stay in sync"
+                prefix = "[black on white]INFO:[/] "
 
             self._factory_self._progress_bar.print(
                 "{line_prefix}{prefix}{value}".format(
@@ -493,6 +495,8 @@ def _GenerateStatusInfo(
                         execute_dm.result = task_data.result
 
                     if not quiet:
+                        assert TextwrapEx.ERROR_COLOR_ON == "\033[31;1m", "Ensure that the colors stay in sync"
+
                         progress_bar.print(
                             r"{prefix}[bold red]ERROR:[/] {name}: {result}{short_desc} \[{suffix}]".format(
                                 prefix=stdout_context.line_prefix,
@@ -513,6 +517,8 @@ def _GenerateStatusInfo(
                         execute_dm.result = task_data.result
 
                     if not quiet:
+                        assert TextwrapEx.WARNING_COLOR_ON == "\033[33;1m", "Ensure that the colors stay in sync"
+
                         progress_bar.print(
                             r"{prefix}[bold yellow]WARNING:[/] {name}: {result}{short_desc} \[{suffix}]".format(
                                 prefix=stdout_context.line_prefix,
