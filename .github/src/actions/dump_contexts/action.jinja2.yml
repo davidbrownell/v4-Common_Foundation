@@ -16,48 +16,36 @@
 name: Dump GitHub Action Contexts
 description: Dumps different contexts.
 
+# For these steps, I want to print the json content. Unfortunately, I haven't been able to figure out
+# a way to escape characters required to display the json content (for example, "echo '${{ toJson(...) }}'
+# runs into problems when the json content contains "'" chars.
+#
+# What follows feels like a MASSIVE hack.
+
 runs:
   using: composite
   steps:
-    - name: Dump GitHub context
+<<%
+  set contexts = [
+    "github",
+    "job",
+    "steps",
+    "runner",
+    "strategy",
+    "matrix",
+  ]
+%>>
+<<% for context in contexts %>>
+    - name: Dump <<< context >>> Context
       shell: bash
       run: |
-        echo "github:"
+        echo "<<< context >>>:"
         echo ""
-        echo ${{ toJSON(github) }}
 
+        cat > _<<< context >>>_context <<EOL
+        ${{ toJSON(<<< context >>>) }}
+        EOL
 
-    - name: Dump job context
-      shell: bash
-      run: |
-        echo "job:"
-        echo ""
-        echo ${{ toJSON(job) }}
+        cat _<<< context >>>_context
 
-    - name: Dump steps context
-      shell: bash
-      run: |
-        echo "steps:"
-        echo ""
-        echo ${{ toJSON(steps) }}
-
-    - name: Dump runner context
-      shell: bash
-      run: |
-        echo "runner:"
-        echo ""
-        echo ${{ toJSON(runner) }}
-
-    - name: Dump strategy context
-      shell: bash
-      run: |
-        echo "strategy:"
-        echo ""
-        echo ${{ toJSON(strategy) }}
-
-    - name: Dump matrix context
-      shell: bash
-      run: |
-        echo "matrix:"
-        echo ""
-        echo ${{ toJSON(matrix) }}
+<<% endfor %>>
