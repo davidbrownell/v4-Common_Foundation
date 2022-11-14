@@ -125,7 +125,7 @@ def EntryPoint(
             environ.pop("PYTHONPATH", None)
 
             result = SubprocessEx.Run(
-                "python -m pip list --verbose --format json --require-virtualenv --editable --disable-pip-version-check",
+                "python -m pip list --verbose --format json --require-virtualenv --editable --disable-pip-version-check --no-cache-dir",
                 env=environ,
             )
 
@@ -138,7 +138,12 @@ def EntryPoint(
 
             installed_dm.WriteDebug(result.output)
 
-            content = json.loads(result.output)
+            try:
+                content = json.loads(result.output)
+            except:
+                # Write the output before raise the error, as errors here can be tricky to debug
+                installed_dm.WriteError(result.output)
+                raise
 
             for item in content:
                 path = Path(item["editable_project_location"]).resolve()

@@ -20,12 +20,18 @@ import os
 from typing import Set
 
 from .LinuxShell import LinuxShell
+from .MacOsShell import MacOsShell
 from .WindowsShell import WindowsShell
 
 
 # ----------------------------------------------------------------------
 ALL_SHELLS                                  = [
+    # Note that `MacOsShell` must appear before `LinuxShell`, as `LinuxShell` is greedy and will
+    # match incorrectly. However, `LinuxShell` needs to be greedy so that we can account for
+    # different with out needing to create a custom `Shell` type for each of them.
+    MacOsShell(),
     LinuxShell(),
+
     WindowsShell(),
 ]
 

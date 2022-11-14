@@ -194,6 +194,7 @@ def CreateBuildInfoInstance(
                     "--comment-end", '"#>>"',
                     "--code-gen-header-line-prefix", "#",
                     "--code-gen-header-input-filename", "{relative_input_filename}",
+                    "--output-data-filename-prefix", "{output_data_prefix}",
                     "--single-task",
                 ]
 
@@ -230,6 +231,7 @@ def CreateBuildInfoInstance(
                             input_filename=input_filename,
                             output_dir=this_output_dir,
                             relative_input_filename=PathEx.CreateRelativePath(input_root, input_filename).as_posix(),
+                            output_data_prefix=input_filename.stem,
                         )
 
                         file_dm.WriteVerbose("Command Line: {}\n\n".format(command_line))

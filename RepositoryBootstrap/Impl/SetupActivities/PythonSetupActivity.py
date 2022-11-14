@@ -138,6 +138,9 @@ class PythonSetupActivity(SetupActivity):
         *,
         force: bool,  # pylint: disable=unused-argument
     ) -> List[Commands.Command]:
+        if os.getenv("is_darwin") == "1":
+            return []
+
         stats: Dict[str, int] = {
             k.value: 0 for k in NormalizeScriptResult
         }
@@ -152,52 +155,19 @@ class PythonSetupActivity(SetupActivity):
         ) as nested_dm:
             python_versions: Dict[str, Path] = {}
 
-            if os.getenv("is_darwin") == "1":
-                python_root = Path("/Library/Frameworks/Python.framework/Versions")
-                assert python_root.is_dir(), python_root
+            python_root = (Path(__file__).parent / ".." / ".." / ".." / Constants.TOOLS_SUBDIR / self.name).resolve()
+            assert python_root.is_dir(), python_root
 
-                for child in python_root.iterdir():
-                    if child.name == "Current":
-                        continue
+            for child in python_root.iterdir():
+                if not child.is_dir():
+                    continue
 
-                    python_versions[child.name] = child
+                # Ensure that python exists for this os
+                os_fullpath = ActivateActivity.GetCustomizedFullpath(child)
+                if not os_fullpath.is_dir():
+                    continue
 
-                # ----------------------------------------------------------------------
-                def DarwinPostprocessEnvironmentPath(
-                    fullpath: Path,
-                ) -> Path:
-                    # Remove the environment and os name
-                    return fullpath.parent.parent
-
-                # ----------------------------------------------------------------------
-
-                postprocess_environment_path_func = DarwinPostprocessEnvironmentPath
-
-            else:
-                python_root = (Path(__file__).parent / ".." / ".." / ".." / Constants.TOOLS_SUBDIR / self.name).resolve()
-                assert python_root.is_dir(), python_root
-
-                for child in python_root.iterdir():
-                    if not child.is_dir():
-                        continue
-
-                    # Ensure that python exists for this os
-                    os_fullpath = ActivateActivity.GetCustomizedFullpath(child)
-                    if not os_fullpath.is_dir():
-                        continue
-
-                    python_versions[child.name] = child
-
-                # ----------------------------------------------------------------------
-                def StandardPostprocessEnvironmentPath(
-                    fullpath: Path,
-                ) -> Path:
-                    # Nothing to do here
-                    return fullpath
-
-                # ----------------------------------------------------------------------
-
-                postprocess_environment_path_func = StandardPostprocessEnvironmentPath
+                python_versions[child.name] = child
 
             for index, (python_version, fullpath) in enumerate(python_versions.items()):
                 with nested_dm.VerboseNested(
@@ -209,8 +179,6 @@ class PythonSetupActivity(SetupActivity):
                     suffix="\n" if nested_dm.is_verbose else "",
                 ) as this_dm:
                     fullpath = ActivateActivity.GetCustomizedFullpath(fullpath)
-                    fullpath = postprocess_environment_path_func(fullpath)
-
                     assert fullpath.is_dir(), fullpath
 
                     if CurrentShell.family_name == "Windows":
@@ -225,6 +193,7 @@ class PythonSetupActivity(SetupActivity):
                         # skip the scenario where we didn't expand the content for this version,
                         # but still capture potential errors associated with bad script dir names.
                         assert not any(child for child in fullpath.iterdir() if child.is_dir()), fullpath
+
                         continue
 
                     for script in scripts_dir.iterdir():

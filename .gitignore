@@ -27,7 +27,7 @@ coverage.xml
 test_localsystem.txt
 
 # ----------------------------------------------------------------------
-.github/**/Compiler.ConditionalInvocationQueryMixin.data
+.github/**/*Compiler.ConditionalInvocationQueryMixin.data
 
 Tools/7zip/v22.1/Linux/*/**
 Tools/7zip/v22.1/Windows/*/**

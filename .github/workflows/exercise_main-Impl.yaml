@@ -9,7 +9,7 @@
 #
 #     Code Generator:         Jinja2
 #     Input Filename:         workflows/exercise_main-Impl.jinja2.yaml
-#     Generated Date:         2022-11-11
+#     Generated Date:         2022-11-14
 #
 # ----------------------------------------------------------------------
 # ----------------------------------------------------------------------
@@ -458,5 +458,3 @@ jobs:
 
           test_type:                        PerformanceTests
           code_coverage:                    true
-
-

@@ -24,6 +24,7 @@ jobs:
       matrix:
         os:
           # << Populate (github_workflow): Add or remove operating systems to exercise>>
+          - macos-latest
           - ubuntu-latest
           - windows-latest
 
