@@ -39,6 +39,8 @@ runs:
     - name: Dump <<< context >>> Context
       shell: bash
       run: |
+        set +e
+
         echo "<<< context >>>:"
         echo ""
 
@@ -47,5 +49,7 @@ runs:
         EOL
 
         cat _<<< context >>>_context
+
+        exit 0
 
 <<% endfor %>>

@@ -384,7 +384,7 @@ class LinuxCommandVisitor(CommandVisitor):
         substitution_lookup = {
             "$": r"\$",
             '"': r"\"",
-            '`': r"\`",
+            '`': r"\\\`",
         }
 
         output: List[str] = []
