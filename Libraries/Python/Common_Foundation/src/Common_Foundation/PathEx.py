@@ -164,6 +164,22 @@ def RemoveFile(
 
 
 # ----------------------------------------------------------------------
+def RemoveItem(
+    path: Path,
+    *,
+    retry_iterations: int=5,
+) -> bool:
+    """Removes a file or directory in the most efficient way possible"""
+
+    if path.is_dir():
+        return RemoveTree(path, retry_iterations=retry_iterations)
+    elif path.is_file():
+        return RemoveFile(path, retry_iterations=retry_iterations)
+
+    return False
+
+
+# ----------------------------------------------------------------------
 # ----------------------------------------------------------------------
 # ----------------------------------------------------------------------
 def _RemoveImpl(
