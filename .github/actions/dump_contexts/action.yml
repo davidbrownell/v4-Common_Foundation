@@ -45,6 +45,8 @@ runs:
     - name: Dump github Context
       shell: bash
       run: |
+        set +e
+
         echo "github:"
         echo ""
 
@@ -54,9 +56,13 @@ runs:
 
         cat _github_context
 
+        exit 0
+
     - name: Dump job Context
       shell: bash
       run: |
+        set +e
+
         echo "job:"
         echo ""
 
@@ -66,9 +72,13 @@ runs:
 
         cat _job_context
 
+        exit 0
+
     - name: Dump steps Context
       shell: bash
       run: |
+        set +e
+
         echo "steps:"
         echo ""
 
@@ -78,9 +88,13 @@ runs:
 
         cat _steps_context
 
+        exit 0
+
     - name: Dump runner Context
       shell: bash
       run: |
+        set +e
+
         echo "runner:"
         echo ""
 
@@ -90,9 +104,13 @@ runs:
 
         cat _runner_context
 
+        exit 0
+
     - name: Dump strategy Context
       shell: bash
       run: |
+        set +e
+
         echo "strategy:"
         echo ""
 
@@ -102,9 +120,13 @@ runs:
 
         cat _strategy_context
 
+        exit 0
+
     - name: Dump matrix Context
       shell: bash
       run: |
+        set +e
+
         echo "matrix:"
         echo ""
 
@@ -113,4 +135,6 @@ runs:
         EOL
 
         cat _matrix_context
+
+        exit 0
 

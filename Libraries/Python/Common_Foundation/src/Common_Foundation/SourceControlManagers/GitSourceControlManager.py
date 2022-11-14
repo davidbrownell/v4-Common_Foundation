@@ -124,9 +124,6 @@ class GitSourceControlManager(SourceControlManager):
         if not self.IsAvailable():
             return None
 
-        # hg automatically traverses ancestors, so we don't need to do anything special to
-        # implement that functionality.
-
         result = self.__class__.Execute('git -C "{}" rev-parse --show-toplevel'.format(str(directory)), strip=True)
 
         if result.returncode == 0:

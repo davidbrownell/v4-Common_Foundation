@@ -233,7 +233,7 @@ def GetCustomActions(
 
                                 It is recommended that you change this setting to not modify line endings:
 
-                                    1) `git config --global core.autocrlf false`
+                                    1) 'git config --global core.autocrlf false'
 
                                 """,
                             ),
@@ -256,7 +256,7 @@ def GetCustomActions(
 
                                 To change the default branch for this repository:
 
-                                    1) `git config init.defaultBranch main`
+                                    1) 'git config init.defaultBranch main'
 
                                 """,
                             ).format(
