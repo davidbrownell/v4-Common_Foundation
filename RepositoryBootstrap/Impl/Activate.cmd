@@ -39,7 +39,7 @@ for /f "tokens=1,2 delims==" %%a in (%CD%\Generated\Windows\%DEVELOPMENT_ENVIRON
     if "%%a"=="is_configurable" set _DEVELOPMENT_ENVIRONMENT_IS_CONFIGURABLE_REPOSITORY=%%b
 )
 
-@REM Get a python version to use for setup
+@REM Get a python version to use for activation
 
 @REM Note that this environment name must match the value assoeciated with DE_ORIGINAL_PATH found in ../Constants.py
 set DEVELOPMENT_ENVIRONMENT_ORIGINAL_PATH=%PATH%

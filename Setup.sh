@@ -120,33 +120,30 @@ then
 
     if [[ ${is_darwin} -eq 1 ]]
     then
-        os_name=Darwin
+        # ----------------------------------------------------------------------
+        # |  Python v3.10.6
+        source ${this_dir}/Tools/Python/v3.10.6/Darwin/Setup.sh "${DEVELOPMENT_ENVIRONMENT_ENVIRONMENT_NAME}"
     else
-        os_name=Linux
-    fi
+        # ----------------------------------------------------------------------
+        # |  7zip
+        source ${this_dir}/Tools/7zip/v22.1/Linux/Setup.sh "${DEVELOPMENT_ENVIRONMENT_ENVIRONMENT_NAME}"
 
-    # ----------------------------------------------------------------------
-    # |  7zip
-    source ${this_dir}/Tools/7zip/v22.1/Linux/Setup.sh "${DEVELOPMENT_ENVIRONMENT_ENVIRONMENT_NAME}"
+        # ----------------------------------------------------------------------
+        # |  libffi
+        source ${this_dir}/Tools/libffi/v3.4.2/Linux/x64/Setup.sh "${DEVELOPMENT_ENVIRONMENT_ENVIRONMENT_NAME}"
 
-    # ----------------------------------------------------------------------
-    # |  libffi
-    source ${this_dir}/Tools/libffi/v3.4.2/Linux/x64/Setup.sh "${DEVELOPMENT_ENVIRONMENT_ENVIRONMENT_NAME}"
-
-    # ----------------------------------------------------------------------
-    # |  openssl
-    if [[ ! ${is_darwin} -eq 1 ]]
-    then
+        # ----------------------------------------------------------------------
+        # |  openssl
         source ${this_dir}/Tools/openssl/v1.1.1/Linux/x64/Setup.sh "${DEVELOPMENT_ENVIRONMENT_ENVIRONMENT_NAME}"
+
+        # ----------------------------------------------------------------------
+        # |  sqlite
+        source ${this_dir}/Tools/sqlite/v3.39.3/Linux/x64/Setup.sh "${DEVELOPMENT_ENVIRONMENT_ENVIRONMENT_NAME}"
+
+        # ----------------------------------------------------------------------
+        # |  Python v3.10.6
+        source ${this_dir}/Tools/Python/v3.10.6/Linux/x64/Setup.sh "${DEVELOPMENT_ENVIRONMENT_ENVIRONMENT_NAME}"
     fi
-
-    # ----------------------------------------------------------------------
-    # |  sqlite
-    source ${this_dir}/Tools/sqlite/v3.39.3/Linux/x64/Setup.sh "${DEVELOPMENT_ENVIRONMENT_ENVIRONMENT_NAME}"
-
-    # ----------------------------------------------------------------------
-    # |  Python v3.10.6
-    source ${this_dir}/Tools/Python/v3.10.6/${os_name}/x64/Setup.sh "${DEVELOPMENT_ENVIRONMENT_ENVIRONMENT_NAME}"
 fi
 
 # End bootstrap customization (1 of 2)

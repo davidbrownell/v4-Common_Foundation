@@ -322,8 +322,9 @@ class Capabilities(object):
                         is_headless = CurrentShell.IsContainerEnvironment()
 
                     except Exception as ex:
-                        # This functionality can be invoked very early during the activation process. If so,
-                        # catch this error and assume that we are headless until we know otherwise.
+                        # This functionality can be invoked very early during the activation process, and we can
+                        # see this error before the required python libraries (namely distro) have been installed.
+                        # If here, assume that we are headless until we have more information.
                         if "No shell found for" in str(ex):
                             is_headless = True
                         else:

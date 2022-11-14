@@ -124,7 +124,9 @@ These environments are built and validated regularly via [DockerPlayground](src/
 
 #### MacOS
 
-MacOS support is currently experimental and has not been verified. [Earlier versions](https://github.com/davidbrownell/Common_Environment_v3) of this system have supported MacOS, but there are almost certainly issues that need resolution before we can consider MacOS as "supported".
+| Version |
+|---|
+| MacOS 12 |
 
 #### Windows
 

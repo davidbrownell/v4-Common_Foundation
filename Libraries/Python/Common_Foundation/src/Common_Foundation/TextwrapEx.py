@@ -289,15 +289,23 @@ def CreateAnsiHyperLinkEx(
 # ----------------------------------------------------------------------
 def GetSizeDisplay(
     num_bytes: int,
+    *,
+    exact_value: bool=False,
 ) -> str:
     if num_bytes < 1024:
-        return "1 KB"
+        if not exact_value:
+            return "1 KB"
+
+        return "{} B".format(num_bytes)
 
     result = float(num_bytes) / 1024.0
 
     for unit in [ 'K', 'M', 'G', 'T', 'P', 'E', 'Z', ]:
         if result < 1024.0:
-            return "{} {}B".format(int(math.ceil(result)), unit)
+            if not exact_value:
+                result = int(math.ceil(result))
+
+            return "{} {}B".format(result, unit)
 
         result /= 1024.0
 

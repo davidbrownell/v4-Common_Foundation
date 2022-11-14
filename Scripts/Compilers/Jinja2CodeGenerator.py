@@ -100,6 +100,8 @@ class CodeGenerator(
         assert default_metadata["keep_trailing_newline"] is True
 
         return {
+            "output_data_filename_prefix": (str, typer.Option(None, "--output-data-filename-prefix")),
+
             "code_gen_header_line_prefix": (str, typer.Option(None, "--code-gen-header-line-prefix", help="Prefix to use for a code generation header added to the template indicating that the file was generated; this prefix will most often be a comment character specific to the generated file type.")),
             "code_gen_header_input_filename": (str, typer.Option(None, "--code-gen-header-input-filename", help="Filename to use in a generated header (if any).")),
 

@@ -92,7 +92,7 @@ then
     done < "`pwd`/Generated/${os_name}/${DEVELOPMENT_ENVIRONMENT_ENVIRONMENT_NAME}/EnvironmentBootstrap.data"
 fi
 
-# Get a python version to use for setup
+# Get a python version to use for activation
 if [[ ${should_continue} == 1 ]]
 then
     # Note that this environment name must match the value associated with DE_ORIGINAL_PATH found in ../Constants.py
@@ -100,18 +100,7 @@ then
 
     if [[ ${is_darwin} -eq 1 ]]
     then
-        python_dir=/Library/Frameworks/Python.framework/Versions
-        pushd ${python_dir} > /dev/null
-
-        for d in $(find * -maxdepth 0 -type d);
-        do
-            if [[ -e ${python_dir}/${d}/bin/python ]]
-            then
-                export PATH=${python_dir}/${d}/bin:${PATH}
-            fi
-        done
-
-        popd > /dev/null
+        export PATH=/Library/Frameworks/Python.framework/Versions/3.10/bin:${PATH}
     else
         # python
         python_dir=${DEVELOPMENT_ENVIRONMENT_FOUNDATION}/Tools/Python
@@ -295,3 +284,8 @@ fi
 
 unset DEVELOPMENT_ENVIRONMENT_ORIGINAL_PATH
 unset PYTHONPATH
+
+if [[ ${should_continue} != 1 ]]
+then
+    exit 1
+fi
