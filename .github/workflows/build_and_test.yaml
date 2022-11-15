@@ -35,6 +35,8 @@ run-name: ${{ github.run_number }} [${{ github.actor }}] on ${{ github.ref_name 
 
 on:
   workflow_dispatch:
+  schedule:
+    - cron: '* 0 * * *' # Once a day at 12am
 
 jobs:
   _ca6eacd0-46be-49b7-acf3-1e13fd2394c9:
