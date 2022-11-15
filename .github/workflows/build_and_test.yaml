@@ -9,7 +9,7 @@
 #
 #     Code Generator:         Jinja2
 #     Input Filename:         workflows/build_and_test.jinja2.yaml
-#     Generated Date:         2022-11-14
+#     Generated Date:         2022-11-15
 #
 # ----------------------------------------------------------------------
 # ----------------------------------------------------------------------
@@ -36,7 +36,7 @@ run-name: ${{ github.run_number }} [${{ github.actor }}] on ${{ github.ref_name 
 on:
   workflow_dispatch:
   schedule:
-    - cron: '* 0 * * *' # Once a day at 12am
+    - cron: '* 9 * * *' # Once a day at 9am UTC
 
 jobs:
   _ca6eacd0-46be-49b7-acf3-1e13fd2394c9:
