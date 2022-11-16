@@ -39,4 +39,4 @@ on:
 jobs:
   _ca6eacd0-46be-49b7-acf3-1e13fd2394c9:
     name: "Build and Test"
-    uses: ./.github/workflows/exercise_main.yaml
+    uses: davidbrownell/v4-Common_Foundation/.github/workflows/exercise_main.yaml@CI-latest

@@ -5,13 +5,13 @@ on:
   push:
     branches:
       - main
-  workflow_dispatch:
 
 jobs:
   _a3fa3751-1863-4670-a89c-3e60a602ac0f:
     name: "<< Populate (github_workflow): Friendly name of your repository>>"
 
-    uses: ./.github/workflows/exercise_main.yaml
+    # << Populate (github_workflow): Specify the name of your repository on Github in the form '<username>/<repo_name>' (e.g. 'davidbrownell/v4-Common_PythonDevelopment') >>
+    uses: <username>/<repo_name>/.github/workflows/exercise_main.yaml@CI-latest
     with:
       repo_name: "<< Populate (github_workflow): Specify the name of your repository on Github in the form '<username>/<repo_name>' (e.g. 'davidbrownell/v4-Common_PythonDevelopment') >>"
       repo_branch: "${{ github.ref_name }}"
