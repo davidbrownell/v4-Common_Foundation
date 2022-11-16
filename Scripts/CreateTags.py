@@ -60,12 +60,13 @@ class ReleaseType(str, Enum):
 # ----------------------------------------------------------------------
 @app.command("EntryPoint", no_args_is_help=True)
 def EntryPoint(
-    semantic_version: str=typer.Argument(..., help="Semantic version to apply."),
+    semantic_version: str=typer.Argument(..., help="Semantic version to apply; can be the Semantic version or a filename whose contents contain a semantic version."),
     description: str=typer.Argument(..., help="Description used when creating the tag(s)."),
     prefix: Optional[str]=typer.Option(None, help="Prefix applied when creating the tag(s)."),
     release_type: ReleaseType=typer.Option(ReleaseType.local_build, "--release-type", case_sensitive=False, help="Specifies the type of the new tag(s)."),
     suffix: Optional[str]=typer.Option(None, help="Suffix applied when creating the tag(s)."),
     commit_id: Optional[str]=typer.Option(None, help="Commit id associated with the created tag(s)."),
+    include_latest: Optional[bool]=typer.Option(False, "--include-latest", help="Include a 'latest' variation of the tag."),
     push: bool=typer.Option(False, "--push", help="Push the created tag(s) to the remote repository."),
     force: bool=typer.Option(False, "--force", help="Update the tag(s) if they already exist."),
     dry_run: bool=typer.Option(False, "--dry-run", help="Show what would be done, but do not actually create/push the tag(s)."),
@@ -75,16 +76,41 @@ def EntryPoint(
 ) -> None:
     """Creates tags."""
 
-    try:
-        semver = SemVer.coerce(semantic_version)
-    except ValueError as ex:
-        raise typer.BadParameter("'{}' is not a valid sematic version; {}.".format(semantic_version, str(ex)))
+    # ----------------------------------------------------------------------
+    def GetSemVer() -> SemVer:
+        error: Optional[str] = None
+
+        try:
+            return SemVer.coerce(semantic_version)
+        except ValueError as ex:
+            error = str(ex)
+
+        path = Path(semantic_version)
+        if path.is_file():
+            with path.open() as f:
+                contents = f.read()
+
+            try:
+                return SemVer.coerce(contents)
+            except ValueError as ex:
+                error = str(ex)
+
+        assert error is not None
+        raise typer.BadParameter("'{}' is not a valid sematic version; {}.".format(semantic_version, error))
+
+    # ----------------------------------------------------------------------
+
+    semver = GetSemVer()
 
     if release_type == ReleaseType.official:
         if suffix:
             raise typer.BadParameter("Suffixes are not supported with official releases.")
-    elif not suffix:
-        suffix = datetime.datetime.now().strftime("%Y.%M.%d.%H.%M.%S")
+    else:
+        if include_latest:
+            raise typer.BadParameter("'latest'-tags can only be created for official release types.")
+
+        if not suffix:
+            suffix = datetime.datetime.now().strftime("%Y.%M.%d.%H.%M.%S")
 
     with DoneManager.CreateCommandLine(
         output_flags=DoneManagerFlags.Create(verbose=verbose, debug=debug),
@@ -113,21 +139,24 @@ def EntryPoint(
         else:
             assert False, release_type  # pragma: no cover
 
-        template = "{prefix}v{{}}{release_type}{suffix}".format(
+        template = "{prefix}{{}}{release_type}{suffix}".format(
             prefix="{}-".format(prefix) if prefix else "",
             release_type=release_type_decorator,
             suffix="" if not suffix else ".{}".format(suffix),
         )
 
         versions: List[str] = [
-            template.format(semver),
+            template.format("v" + str(semver)),
         ]
 
         if not suffix:
             versions += [
-                template.format("{}.{}".format(semver.major, semver.minor)),
-                template.format(semver.major),
+                template.format("v{}.{}".format(semver.major, semver.minor)),
+                template.format("v" + str(semver.major)),
             ]
+
+        if include_latest:
+            versions.append(template.format("latest"))
 
         if repo.scm.name != "Git":
             raise Exception("Git is the only SCM supported at this time.")
