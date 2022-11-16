@@ -17,8 +17,8 @@ name: Checkout Source
 description: Checks out source code.
 
 inputs:
-  subject_repo_name:                        {type: string, required: false}
-  subject_repo_branch:                      {type: string, required: false}
+  repo_name:                                {type: string, required: false}
+  repo_branch:                              {type: string, required: false}
 
   os:                                       {type: string, required: true}
   configuration:                            {type: string, required: true}
@@ -49,7 +49,7 @@ runs:
       "archive_prefix",
       '"[${{ github.run_number }}, ${{ github.event.repository.name }}, ${{ inputs.os }}, ${{ inputs.configuration }}]"',
       """\
-          var source_repo_name = \"${{ inputs.subject_repo_name }}\".split(\"/\", 2)[1];
+          var source_repo_name = \"${{ inputs.repo_name }}\".split(\"/\", 2)[1];
 
           return \"[${{ github.run_number }}, \" + source_repo_name + \", ${{ inputs.os }}, ${{ inputs.configuration }}]\"
       """.rstrip(),
@@ -58,7 +58,7 @@ runs:
       "Repo Name",
       "repo_name",
       '"${{ github.repository }}"',
-      '          return "${{ inputs.subject_repo_name }}";',
+      '          return "${{ inputs.repo_name }}";',
     ),
     (
       "Repo Directory",
@@ -80,7 +80,7 @@ runs:
       with:
         result-encoding: string
         script: |
-          if(!"${{ inputs.subject_repo_name }}") {
+          if(!"${{ inputs.repo_name }}") {
             return <<< simple_value >>>;
           }
 
@@ -96,10 +96,10 @@ runs:
 
     - name: Checkout Source (Standard)
       uses: actions/checkout@v3
-      if: ${{ !inputs.subject_repo_name }}
+      if: ${{ !inputs.repo_name }}
 
     - name: Checkout Source (Custom Repo)
-      if: ${{ inputs.subject_repo_name }}
+      if: ${{ inputs.repo_name }}
       shell: ${{ inputs.shell_name }}
       run: |
-        git clone --branch ${{ inputs.subject_repo_branch || 'main_stable' }} https://github.com/${{ inputs.subject_repo_name }} "${{ steps.repo_directory.outputs.result }}"
+        git clone --branch ${{ inputs.repo_branch ||        'main_stable' }} https://github.com/${{ inputs.repo_name }} "${{ steps.repo_directory.outputs.result }}"

@@ -9,7 +9,7 @@
 #
 #     Code Generator:         Jinja2
 #     Input Filename:         workflows/callable_create_stable_tag.jinja2.yaml
-#     Generated Date:         2022-11-14
+#     Generated Date:         2022-11-16
 #
 # ----------------------------------------------------------------------
 # ----------------------------------------------------------------------
@@ -43,7 +43,7 @@ jobs:
 
     steps:
       - name: "[Impl] Dump Contexts"
-        uses: davidbrownell/v4-Common_Foundation/.github/actions/dump_contexts@CI-v1.1.0
+        uses: davidbrownell/v4-Common_Foundation/.github/actions/dump_contexts@CI-v1.2.0
 
       - name: Checkout source
         uses: actions/checkout@v3

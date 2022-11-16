@@ -1,10 +1,14 @@
-name: "Build and Test"
+name: Periodic
 run-name: ${{ github.run_number }} [${{ github.actor }}] on ${{ github.ref_name }}
 
 on:
   workflow_dispatch:
+  schedule:
+    - cron: '0 9 * * *' # Once a day at 9am UTC
 
 jobs:
-  _3708d875-b4c1-4265-89d0-93553e16c0c3:
+  _76e87fa8-70a1-4edb-b1d2-aa24b6878b77:
     name: "Build and Test"
     uses: ./.github/workflows/exercise_main.yaml
+    with:
+      repo_branch: main_stable
