@@ -46,7 +46,7 @@ jobs:
           - python310
           # - python310_nolibs
 
-    uses: ./.github/workflows/exercise_main-Impl.yaml
+    uses: davidbrownell/v4-Common_Foundation/.github/workflows/exercise_main-Impl.yaml@CI-latest
     with:
       bootstrap_branch_overrides:           ${{ inputs.bootstrap_branch_overrides }}
       repo_name:                            ${{ inputs.repo_name }}

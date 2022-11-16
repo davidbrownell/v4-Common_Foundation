@@ -20,13 +20,12 @@ on:
   push:
     branches:
       - main
-  workflow_dispatch:
 
 jobs:
   # ----------------------------------------------------------------------
   _1fc90631-2837-44fc-b70c-ea41ed5beae7:
     name: "Common_Foundation"
-    uses: ./.github/workflows/exercise_main.yaml
+    uses: davidbrownell/v4-Common_Foundation/.github/workflows/exercise_main.yaml@CI-latest
     with:
       bootstrap_branch_overrides: "Common_Foundation:${{ github.ref_name }}"
       repo_name: "davidbrownell/v4-Common_Foundation"
@@ -57,7 +56,7 @@ jobs:
       - _5e328479-e73d-4578-8da8-4082491c40e9
       - _4f44cb3c-d033-4f8c-b666-2023304302f5
 
-    uses: ./.github/workflows/callable_create_stable_tag.yaml
+    uses: davidbrownell/v4-Common_Foundation/.github/workflows/callable_create_stable_tag.yaml@CI-latest
     with:
       branch: ${{ github.ref_name }}
       commit: ${{ github.sha }}
