@@ -65,8 +65,6 @@ runs:
             activate_statement += " ${{ inputs.configuration }}";
           }
 
-          activate_statement += " --debug";
-
           return activate_statement;
 
     - name: Results
@@ -76,4 +74,4 @@ runs:
 
     - name: Activate
       shell: ${{ inputs.shell_name }}
-      run: ${{ steps.activate_statement.outputs.result }}
+      run: ${{ steps.activate_statement.outputs.result }} --debug

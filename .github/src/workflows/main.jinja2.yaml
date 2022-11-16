@@ -35,7 +35,7 @@ jobs:
   # ----------------------------------------------------------------------
   _5e328479-e73d-4578-8da8-4082491c40e9:
     name: "Common_PythonDevelopment"
-    uses: davidbrownell/v4-Common_PythonDevelopment/.github/workflows/exercise_main.yaml@CI-v1.2.0
+    uses: davidbrownell/v4-Common_PythonDevelopment/.github/workflows/exercise_main.yaml@CI-v1
     with:
       bootstrap_branch_overrides: "Common_Foundation:${{ github.ref_name }}"
       repo_name: "davidbrownell/v4-Common_PythonDevelopment"
@@ -43,7 +43,7 @@ jobs:
   # ----------------------------------------------------------------------
   _4f44cb3c-d033-4f8c-b666-2023304302f5:
     name: "DavidBrownell_Backup"
-    uses: davidbrownell/v4-DavidBrownell_Backup/.github/workflows/exercise_main.yaml@CI-v1.2.0
+    uses: davidbrownell/v4-DavidBrownell_Backup/.github/workflows/exercise_main.yaml@CI-v1
     with:
       bootstrap_branch_overrides: "Common_Foundation:${{ github.ref_name }}"
       repo_name: "davidbrownell/v4-DavidBrownell_Backup"

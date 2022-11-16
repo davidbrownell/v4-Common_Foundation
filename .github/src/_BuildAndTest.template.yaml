@@ -87,7 +87,7 @@ jobs:
     steps:
       - name: "[Impl] Dump Contexts"
         if: ${{ startsWith(inputs.os, 'ubuntu') }}
-        uses: davidbrownell/v4-Common_Foundation/.github/actions/dump_contexts@CI-v1.2.0
+        uses: davidbrownell/v4-Common_Foundation/.github/actions/dump_contexts@CI-v1
 
       # outputs:
       #   - local_script_prefix
@@ -99,7 +99,7 @@ jobs:
       #
       - name: "[Impl] Initialize OS-Specific Variables"
         id: initialize
-        uses: davidbrownell/v4-Common_Foundation/.github/actions/initialize@CI-v1.2.0
+        uses: davidbrownell/v4-Common_Foundation/.github/actions/initialize@CI-v1
         with:
           os:                               ${{ inputs.os }}
 
@@ -110,7 +110,7 @@ jobs:
       #
       - name: Checkout Source
         id: checkout_source
-        uses: davidbrownell/v4-Common_Foundation/.github/actions/checkout_source@CI-v1.2.0
+        uses: davidbrownell/v4-Common_Foundation/.github/actions/checkout_source@CI-v1
         with:
           repo_name:                        ${{ inputs.repo_name }}
           repo_branch:                      ${{ inputs.repo_branch }}
@@ -122,7 +122,7 @@ jobs:
           working_dir:                      ${{ steps.initialize.outputs.working_dir }}
 
       - name: Setup
-        uses: davidbrownell/v4-Common_Foundation/.github/actions/setup@CI-v1.2.0
+        uses: davidbrownell/v4-Common_Foundation/.github/actions/setup@CI-v1
         with:
           repo_name:                        ${{ steps.checkout_source.outputs.repo_name }}
           repo_dir:                         ${{ steps.checkout_source.outputs.repo_dir }}
@@ -141,7 +141,7 @@ jobs:
       #
       - name: Activate
         id: activate
-        uses: davidbrownell/v4-Common_Foundation/.github/actions/activate@CI-v1.2.0
+        uses: davidbrownell/v4-Common_Foundation/.github/actions/activate@CI-v1
         with:
           repo_dir:                         ${{ steps.checkout_source.outputs.repo_dir }}
           os:                               ${{ inputs.os }}
@@ -151,7 +151,7 @@ jobs:
 <<% block prologue_steps %>><<% endblock %>>
 
       - name: Builder
-        uses: davidbrownell/v4-Common_Foundation/.github/actions/builder@CI-v1.2.0
+        uses: davidbrownell/v4-Common_Foundation/.github/actions/builder@CI-v1
         if: ${{ inputs.run_Builder == true || inputs.run_Builder == 'true' }}
         with:
           archive_prefix:                   ${{ steps.checkout_source.outputs.archive_prefix }}
@@ -193,7 +193,7 @@ jobs:
 %>>
   <<% for test_type in test_types %>>
       - name: Tester (<<< test_type >>><<< name_suffix >>>)
-        uses: davidbrownell/v4-Common_Foundation/.github/actions/tester@CI-v1.2.0
+        uses: davidbrownell/v4-Common_Foundation/.github/actions/tester@CI-v1
         if: <<< conditional_template.format(test_type=test_type) >>>
         with:
           archive_prefix:                   ${{ steps.checkout_source.outputs.archive_prefix }}

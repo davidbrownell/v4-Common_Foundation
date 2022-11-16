@@ -94,7 +94,7 @@ jobs:
     steps:
       - name: "[Impl] Dump Contexts"
         if: ${{ startsWith(inputs.os, 'ubuntu') }}
-        uses: davidbrownell/v4-Common_Foundation/.github/actions/dump_contexts@CI-v1.2.0
+        uses: davidbrownell/v4-Common_Foundation/.github/actions/dump_contexts@CI-v1
 
       # outputs:
       #   - local_script_prefix
@@ -106,7 +106,7 @@ jobs:
       #
       - name: "[Impl] Initialize OS-Specific Variables"
         id: initialize
-        uses: davidbrownell/v4-Common_Foundation/.github/actions/initialize@CI-v1.2.0
+        uses: davidbrownell/v4-Common_Foundation/.github/actions/initialize@CI-v1
         with:
           os:                               ${{ inputs.os }}
 
@@ -117,7 +117,7 @@ jobs:
       #
       - name: Checkout Source
         id: checkout_source
-        uses: davidbrownell/v4-Common_Foundation/.github/actions/checkout_source@CI-v1.2.0
+        uses: davidbrownell/v4-Common_Foundation/.github/actions/checkout_source@CI-v1
         with:
           repo_name:                        ${{ inputs.repo_name }}
           repo_branch:                      ${{ inputs.repo_branch }}
@@ -129,7 +129,7 @@ jobs:
           working_dir:                      ${{ steps.initialize.outputs.working_dir }}
 
       - name: Setup
-        uses: davidbrownell/v4-Common_Foundation/.github/actions/setup@CI-v1.2.0
+        uses: davidbrownell/v4-Common_Foundation/.github/actions/setup@CI-v1
         with:
           repo_name:                        ${{ steps.checkout_source.outputs.repo_name }}
           repo_dir:                         ${{ steps.checkout_source.outputs.repo_dir }}
@@ -148,7 +148,7 @@ jobs:
       #
       - name: Activate
         id: activate
-        uses: davidbrownell/v4-Common_Foundation/.github/actions/activate@CI-v1.2.0
+        uses: davidbrownell/v4-Common_Foundation/.github/actions/activate@CI-v1
         with:
           repo_dir:                         ${{ steps.checkout_source.outputs.repo_dir }}
           os:                               ${{ inputs.os }}
@@ -157,7 +157,7 @@ jobs:
 
 
       - name: Builder
-        uses: davidbrownell/v4-Common_Foundation/.github/actions/builder@CI-v1.2.0
+        uses: davidbrownell/v4-Common_Foundation/.github/actions/builder@CI-v1
         if: ${{ inputs.run_Builder == true || inputs.run_Builder == 'true' }}
         with:
           archive_prefix:                   ${{ steps.checkout_source.outputs.archive_prefix }}
@@ -172,7 +172,7 @@ jobs:
           activate_statement:               ${{ steps.activate.outputs.activate_statement }}
 
       - name: Tester (UnitTests)
-        uses: davidbrownell/v4-Common_Foundation/.github/actions/tester@CI-v1.2.0
+        uses: davidbrownell/v4-Common_Foundation/.github/actions/tester@CI-v1
         if: ${{ inputs.execute_UnitTests == 1 || inputs.execute_UnitTests == 3 }}
         with:
           archive_prefix:                   ${{ steps.checkout_source.outputs.archive_prefix }}
@@ -190,7 +190,7 @@ jobs:
           code_coverage:                    false
 
       - name: Tester (FunctionalTests)
-        uses: davidbrownell/v4-Common_Foundation/.github/actions/tester@CI-v1.2.0
+        uses: davidbrownell/v4-Common_Foundation/.github/actions/tester@CI-v1
         if: ${{ inputs.execute_FunctionalTests == 1 || inputs.execute_FunctionalTests == 3 }}
         with:
           archive_prefix:                   ${{ steps.checkout_source.outputs.archive_prefix }}
@@ -208,7 +208,7 @@ jobs:
           code_coverage:                    false
 
       - name: Tester (IntegrationTests)
-        uses: davidbrownell/v4-Common_Foundation/.github/actions/tester@CI-v1.2.0
+        uses: davidbrownell/v4-Common_Foundation/.github/actions/tester@CI-v1
         if: ${{ inputs.execute_IntegrationTests == 1 || inputs.execute_IntegrationTests == 3 }}
         with:
           archive_prefix:                   ${{ steps.checkout_source.outputs.archive_prefix }}
@@ -226,7 +226,7 @@ jobs:
           code_coverage:                    false
 
       - name: Tester (SystemTests)
-        uses: davidbrownell/v4-Common_Foundation/.github/actions/tester@CI-v1.2.0
+        uses: davidbrownell/v4-Common_Foundation/.github/actions/tester@CI-v1
         if: ${{ inputs.execute_SystemTests == 1 || inputs.execute_SystemTests == 3 }}
         with:
           archive_prefix:                   ${{ steps.checkout_source.outputs.archive_prefix }}
@@ -244,7 +244,7 @@ jobs:
           code_coverage:                    false
 
       - name: Tester (LocalEndToEndTests)
-        uses: davidbrownell/v4-Common_Foundation/.github/actions/tester@CI-v1.2.0
+        uses: davidbrownell/v4-Common_Foundation/.github/actions/tester@CI-v1
         if: ${{ inputs.execute_LocalEndToEndTests == 1 || inputs.execute_LocalEndToEndTests == 3 }}
         with:
           archive_prefix:                   ${{ steps.checkout_source.outputs.archive_prefix }}
@@ -262,7 +262,7 @@ jobs:
           code_coverage:                    false
 
       - name: Tester (EndToEndTests)
-        uses: davidbrownell/v4-Common_Foundation/.github/actions/tester@CI-v1.2.0
+        uses: davidbrownell/v4-Common_Foundation/.github/actions/tester@CI-v1
         if: ${{ inputs.execute_EndToEndTests == 1 || inputs.execute_EndToEndTests == 3 }}
         with:
           archive_prefix:                   ${{ steps.checkout_source.outputs.archive_prefix }}
@@ -280,7 +280,7 @@ jobs:
           code_coverage:                    false
 
       - name: Tester (BuildVerificationTests)
-        uses: davidbrownell/v4-Common_Foundation/.github/actions/tester@CI-v1.2.0
+        uses: davidbrownell/v4-Common_Foundation/.github/actions/tester@CI-v1
         if: ${{ inputs.execute_BuildVerificationTests == 1 || inputs.execute_BuildVerificationTests == 3 }}
         with:
           archive_prefix:                   ${{ steps.checkout_source.outputs.archive_prefix }}
@@ -298,7 +298,7 @@ jobs:
           code_coverage:                    false
 
       - name: Tester (PerformanceTests)
-        uses: davidbrownell/v4-Common_Foundation/.github/actions/tester@CI-v1.2.0
+        uses: davidbrownell/v4-Common_Foundation/.github/actions/tester@CI-v1
         if: ${{ inputs.execute_PerformanceTests == 1 || inputs.execute_PerformanceTests == 3 }}
         with:
           archive_prefix:                   ${{ steps.checkout_source.outputs.archive_prefix }}
@@ -316,7 +316,7 @@ jobs:
           code_coverage:                    false
 
       - name: Tester (UnitTests, Code Coverage)
-        uses: davidbrownell/v4-Common_Foundation/.github/actions/tester@CI-v1.2.0
+        uses: davidbrownell/v4-Common_Foundation/.github/actions/tester@CI-v1
         if: ${{ inputs.execute_UnitTests == 2 || inputs.execute_UnitTests == 3 }}
         with:
           archive_prefix:                   ${{ steps.checkout_source.outputs.archive_prefix }}
@@ -334,7 +334,7 @@ jobs:
           code_coverage:                    true
 
       - name: Tester (FunctionalTests, Code Coverage)
-        uses: davidbrownell/v4-Common_Foundation/.github/actions/tester@CI-v1.2.0
+        uses: davidbrownell/v4-Common_Foundation/.github/actions/tester@CI-v1
         if: ${{ inputs.execute_FunctionalTests == 2 || inputs.execute_FunctionalTests == 3 }}
         with:
           archive_prefix:                   ${{ steps.checkout_source.outputs.archive_prefix }}
@@ -352,7 +352,7 @@ jobs:
           code_coverage:                    true
 
       - name: Tester (IntegrationTests, Code Coverage)
-        uses: davidbrownell/v4-Common_Foundation/.github/actions/tester@CI-v1.2.0
+        uses: davidbrownell/v4-Common_Foundation/.github/actions/tester@CI-v1
         if: ${{ inputs.execute_IntegrationTests == 2 || inputs.execute_IntegrationTests == 3 }}
         with:
           archive_prefix:                   ${{ steps.checkout_source.outputs.archive_prefix }}
@@ -370,7 +370,7 @@ jobs:
           code_coverage:                    true
 
       - name: Tester (SystemTests, Code Coverage)
-        uses: davidbrownell/v4-Common_Foundation/.github/actions/tester@CI-v1.2.0
+        uses: davidbrownell/v4-Common_Foundation/.github/actions/tester@CI-v1
         if: ${{ inputs.execute_SystemTests == 2 || inputs.execute_SystemTests == 3 }}
         with:
           archive_prefix:                   ${{ steps.checkout_source.outputs.archive_prefix }}
@@ -388,7 +388,7 @@ jobs:
           code_coverage:                    true
 
       - name: Tester (LocalEndToEndTests, Code Coverage)
-        uses: davidbrownell/v4-Common_Foundation/.github/actions/tester@CI-v1.2.0
+        uses: davidbrownell/v4-Common_Foundation/.github/actions/tester@CI-v1
         if: ${{ inputs.execute_LocalEndToEndTests == 2 || inputs.execute_LocalEndToEndTests == 3 }}
         with:
           archive_prefix:                   ${{ steps.checkout_source.outputs.archive_prefix }}
@@ -406,7 +406,7 @@ jobs:
           code_coverage:                    true
 
       - name: Tester (EndToEndTests, Code Coverage)
-        uses: davidbrownell/v4-Common_Foundation/.github/actions/tester@CI-v1.2.0
+        uses: davidbrownell/v4-Common_Foundation/.github/actions/tester@CI-v1
         if: ${{ inputs.execute_EndToEndTests == 2 || inputs.execute_EndToEndTests == 3 }}
         with:
           archive_prefix:                   ${{ steps.checkout_source.outputs.archive_prefix }}
@@ -424,7 +424,7 @@ jobs:
           code_coverage:                    true
 
       - name: Tester (BuildVerificationTests, Code Coverage)
-        uses: davidbrownell/v4-Common_Foundation/.github/actions/tester@CI-v1.2.0
+        uses: davidbrownell/v4-Common_Foundation/.github/actions/tester@CI-v1
         if: ${{ inputs.execute_BuildVerificationTests == 2 || inputs.execute_BuildVerificationTests == 3 }}
         with:
           archive_prefix:                   ${{ steps.checkout_source.outputs.archive_prefix }}
@@ -442,7 +442,7 @@ jobs:
           code_coverage:                    true
 
       - name: Tester (PerformanceTests, Code Coverage)
-        uses: davidbrownell/v4-Common_Foundation/.github/actions/tester@CI-v1.2.0
+        uses: davidbrownell/v4-Common_Foundation/.github/actions/tester@CI-v1
         if: ${{ inputs.execute_PerformanceTests == 2 || inputs.execute_PerformanceTests == 3 }}
         with:
           archive_prefix:                   ${{ steps.checkout_source.outputs.archive_prefix }}
@@ -458,5 +458,3 @@ jobs:
 
           test_type:                        PerformanceTests
           code_coverage:                    true
-
-

@@ -33,8 +33,8 @@ jobs:
 
     # << Populate (github_workflow):: Uncomment one of the following based on the characteristics of your repository>>
 
-    # uses: davidbrownell/v4-Common_Foundation/.github/workflows/exercise_main-Impl.yaml@CI-v1.2.0
-    # uses: davidbrownell/v4-Common_PythonDevelopment/.github/workflows/exercise_main-Impl.yaml@CI-v1.2.0
+    # uses: davidbrownell/v4-Common_Foundation/.github/workflows/exercise_main-Impl.yaml@CI-v1
+    # uses: davidbrownell/v4-Common_PythonDevelopment/.github/workflows/exercise_main-Impl.yaml@CI-v1
 
     with:
       bootstrap_branch_overrides:           ${{ inputs.bootstrap_branch_overrides }}
@@ -45,7 +45,7 @@ jobs:
       configuration:                        ${{ matrix.configuration }}
 
       run_Builder:                          true        # << Populate (github_workflow): set to false if necessary >>
-      # run_PylintVerifier:                   true        # << Populate (github_workflow): Enable if necessary; only valid for davidbrownell/v4-Common_PythonDevelopment/.github/workflows/exercise_main-Impl.yaml@CI-v1.2.0 >>
+      # run_PylintVerifier:                   true        # << Populate (github_workflow): Enable if necessary; only valid for davidbrownell/v4-Common_PythonDevelopment/.github/workflows/exercise_main-Impl.yaml@CI-v1 >>
 
       # Use the following values to control how different test types are run:
       #
