@@ -16,17 +16,17 @@
 on:
   workflow_call:
     inputs:
-      setup_branch_overrides:
+      bootstrap_branch_overrides:
         type: string
         required: false
         description: "See ../_BuildAndTest.template.yaml for more info."
 
-      subject_repo_name:
+      repo_name:
         type: string
         required: false
         description: "See ../_BuildAndTest.template.yaml for more info."
 
-      subject_repo_branch:
+      repo_branch:
         type: string
         required: false
         description: "See ../_BuildAndTest.template.yaml for more info."
@@ -48,9 +48,9 @@ jobs:
 
     uses: ./.github/workflows/exercise_main-Impl.yaml
     with:
-      setup_branch_overrides:               ${{ inputs.setup_branch_overrides }}
-      subject_repo_name:                    ${{ inputs.subject_repo_name }}
-      subject_repo_branch:                  ${{ inputs.subject_repo_branch }}
+      bootstrap_branch_overrides:           ${{ inputs.bootstrap_branch_overrides }}
+      repo_name:                            ${{ inputs.repo_name }}
+      repo_branch:                          ${{ inputs.repo_branch }}
 
       os:                                   ${{ matrix.os }}
       configuration:                        ${{ matrix.configuration }}

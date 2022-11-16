@@ -13,8 +13,8 @@ jobs:
 
     uses: ./.github/workflows/exercise_main.yaml
     with:
-      subject_repo_name: "<< Populate (github_workflow): Specify the name of your repository on Github in the form '<username>/<repo_name>' (e.g. 'davidbrownell/v4-Common_PythonDevelopment') >>"
-      subject_repo_branch: "${{ github.ref_name }}"
+      repo_name: "<< Populate (github_workflow): Specify the name of your repository on Github in the form '<username>/<repo_name>' (e.g. 'davidbrownell/v4-Common_PythonDevelopment') >>"
+      repo_branch: "${{ github.ref_name }}"
 
   # << Populate (github_workflow): Add any additional jobs associated with repositories that should be validated upon any push in this repository >>
   # _fa2cf2bc-3a15-4fde-8c27-656456fbf43d:
@@ -22,8 +22,8 @@ jobs:
   #
   #   uses: <username>/<repo_name>/.github/workflows/<your workflow yaml file>.yaml@<your CI-specific tag or commit>
   #   with:
-  #     subject_repo_name: <username>/<repo_name>
-  #     setup_branch_overrides: "<this_repo_friendly_name>:${{ github.ref_name }}"
+  #     repo_name: <username>/<repo_name>
+  #     bootstrap_branch_overrides: "<this_repo_friendly_name>:${{ github.ref_name }}"
 
   # ----------------------------------------------------------------------
   _d85d7987-f66b-4730-bfbc-faa03ee06958:
@@ -34,7 +34,7 @@ jobs:
       # << Populate (github_workflow): Uncomment this item if you added additional jobs in the section above
       # - _fa2cf2bc-3a15-4fde-8c27-656456fbf43d
 
-    uses: davidbrownell/v4-Common_Foundation/.github/workflows/callable_create_stable_tag.yaml@CI-v1.1.0
+    uses: davidbrownell/v4-Common_Foundation/.github/workflows/callable_create_stable_tag.yaml@CI-v1.2.0
     with:
       branch: ${{ github.ref_name }}
       commit: ${{ github.sha }}

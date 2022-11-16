@@ -1,17 +1,17 @@
 on:
     workflow_call:
       inputs:
-        setup_branch_overrides:
+        bootstrap_branch_overrides:
           type: string
           required: false
           description: "See https://github.com/davidbrownell/v4-Common_Foundation/.github/src/_BuildAndTest.template.yaml"
 
-        subject_repo_name:
+        repo_name:
           type: string
           required: false
           description: "See https://github.com/davidbrownell/v4-Common_Foundation/.github/src/_BuildAndTest.template.yaml"
 
-        subject_repo_branch:
+        repo_branch:
           type: string
           required: false
           description: "See https://github.com/davidbrownell/v4-Common_Foundation/.github/src/_BuildAndTest.template.yaml"
@@ -33,19 +33,19 @@ jobs:
 
     # << Populate (github_workflow):: Uncomment one of the following based on the characteristics of your repository>>
 
-    # uses: davidbrownell/v4-Common_Foundation/.github/workflows/exercise_main-Impl.yaml@CI-v1.1.0
-    # uses: davidbrownell/v4-Common_PythonDevelopment/.github/workflows/exercise_main-Impl.yaml@CI-v1.1.0
+    # uses: davidbrownell/v4-Common_Foundation/.github/workflows/exercise_main-Impl.yaml@CI-v1.2.0
+    # uses: davidbrownell/v4-Common_PythonDevelopment/.github/workflows/exercise_main-Impl.yaml@CI-v1.2.0
 
     with:
-      setup_branch_overrides:               ${{ inputs.setup_branch_overrides }}
-      subject_repo_name:                    ${{ inputs.subject_repo_name }}
-      subject_repo_branch:                  ${{ inputs.subject_repo_branch }}
+      bootstrap_branch_overrides:           ${{ inputs.bootstrap_branch_overrides }}
+      repo_name:                            ${{ inputs.repo_name }}
+      repo_branch:                          ${{ inputs.repo_branch }}
 
       os:                                   ${{ matrix.os }}
       configuration:                        ${{ matrix.configuration }}
 
       run_Builder:                          true        # << Populate (github_workflow): set to false if necessary >>
-      # run_PylintVerifier:                   true        # << Populate (github_workflow): Enable if necessary; only valid for davidbrownell/v4-Common_PythonDevelopment/.github/workflows/exercise_main-Impl.yaml@CI-v1.1.0 >>
+      # run_PylintVerifier:                   true        # << Populate (github_workflow): Enable if necessary; only valid for davidbrownell/v4-Common_PythonDevelopment/.github/workflows/exercise_main-Impl.yaml@CI-v1.2.0 >>
 
       # Use the following values to control how different test types are run:
       #

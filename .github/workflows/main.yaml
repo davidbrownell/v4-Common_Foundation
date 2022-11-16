@@ -9,7 +9,7 @@
 #
 #     Code Generator:         Jinja2
 #     Input Filename:         workflows/main.jinja2.yaml
-#     Generated Date:         2022-11-14
+#     Generated Date:         2022-11-16
 #
 # ----------------------------------------------------------------------
 # ----------------------------------------------------------------------
@@ -45,25 +45,25 @@ jobs:
     name: "Common_Foundation"
     uses: ./.github/workflows/exercise_main.yaml
     with:
-      setup_branch_overrides: "Common_Foundation:${{ github.ref_name }}"
-      subject_repo_name: "davidbrownell/v4-Common_Foundation"
-      subject_repo_branch: "${{ github.ref_name }}"
+      bootstrap_branch_overrides: "Common_Foundation:${{ github.ref_name }}"
+      repo_name: "davidbrownell/v4-Common_Foundation"
+      repo_branch: "${{ github.ref_name }}"
 
   # ----------------------------------------------------------------------
   _5e328479-e73d-4578-8da8-4082491c40e9:
     name: "Common_PythonDevelopment"
-    uses: davidbrownell/v4-Common_PythonDevelopment/.github/workflows/exercise_main.yaml@CI-v1.1.0
+    uses: davidbrownell/v4-Common_PythonDevelopment/.github/workflows/exercise_main.yaml@CI-v1.2.0
     with:
-      setup_branch_overrides: "Common_Foundation:${{ github.ref_name }}"
-      subject_repo_name: "davidbrownell/v4-Common_PythonDevelopment"
+      bootstrap_branch_overrides: "Common_Foundation:${{ github.ref_name }}"
+      repo_name: "davidbrownell/v4-Common_PythonDevelopment"
 
   # ----------------------------------------------------------------------
   _4f44cb3c-d033-4f8c-b666-2023304302f5:
     name: "DavidBrownell_Backup"
-    uses: davidbrownell/v4-DavidBrownell_Backup/.github/workflows/exercise_main.yaml@CI-v1.0.0
+    uses: davidbrownell/v4-DavidBrownell_Backup/.github/workflows/exercise_main.yaml@CI-v1.2.0
     with:
-      setup_branch_overrides: "Common_Foundation:${{ github.ref_name }}"
-      subject_repo_name: "davidbrownell/v4-DavidBrownell_Backup"
+      bootstrap_branch_overrides: "Common_Foundation:${{ github.ref_name }}"
+      repo_name: "davidbrownell/v4-DavidBrownell_Backup"
 
   # ----------------------------------------------------------------------
   _cf27c74d-9586-486e-a184-9bdc45ee6e3b:
