@@ -18,6 +18,7 @@
 import importlib
 import os
 import sys
+import textwrap
 
 from pathlib import Path
 from typing import Callable, List, Optional, TextIO, Tuple, Union
@@ -254,3 +255,45 @@ def CreateBuildInfoInstance(
     # ----------------------------------------------------------------------
 
     return BuildInfo()
+
+
+# ----------------------------------------------------------------------
+def CreateTagsImpl(
+    *,
+    dry_run: bool,
+    yes: bool,
+    verbose: bool,
+    debug: bool,
+):
+    with DoneManager.CreateCommandLine(
+        output_flags=DoneManagerFlags.Create(verbose=verbose, debug=debug),
+    ) as dm:
+        if dry_run:
+            yes = True
+
+        if not yes:
+            result = input(
+                textwrap.dedent(
+                    """\
+                    This script will create "CI-<version>" tags based on the current commit and push
+                    them to github.
+
+                    Are you sure that you want to continue?
+
+                    Type 'yes' to continue or anything else to exit: """,
+                ),
+            ).strip().lower()
+
+            yes = result in ["yes", "y"]
+
+        if not yes:
+            dm.result = 1
+            return
+
+        command_line = 'CreateTags{ext} CI_VERSION "🤖 Updated CI Version" --prefix CI --release-type official --push --force --include-latest{dry_run}'.format(
+            ext=CurrentShell.script_extensions[0],
+            dry_run=" --dry-run" if dry_run else "",
+        )
+
+        with dm.YieldStream() as stream:
+            dm.result = SubprocessEx.Stream(command_line, stream)

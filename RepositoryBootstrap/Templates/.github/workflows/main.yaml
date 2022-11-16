@@ -34,7 +34,7 @@ jobs:
       # << Populate (github_workflow): Uncomment this item if you added additional jobs in the section above
       # - _fa2cf2bc-3a15-4fde-8c27-656456fbf43d
 
-    uses: davidbrownell/v4-Common_Foundation/.github/workflows/callable_create_stable_tag.yaml@CI-v1.2.0
+    uses: davidbrownell/v4-Common_Foundation/.github/workflows/callable_create_stable_tag.yaml@CI-v1
     with:
       branch: ${{ github.ref_name }}
       commit: ${{ github.sha }}

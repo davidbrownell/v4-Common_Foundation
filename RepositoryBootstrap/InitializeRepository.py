@@ -296,9 +296,12 @@ def Execute(
             os.path.join(".github", "workflows", filename)
             for filename in [
                 "build_and_test.yaml",
+                "CI_VERSION",
+                "CreateCITags.py",
                 "exercise_main.yaml",
                 "main.yaml",
                 "on_pr_to_main.yaml",
+                "periodic.yaml",
             ]
         ]
 

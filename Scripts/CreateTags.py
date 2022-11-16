@@ -16,6 +16,7 @@
 """Creates Source Control Management Tags."""
 
 import datetime
+import textwrap
 
 from enum import Enum
 from pathlib import Path
@@ -27,6 +28,7 @@ from semantic_version import Version as SemVer
 from typer.core import TyperGroup
 
 from Common_Foundation.SourceControlManagers.All import ALL_SCMS
+from Common_Foundation.SourceControlManagers.GitSourceControlManager import GitSourceControlManager
 from Common_Foundation.SourceControlManagers.SourceControlManager import Repository
 from Common_Foundation.Streams.DoneManager import DoneManager, DoneManagerFlags
 from Common_Foundation import SubprocessEx
@@ -66,11 +68,12 @@ def EntryPoint(
     release_type: ReleaseType=typer.Option(ReleaseType.local_build, "--release-type", case_sensitive=False, help="Specifies the type of the new tag(s)."),
     suffix: Optional[str]=typer.Option(None, help="Suffix applied when creating the tag(s)."),
     commit_id: Optional[str]=typer.Option(None, help="Commit id associated with the created tag(s)."),
-    include_latest: Optional[bool]=typer.Option(False, "--include-latest", help="Include a 'latest' variation of the tag."),
+    include_latest: bool=typer.Option(False, "--include-latest", help="Include a 'latest' variation of the tag."),
     push: bool=typer.Option(False, "--push", help="Push the created tag(s) to the remote repository."),
     force: bool=typer.Option(False, "--force", help="Update the tag(s) if they already exist."),
     dry_run: bool=typer.Option(False, "--dry-run", help="Show what would be done, but do not actually create/push the tag(s)."),
     working_dir: Path=typer.Option(Path.cwd(), "--working-dir", file_okay=False, exists=True, resolve_path=True, help="Working directory of the repository to update."),
+    force_unsigned_tags: bool=typer.Option(False, "--force-unsigned-tags", help="Disable errors associated with unsigned tags and continue; this is not recommended."),
     verbose: bool=typer.Option(False, "--verbose", help="Write verbose information to the terminal."),
     debug: bool=typer.Option(False, "--debug", help="Write debug information to the terminal."),
 ) -> None:
@@ -160,6 +163,31 @@ def EntryPoint(
 
         if repo.scm.name != "Git":
             raise Exception("Git is the only SCM supported at this time.")
+
+        # Ensure that tags are signed if other content is signed
+        if not force_unsigned_tags:
+            git_output = GitSourceControlManager.Execute("git config --get commit.gpgSign").output.strip().lower()
+
+            if git_output == "true":
+                git_output = GitSourceControlManager.Execute("git config --get tag.gpgSign").output.strip().lower()
+
+                if git_output != "true":
+                    dm.WriteError(
+                        textwrap.dedent(
+                            """\
+                            Git commits are configured to be signed, but git tags are not.
+
+                            To enable tag signing, run:
+
+                                'git config --global tags.gpgSign true'
+
+                            To disable this error and continue with unsigned tags, specify "--force-unsigned-tags" on
+                            the command line when invoking this script.
+                            """,
+                        ),
+                    )
+
+                    return
 
         # ----------------------------------------------------------------------
         def ProcessVersions(
