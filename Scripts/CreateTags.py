@@ -179,7 +179,7 @@ def EntryPoint(
 
                             To enable tag signing, run:
 
-                                'git config --global tags.gpgSign true'
+                                'git config --global tag.gpgSign true'
 
                             To disable this error and continue with unsigned tags, specify "--force-unsigned-tags" on
                             the command line when invoking this script.
