@@ -37,7 +37,6 @@ on:
   push:
     branches:
       - main
-  workflow_dispatch: # BugBug
 
 jobs:
   _0166baf5-0ecf-4262-b29a-526c500f6d06:
