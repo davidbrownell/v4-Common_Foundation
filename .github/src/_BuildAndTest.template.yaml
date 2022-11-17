@@ -17,11 +17,14 @@
 
 The following values may be customized by child templates:
 
+  - name: Name of this workflow
   - inputs: Additional inputs required by the child template.
   - prologue_steps: Steps invoked after setup and activation but before build and tests.
   - epilogue_steps: Steps invoked after build and tests.
 
 #>>
+
+name: <<% block name %>><<% endblock %>>
 
 on:
   workflow_call:

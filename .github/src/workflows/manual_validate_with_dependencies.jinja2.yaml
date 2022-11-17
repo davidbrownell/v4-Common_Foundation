@@ -1,9 +1,9 @@
 # ----------------------------------------------------------------------
 # |
-# |  manual_exercise.yaml
+# |  manual_validate_with_dependencies.yaml
 # |
 # |  David Brownell <db@DavidBrownell.com>
-# |      2022-11-17 08:07:27
+# |      2022-11-17 08:07:47
 # |
 # ----------------------------------------------------------------------
 # |
@@ -13,13 +13,15 @@
 # |  http://www.boost.org/LICENSE_1_0.txt.
 # |
 # ----------------------------------------------------------------------
-name: "Validate This Repository"
+name: "Validate This Repository (and its dependencies)"
 run-name: ${{ github.run_number }} [${{ github.actor }}] on ${{ github.ref_name }}
 
 on:
   workflow_dispatch:
 
 jobs:
-  _f4dfba31-0393-4d24-b807-b4fcf0703a5c:
-    name: "Build and Test (${{ github.ref_name }})"
-    uses: davidbrownell/v4-Common_Foundation/.github/workflows/exercise.yaml@CI-latest
+  _0af7f16a-58ea-4d13-8906-fa6f7cd60944:
+    name: "Build and Test All (${{ github.ref_name }})"
+    uses: davidbrownell/v4-Common_Foundation/.github/workflows/callable_validate_with_dependencies.yaml@CI-latest
+    with:
+      repo_branch:                          ${{ github.ref_name }}
