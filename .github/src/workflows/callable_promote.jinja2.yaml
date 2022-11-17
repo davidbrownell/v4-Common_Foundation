@@ -13,8 +13,7 @@
 # |  http://www.boost.org/LICENSE_1_0.txt.
 # |
 # ----------------------------------------------------------------------
-name: "[callable] Promotes This Branch"
-description: Promotes the code on a branch (by creating a tag) after the repository and its dependencies have been validated on the branch."
+name: "[callable] Promotes the Current Branch"
 
 on:
   workflow_call:
