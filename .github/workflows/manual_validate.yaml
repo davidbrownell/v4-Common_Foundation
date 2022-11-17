@@ -38,5 +38,5 @@ on:
 
 jobs:
   _f4dfba31-0393-4d24-b807-b4fcf0703a5c:
-    name: "Build and Test (${{ github.ref_name }})"
+    name: ".5" # "Build and Test ${{ github.ref_name }}"
     uses: davidbrownell/v4-Common_Foundation/.github/workflows/callable_validate.yaml@CI-latest
