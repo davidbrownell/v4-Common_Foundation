@@ -1,23 +1,6 @@
 # ----------------------------------------------------------------------
-# ----------------------------------------------------------------------
-# ----------------------------------------------------------------------
-#
-# This file is the result of a code generation process; any changes made
-# to this file will be overwritten during the next code generation
-# invocation. Any changes MUST be made in the source file rather than in
-# this one.
-#
-#     Code Generator:         Jinja2
-#     Input Filename:         workflows/callable_promote_impl.jinja2.yaml
-#     Generated Date:         2022-11-17
-#
-# ----------------------------------------------------------------------
-# ----------------------------------------------------------------------
-# ----------------------------------------------------------------------
-
-# ----------------------------------------------------------------------
 # |
-# |  callable_promote_impl.yaml
+# |  callable_promote.yaml
 # |
 # |  David Brownell <db@DavidBrownell.com>
 # |      2022-11-17 10:42:21
@@ -37,7 +20,7 @@ on:
 
 jobs:
   _a8c61f57-d012-4690-9208-58b6e742f881:
-    name: "Promote Stable Tag"
+    name: "Stable Tag"
     runs-on: ubuntu-latest
 
     steps:

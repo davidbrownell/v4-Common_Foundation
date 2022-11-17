@@ -3,7 +3,7 @@
 # |  callable_validate.yaml
 # |
 # |  David Brownell <db@DavidBrownell.com>
-# |      2022-11-17 08:09:45
+# |      2022-11-17 08:08:27
 # |
 # ----------------------------------------------------------------------
 # |
@@ -13,53 +13,6 @@
 # |  http://www.boost.org/LICENSE_1_0.txt.
 # |
 # ----------------------------------------------------------------------
-name: "[callable] Validates Common_Foundation"
+<<% extends "../_BuildAndTest.template.yaml" %>>
 
-on:
-  workflow_call:
-    inputs:
-      bootstrap_branch_overrides:           {type: string, required: false}
-      repo_branch:                          {type: string, required: false}
-
-jobs:
-  _47cee973-862c-4394-914c-b798732ecbbd:
-    name: "Build and Test"
-
-    strategy:
-      matrix:
-        os:
-          - macos-latest
-          - ubuntu-latest
-          - windows-latest
-
-        configuration:
-          - python310
-          # TODO: - python310_nolibs
-
-    uses: davidbrownell/v4-Common_Foundation/.github/workflows/impl_validate.yaml@CI-latest
-    with:
-      friendly_repo_name:                   Common_Foundation
-      repo_name:                            davidbrownell/v4-Common_Foundation
-      repo_branch:                          ${{ inputs.repo_branch }}
-      bootstrap_branch_overrides:           ${{ inputs.bootstrap_branch_overrides }}
-
-      os:                                   ${{ matrix.os }}
-      configuration:                        ${{ matrix.configuration }}
-
-      run_Builder:                          true
-
-      # Use the following values to control how different test types are run:
-      #
-      #   0: Do not run these test types
-      #   1: Run these test types without code coverage
-      #   2: Run these test types with code coverage
-      #   3: Run these test types with and without code coverage
-
-      execute_UnitTests:                    3
-      execute_FunctionalTests:              1
-      execute_IntegrationTests:             1
-      execute_SystemTests:                  1
-      execute_LocalEndToEndTests:           1
-      execute_EndToEndTests:                0
-      execute_BuildVerificationTests:       0
-      execute_PerformanceTests:             0
+<<% block name %>>"[impl] Common_Foundation-based Repository Validation"<<% endblock %>>
