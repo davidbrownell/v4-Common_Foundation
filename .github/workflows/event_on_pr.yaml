@@ -37,6 +37,7 @@ on:
   pull_request:
     branches:
       - main
+  workflow_dispatch: # BugBug
 
 jobs:
   _5b21e650-3435-4467-961e-1f0cacd31dcb:
