@@ -40,7 +40,7 @@ on:
 
 jobs:
   _47cee973-862c-4394-914c-b798732ecbbd:
-    name: ""
+    name: "Build and Test"
 
     strategy:
       matrix:
@@ -55,6 +55,7 @@ jobs:
 
     uses: davidbrownell/v4-Common_Foundation/.github/workflows/impl_validate.yaml@CI-latest
     with:
+      friendly_repo_name:                   Common_Foundation
       repo_name:                            davidbrownell/v4-Common_Foundation
       repo_branch:                          ${{ inputs.repo_branch }}
       bootstrap_branch_overrides:           ${{ inputs.bootstrap_branch_overrides }}
