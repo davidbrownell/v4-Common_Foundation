@@ -1,9 +1,9 @@
 # ----------------------------------------------------------------------
 # |
-# |  build_and_test.yaml
+# |  event_periodic.yaml
 # |
 # |  David Brownell <db@DavidBrownell.com>
-# |      2022-11-09 14:55:59
+# |      2022-11-17 08:09:24
 # |
 # ----------------------------------------------------------------------
 # |
@@ -13,13 +13,14 @@
 # |  http://www.boost.org/LICENSE_1_0.txt.
 # |
 # ----------------------------------------------------------------------
-name: "Build and Test"
+name: "periodic"
 run-name: ${{ github.run_number }} [${{ github.actor }}] on ${{ github.ref_name }}
 
 on:
-  workflow_dispatch:
+  schedule:
+    - cron: '0 9 * * *' # Once a day at 9am UTC
 
 jobs:
-  _ca6eacd0-46be-49b7-acf3-1e13fd2394c9:
-    name: "Build and Test"
-    uses: davidbrownell/v4-Common_Foundation/.github/workflows/exercise_main.yaml@CI-latest
+  _b0665d98-3e6b-41d7-85ec-41f2eeb0ceee:
+    name: "Build and Test (${{ github.ref_name }})"
+    uses: davidbrownell/v4-Common_Foundation/.github/workflows/exercise.yaml@CI-latest

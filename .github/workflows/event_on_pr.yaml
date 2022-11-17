@@ -8,7 +8,7 @@
 # this one.
 #
 #     Code Generator:         Jinja2
-#     Input Filename:         actions/builder/action.jinja2.yml
+#     Input Filename:         workflows/event_on_pr.jinja2.yaml
 #     Generated Date:         2022-11-17
 #
 # ----------------------------------------------------------------------
@@ -17,10 +17,10 @@
 
 # ----------------------------------------------------------------------
 # |
-# |  action.yml
+# |  event_on_pr.yaml
 # |
 # |  David Brownell <db@DavidBrownell.com>
-# |      2022-10-28 10:56:32
+# |      2022-11-17 08:08:44
 # |
 # ----------------------------------------------------------------------
 # |
@@ -30,32 +30,15 @@
 # |  http://www.boost.org/LICENSE_1_0.txt.
 # |
 # ----------------------------------------------------------------------
-name: Builder
-description: Runs `Builder` on the repository.
+name: "on pull request"
+run-name: ${{ github.run_number }} [${{ github.actor }}] on ${{ github.ref_name }}
 
-inputs:
-  archive_prefix:                           {type: string, required: true}
+on:
+  pull_request:
+    branches:
+      - main
 
-  os:                                       {type: string, required: true}
-  configuration:                            {type: string, required: true}
-
-  script_extension:                         {type: string, required: true}
-  shell_name:                               {type: string, required: true}
-  working_dir:                              {type: string, required: true}
-
-  activate_statement:                       {type: string, required: true}
-
-runs:
-  using: composite
-  steps:
-    - name: Builder
-      run: ${{ inputs.activate_statement }} && Builder${{ inputs.script_extension }} Build . ${{ inputs.working_dir }}/Builder --debug
-      shell: ${{ inputs.shell_name }}
-
-    - name: Builder [Upload]
-      if: always()
-      uses: actions/upload-artifact@v3.1.1
-      with:
-        name: "${{ inputs.archive_prefix }} Builder Artifacts"
-        path: ${{ inputs.working_dir }}/Builder
-        if-no-files-found: ignore
+jobs:
+  _5b21e650-3435-4467-961e-1f0cacd31dcb:
+    name: "Build and Test (${{ github.base_ref }})"
+    uses: davidbrownell/v4-Common_Foundation/.github/workflows/exercise.yaml@CI-latest

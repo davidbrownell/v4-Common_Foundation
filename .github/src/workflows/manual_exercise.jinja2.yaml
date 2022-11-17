@@ -1,9 +1,9 @@
 # ----------------------------------------------------------------------
 # |
-# |  exercise_main-Impl.yaml
+# |  manual_exercise.yaml
 # |
 # |  David Brownell <db@DavidBrownell.com>
-# |      2022-11-07 13:54:33
+# |      2022-11-17 08:07:27
 # |
 # ----------------------------------------------------------------------
 # |
@@ -13,4 +13,13 @@
 # |  http://www.boost.org/LICENSE_1_0.txt.
 # |
 # ----------------------------------------------------------------------
-<<% extends "../_BuildAndTest.template.yaml" %>>
+name: "Validate This Repository"
+run-name: ${{ github.run_number }} [${{ github.actor }}] on ${{ github.ref_name }}
+
+on:
+  workflow_dispatch:
+
+jobs:
+  _f4dfba31-0393-4d24-b807-b4fcf0703a5c:
+    name: "Build and Test (${{ github.ref_name }})"
+    uses: davidbrownell/v4-Common_Foundation/.github/workflows/exercise.yaml@CI-latest

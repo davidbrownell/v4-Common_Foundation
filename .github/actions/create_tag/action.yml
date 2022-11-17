@@ -8,8 +8,8 @@
 # this one.
 #
 #     Code Generator:         Jinja2
-#     Input Filename:         workflows/callable_create_stable_tag.jinja2.yaml
-#     Generated Date:         2022-11-16
+#     Input Filename:         actions/create_tag/action.jinja2.yml
+#     Generated Date:         2022-11-17
 #
 # ----------------------------------------------------------------------
 # ----------------------------------------------------------------------
@@ -17,10 +17,10 @@
 
 # ----------------------------------------------------------------------
 # |
-# |  callable_create_stable_tag.yaml
+# |  action.yml
 # |
 # |  David Brownell <db@DavidBrownell.com>
-# |      2022-11-07 13:48:26
+# |      2022-11-17 07:58:25
 # |
 # ----------------------------------------------------------------------
 # |
@@ -30,31 +30,22 @@
 # |  http://www.boost.org/LICENSE_1_0.txt.
 # |
 # ----------------------------------------------------------------------
-on:
-  workflow_call:
-    inputs:
-      branch:                               {type: string, required: true}
-      commit:                               {type: string, required: true}
+name: Create Tag
+description: Creates a tag in the repository.
 
-jobs:
-  _c29f4dc3-f949-4b4f-b4c4-16d3a63aad1c:
-    name: "Create 'stable' tag on '${{ inputs.branch }}'"
-    runs-on: ubuntu-latest
+inputs:
+  tag_name:                                 {type: string, required: true}
+  tag_message:                              {type: string, required: true}
+  commit:                                   {type: string, required: true }
 
-    steps:
-      - name: "[Impl] Dump Contexts"
-        uses: davidbrownell/v4-Common_Foundation/.github/actions/dump_contexts@CI-latest
+runs:
+  using: composite
+  steps:
+    - name: Create Tag
+      shell: bash
+      run: |
+        git config user.name "Github Action Bot"
+        git config user.email "<>"
 
-      - name: Checkout source
-        uses: actions/checkout@v3
-        with:
-          ref: refs/heads/${{ inputs.branch }}
-
-      - name: Create Tag
-        shell: bash
-        run: |
-          git config user.name "Github Action Bot"
-          git config user.email "<>"
-
-          git tag --annotate --force -m "🤖 Stability Verified" "${{ inputs.branch }}_stable" ${{ inputs.commit }}
-          git push origin "${{ inputs.branch }}_stable" --force
+        git tag --annotate --force -m "${{ inputs.tag_message }}" "${{ inputs.tag_name }}" ${{ inputs.commit }}
+        git push origin "${{ inputs.tag_name }}" --force

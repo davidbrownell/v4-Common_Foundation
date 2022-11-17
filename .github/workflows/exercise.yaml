@@ -8,8 +8,8 @@
 # this one.
 #
 #     Code Generator:         Jinja2
-#     Input Filename:         workflows/exercise_main.jinja2.yaml
-#     Generated Date:         2022-11-16
+#     Input Filename:         workflows/exercise.jinja2.yaml
+#     Generated Date:         2022-11-17
 #
 # ----------------------------------------------------------------------
 # ----------------------------------------------------------------------
@@ -17,10 +17,10 @@
 
 # ----------------------------------------------------------------------
 # |
-# |  exercise_main.yaml
+# |  exercise.yaml
 # |
 # |  David Brownell <db@DavidBrownell.com>
-# |      2022-11-07 10:06:37
+# |      2022-11-17 08:09:45
 # |
 # ----------------------------------------------------------------------
 # |
@@ -33,23 +33,12 @@
 on:
   workflow_call:
     inputs:
-      bootstrap_branch_overrides:
-        type: string
-        required: false
-        description: "See ../_BuildAndTest.template.yaml for more info."
-
-      repo_name:
-        type: string
-        required: false
-        description: "See ../_BuildAndTest.template.yaml for more info."
-
-      repo_branch:
-        type: string
-        required: false
-        description: "See ../_BuildAndTest.template.yaml for more info."
+      bootstrap_branch_overrides:           {type: string, required: false}
+      repo_name:                            {type: string, required: false}
+      repo_branch:                          {type: string, required: false}
 
 jobs:
-  _df144c14-1b55-49be-82fd-96f825e97b45:
+  _47cee973-862c-4394-914c-b798732ecbbd:
     name: "[Common_Foundation] Build and Test"
 
     strategy:
@@ -61,9 +50,9 @@ jobs:
 
         configuration:
           - python310
-          # - python310_nolibs
+          # TODO: - python310_nolibs
 
-    uses: davidbrownell/v4-Common_Foundation/.github/workflows/exercise_main-Impl.yaml@CI-latest
+    uses: davidbrownell/v4-Common_Foundation/.github/workflows/impl_exercise.yaml@CI-latest
     with:
       bootstrap_branch_overrides:           ${{ inputs.bootstrap_branch_overrides }}
       repo_name:                            ${{ inputs.repo_name }}

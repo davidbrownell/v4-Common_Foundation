@@ -1,9 +1,9 @@
 # ----------------------------------------------------------------------
 # |
-# |  periodic.yaml
+# |  event_on_pr.yaml
 # |
 # |  David Brownell <db@DavidBrownell.com>
-# |      2022-11-16 07:33:52
+# |      2022-11-17 08:08:44
 # |
 # ----------------------------------------------------------------------
 # |
@@ -13,17 +13,15 @@
 # |  http://www.boost.org/LICENSE_1_0.txt.
 # |
 # ----------------------------------------------------------------------
-name: Periodic
+name: "on pull request"
 run-name: ${{ github.run_number }} [${{ github.actor }}] on ${{ github.ref_name }}
 
 on:
-  workflow_dispatch:
-  schedule:
-    - cron: '0 9 * * *' # Once a day at 9am UTC
+  pull_request:
+    branches:
+      - main
 
 jobs:
-  _ef3d34c3-c4b9-4c67-8817-f6a7151893ea:
-    name: "Build and Test"
-    uses: davidbrownell/v4-Common_Foundation/.github/workflows/exercise_main.yaml@CI-latest
-    with:
-      repo_branch: main_stable
+  _5b21e650-3435-4467-961e-1f0cacd31dcb:
+    name: "Build and Test (${{ github.base_ref }})"
+    uses: davidbrownell/v4-Common_Foundation/.github/workflows/exercise.yaml@CI-latest

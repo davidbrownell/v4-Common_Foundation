@@ -8,8 +8,8 @@
 # this one.
 #
 #     Code Generator:         Jinja2
-#     Input Filename:         workflows/on_pr_to_main.jinja2.yaml
-#     Generated Date:         2022-11-16
+#     Input Filename:         workflows/manual_exercise.jinja2.yaml
+#     Generated Date:         2022-11-17
 #
 # ----------------------------------------------------------------------
 # ----------------------------------------------------------------------
@@ -17,10 +17,10 @@
 
 # ----------------------------------------------------------------------
 # |
-# |  on_pr_to_main.yaml
+# |  manual_exercise.yaml
 # |
 # |  David Brownell <db@DavidBrownell.com>
-# |      2022-10-31 14:30:18
+# |      2022-11-17 08:07:27
 # |
 # ----------------------------------------------------------------------
 # |
@@ -30,15 +30,13 @@
 # |  http://www.boost.org/LICENSE_1_0.txt.
 # |
 # ----------------------------------------------------------------------
-name: "OnPullRequest (main)"
+name: "Validate This Repository"
 run-name: ${{ github.run_number }} [${{ github.actor }}] on ${{ github.ref_name }}
 
 on:
-  pull_request:
-    branches:
-      - main
+  workflow_dispatch:
 
 jobs:
-  _7a87a26d-b601-4b29-bb5e-e86ec174ac3b:
-    name: "branch: ${{ github.base_ref }}"
-    uses: davidbrownell/v4-Common_Foundation/.github/workflows/exercise_main.yaml@CI-latest
+  _f4dfba31-0393-4d24-b807-b4fcf0703a5c:
+    name: "Build and Test (${{ github.ref_name }})"
+    uses: davidbrownell/v4-Common_Foundation/.github/workflows/exercise.yaml@CI-latest
