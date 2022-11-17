@@ -37,7 +37,7 @@ on:
 
 jobs:
   _a8c61f57-d012-4690-9208-58b6e742f881:
-    name: "Promote '${{ inputs.repo_branch }}_stable'"
+    name: "Promote Stable Tag"
     runs-on: ubuntu-latest
 
     steps:

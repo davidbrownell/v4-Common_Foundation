@@ -26,20 +26,21 @@ The following values may be customized by child templates:
 
 name: <<% block name %>><<% endblock %>>
 
+
 on:
   workflow_call:
     inputs:
       # ----------------------------------------------------------------------
       # |  Misc
+      repo_name:
+        type: string
+        required: true
+        description: Repository under test (the repository associated with the event that triggered the workflow will be used if this value is not provided).
+
       bootstrap_branch_overrides:
         type: string
         required: false
         description: Forces Enlist.py to clone repositories according to specified branch.
-
-      repo_name:
-        type: string
-        required: false
-        description: Repository under test (the repository associated with the event that triggered the workflow will be used if this value is not provided).
 
       repo_branch:
         type: string
@@ -79,7 +80,7 @@ on:
 
 jobs:
   _8fb649ac-dac3-4de2-8bb5-a3eb6b7c5b70:
-    name: "[${{ inputs.os }}, ${{ inputs.configuration }}]"
+    name: "${{ inputs.repo_name }} [${{ inputs.os }}, ${{ inputs.configuration }}]"
     runs-on: ${{ inputs.os }}
 
     env:
