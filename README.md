@@ -2,7 +2,7 @@
 
 A framework to increase the ease and reliability of development across operating systems, programming languages, and systems.
 
-[![main](https://github.com/davidbrownell/v4-Common_Foundation/actions/workflows/main.yaml/badge.svg)](https://github.com/davidbrownell/v4-Common_Foundation/actions/workflows/main.yaml)
+[![on push](https://github.com/davidbrownell/v4-Common_Foundation/actions/workflows/event_on_push.yaml/badge.svg)](https://github.com/davidbrownell/v4-Common_Foundation/actions/workflows/event_on_push.yaml)
 
 ## Overview
 
