@@ -80,7 +80,7 @@ on:
 
 jobs:
   _8fb649ac-dac3-4de2-8bb5-a3eb6b7c5b70:
-    name: "[${{ inputs.repo_name }}_3] (${{ inputs.os }}, ${{ inputs.configuration }}])" # TODO: Remove _3 suffix
+    name: "Build and Test (${{ inputs.os }}, ${{ inputs.configuration }})"
     runs-on: ${{ inputs.os }}
 
     env:

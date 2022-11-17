@@ -40,5 +40,5 @@ on:
 
 jobs:
   _5b21e650-3435-4467-961e-1f0cacd31dcb:
-    name: "Build and Test (${{ github.base_ref }})"
+    name: "target branch: ${{ github.base_ref }}"
     uses: davidbrownell/v4-Common_Foundation/.github/workflows/callable_validate.yaml@CI-latest
