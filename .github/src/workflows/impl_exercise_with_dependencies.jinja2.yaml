@@ -1,0 +1,42 @@
+# ----------------------------------------------------------------------
+# |
+# |  impl_exercise_with_dependencies.yaml
+# |
+# |  David Brownell <db@DavidBrownell.com>
+# |      2022-11-17 08:09:59
+# |
+# ----------------------------------------------------------------------
+# |
+# |  Copyright David Brownell 2022
+# |  Distributed under the Boost Software License, Version 1.0. See
+# |  accompanying file LICENSE_1_0.txt or copy at
+# |  http://www.boost.org/LICENSE_1_0.txt.
+# |
+# ----------------------------------------------------------------------
+on:
+  workflow_call:
+    inputs:
+      repo_branch:                          {type: string, required: true}
+
+jobs:
+  _8a2a6711-9a4a-4b7e-9a9b-6d624bb23e81:
+    name: "Common_Foundation"
+    uses: davidbrownell/v4-Common_Foundation/.github/workflows/exercise.yaml@CI-latest
+    with:
+      bootstrap_branch_overrides: "Common_Foundation:${{ inputs.repo_branch }}"
+      repo_name: "davidbrownell/v4-Common_Foundation"
+      repo_branch: ${{ inputs.repo_branch }}
+
+  _81490203-4a3f-4fd4-8944-310e1f4e8cd1:
+    name: "Common_PythonDevelopment"
+    uses: davidbrownell/v4-Common_PythonDevelopment/.github/workflows/exercise_main.yaml@CI-v1
+    with:
+      bootstrap_branch_overrides: "Common_Foundation:${{ inputs.repo_branch }}"
+      repo_name: "davidbrownell/v4-Common_PythonDevelopment"
+
+  _bbde9124-719c-4893-b69b-3d8facad8d74:
+    name: "DavidBrownell_Backup"
+    uses: davidbrownell/v4-DavidBrownell_Backup/.github/workflows/exercise_main.yaml@CI-v1
+    with:
+      bootstrap_branch_overrides: "Common_Foundation:${{ inputs.repo_branch }}"
+      repo_name: "davidbrownell/v4-DavidBrownell_Backup"

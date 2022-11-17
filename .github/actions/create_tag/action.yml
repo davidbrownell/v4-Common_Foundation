@@ -8,8 +8,8 @@
 # this one.
 #
 #     Code Generator:         Jinja2
-#     Input Filename:         workflows/build_and_test.jinja2.yaml
-#     Generated Date:         2022-11-16
+#     Input Filename:         actions/create_tag/action.jinja2.yml
+#     Generated Date:         2022-11-17
 #
 # ----------------------------------------------------------------------
 # ----------------------------------------------------------------------
@@ -17,10 +17,10 @@
 
 # ----------------------------------------------------------------------
 # |
-# |  build_and_test.yaml
+# |  action.yml
 # |
 # |  David Brownell <db@DavidBrownell.com>
-# |      2022-11-09 14:55:59
+# |      2022-11-17 07:58:25
 # |
 # ----------------------------------------------------------------------
 # |
@@ -30,13 +30,22 @@
 # |  http://www.boost.org/LICENSE_1_0.txt.
 # |
 # ----------------------------------------------------------------------
-name: "Build and Test"
-run-name: ${{ github.run_number }} [${{ github.actor }}] on ${{ github.ref_name }}
+name: Create Tag
+description: Creates a tag in the repository.
 
-on:
-  workflow_dispatch:
+inputs:
+  tag_name:                                 {type: string, required: true}
+  tag_message:                              {type: string, required: true}
+  commit:                                   {type: string, required: true }
 
-jobs:
-  _ca6eacd0-46be-49b7-acf3-1e13fd2394c9:
-    name: "Build and Test"
-    uses: davidbrownell/v4-Common_Foundation/.github/workflows/exercise_main.yaml@CI-latest
+runs:
+  using: composite
+  steps:
+    - name: Create Tag
+      shell: bash
+      run: |
+        git config user.name "Github Action Bot"
+        git config user.email "<>"
+
+        git tag --annotate --force -m "${{ inputs.tag_message }}" "${{ inputs.tag_name }}" ${{ inputs.commit }}
+        git push origin "${{ inputs.tag_name }}" --force

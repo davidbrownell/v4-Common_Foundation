@@ -8,7 +8,7 @@
 # this one.
 #
 #     Code Generator:         Jinja2
-#     Input Filename:         actions/builder/action.jinja2.yml
+#     Input Filename:         workflows/event_periodic.jinja2.yaml
 #     Generated Date:         2022-11-17
 #
 # ----------------------------------------------------------------------
@@ -17,10 +17,10 @@
 
 # ----------------------------------------------------------------------
 # |
-# |  action.yml
+# |  event_periodic.yaml
 # |
 # |  David Brownell <db@DavidBrownell.com>
-# |      2022-10-28 10:56:32
+# |      2022-11-17 08:09:24
 # |
 # ----------------------------------------------------------------------
 # |
@@ -30,32 +30,15 @@
 # |  http://www.boost.org/LICENSE_1_0.txt.
 # |
 # ----------------------------------------------------------------------
-name: Builder
-description: Runs `Builder` on the repository.
+name: "periodic"
+run-name: ${{ github.run_number }} [${{ github.actor }}] on ${{ github.ref_name }}
 
-inputs:
-  archive_prefix:                           {type: string, required: true}
+on:
+  schedule:
+    - cron: '0 9 * * *' # Once a day at 9am UTC
+  workflow_dispatch: # BugBug
 
-  os:                                       {type: string, required: true}
-  configuration:                            {type: string, required: true}
-
-  script_extension:                         {type: string, required: true}
-  shell_name:                               {type: string, required: true}
-  working_dir:                              {type: string, required: true}
-
-  activate_statement:                       {type: string, required: true}
-
-runs:
-  using: composite
-  steps:
-    - name: Builder
-      run: ${{ inputs.activate_statement }} && Builder${{ inputs.script_extension }} Build . ${{ inputs.working_dir }}/Builder --debug
-      shell: ${{ inputs.shell_name }}
-
-    - name: Builder [Upload]
-      if: always()
-      uses: actions/upload-artifact@v3.1.1
-      with:
-        name: "${{ inputs.archive_prefix }} Builder Artifacts"
-        path: ${{ inputs.working_dir }}/Builder
-        if-no-files-found: ignore
+jobs:
+  _b0665d98-3e6b-41d7-85ec-41f2eeb0ceee:
+    name: "Build and Test (${{ github.ref_name }})"
+    uses: davidbrownell/v4-Common_Foundation/.github/workflows/exercise.yaml@CI-latest

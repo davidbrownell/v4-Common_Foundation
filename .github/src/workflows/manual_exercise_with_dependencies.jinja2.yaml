@@ -1,9 +1,9 @@
 # ----------------------------------------------------------------------
 # |
-# |  on_pr_to_main.yaml
+# |  manual_exercise_with_dependencies.yaml
 # |
 # |  David Brownell <db@DavidBrownell.com>
-# |      2022-10-31 14:30:18
+# |      2022-11-17 08:07:47
 # |
 # ----------------------------------------------------------------------
 # |
@@ -13,15 +13,15 @@
 # |  http://www.boost.org/LICENSE_1_0.txt.
 # |
 # ----------------------------------------------------------------------
-name: "OnPullRequest (main)"
+name: "Validate This Repository (and its dependencies)"
 run-name: ${{ github.run_number }} [${{ github.actor }}] on ${{ github.ref_name }}
 
 on:
-  pull_request:
-    branches:
-      - main
+  workflow_dispatch:
 
 jobs:
-  _7a87a26d-b601-4b29-bb5e-e86ec174ac3b:
-    name: "branch: ${{ github.base_ref }}"
-    uses: davidbrownell/v4-Common_Foundation/.github/workflows/exercise_main.yaml@CI-latest
+  _0af7f16a-58ea-4d13-8906-fa6f7cd60944:
+    name: "Build and Test All (${{ github.ref_name }})"
+    uses: davidbrownell/v4-Common_Foundation/.github/workflows/impl_exercise_with_dependencies.yaml@CI-latest
+    with:
+      repo_branch:                          ${{ github.ref_name }}

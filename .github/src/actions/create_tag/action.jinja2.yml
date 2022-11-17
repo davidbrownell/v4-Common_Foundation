@@ -1,0 +1,34 @@
+# ----------------------------------------------------------------------
+# |
+# |  action.yml
+# |
+# |  David Brownell <db@DavidBrownell.com>
+# |      2022-11-17 07:58:25
+# |
+# ----------------------------------------------------------------------
+# |
+# |  Copyright David Brownell 2022
+# |  Distributed under the Boost Software License, Version 1.0. See
+# |  accompanying file LICENSE_1_0.txt or copy at
+# |  http://www.boost.org/LICENSE_1_0.txt.
+# |
+# ----------------------------------------------------------------------
+name: Create Tag
+description: Creates a tag in the repository.
+
+inputs:
+  tag_name:                                 {type: string, required: true}
+  tag_message:                              {type: string, required: true}
+  commit:                                   {type: string, required: true }
+
+runs:
+  using: composite
+  steps:
+    - name: Create Tag
+      shell: bash
+      run: |
+        git config user.name "Github Action Bot"
+        git config user.email "<>"
+
+        git tag --annotate --force -m "${{ inputs.tag_message }}" "${{ inputs.tag_name }}" ${{ inputs.commit }}
+        git push origin "${{ inputs.tag_name }}" --force

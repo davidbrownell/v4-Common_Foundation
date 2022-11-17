@@ -1,9 +1,9 @@
 # ----------------------------------------------------------------------
 # |
-# |  build_and_test.yaml
+# |  impl_exercise.yaml
 # |
 # |  David Brownell <db@DavidBrownell.com>
-# |      2022-11-09 14:55:59
+# |      2022-11-17 08:08:27
 # |
 # ----------------------------------------------------------------------
 # |
@@ -13,13 +13,4 @@
 # |  http://www.boost.org/LICENSE_1_0.txt.
 # |
 # ----------------------------------------------------------------------
-name: "Build and Test"
-run-name: ${{ github.run_number }} [${{ github.actor }}] on ${{ github.ref_name }}
-
-on:
-  workflow_dispatch:
-
-jobs:
-  _ca6eacd0-46be-49b7-acf3-1e13fd2394c9:
-    name: "Build and Test"
-    uses: davidbrownell/v4-Common_Foundation/.github/workflows/exercise_main.yaml@CI-latest
+<<% extends "../_BuildAndTest.template.yaml" %>>
