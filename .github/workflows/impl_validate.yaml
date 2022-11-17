@@ -8,7 +8,7 @@
 # this one.
 #
 #     Code Generator:         Jinja2
-#     Input Filename:         workflows/impl_exercise.jinja2.yaml
+#     Input Filename:         workflows/impl_validate.jinja2.yaml
 #     Generated Date:         2022-11-17
 #
 # ----------------------------------------------------------------------
@@ -17,7 +17,7 @@
 
 # ----------------------------------------------------------------------
 # |
-# |  impl_exercise.yaml
+# |  impl_validate.yaml
 # |
 # |  David Brownell <db@DavidBrownell.com>
 # |      2022-11-17 08:08:27
@@ -31,6 +31,7 @@
 # |
 # ----------------------------------------------------------------------
 
+name: "[impl] Common_Foundation-based Repository Validation"
 on:
   workflow_call:
     inputs:

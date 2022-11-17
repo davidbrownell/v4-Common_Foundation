@@ -1,6 +1,23 @@
 # ----------------------------------------------------------------------
+# ----------------------------------------------------------------------
+# ----------------------------------------------------------------------
+#
+# This file is the result of a code generation process; any changes made
+# to this file will be overwritten during the next code generation
+# invocation. Any changes MUST be made in the source file rather than in
+# this one.
+#
+#     Code Generator:         Jinja2
+#     Input Filename:         workflows/callable_validate_with_dependencies.jinja2.yaml
+#     Generated Date:         2022-11-17
+#
+# ----------------------------------------------------------------------
+# ----------------------------------------------------------------------
+# ----------------------------------------------------------------------
+
+# ----------------------------------------------------------------------
 # |
-# |  impl_exercise_with_dependencies.yaml
+# |  callable_validate_with_dependencies.yaml
 # |
 # |  David Brownell <db@DavidBrownell.com>
 # |      2022-11-17 08:09:59
@@ -13,6 +30,8 @@
 # |  http://www.boost.org/LICENSE_1_0.txt.
 # |
 # ----------------------------------------------------------------------
+name: "[callable] Validates This Repository (and its dependencies)."
+
 on:
   workflow_call:
     inputs:
@@ -21,7 +40,7 @@ on:
 jobs:
   _8a2a6711-9a4a-4b7e-9a9b-6d624bb23e81:
     name: "Common_Foundation"
-    uses: davidbrownell/v4-Common_Foundation/.github/workflows/exercise.yaml@CI-latest
+    uses: davidbrownell/v4-Common_Foundation/.github/workflows/callable_validate.yaml@CI-latest
     with:
       bootstrap_branch_overrides: "Common_Foundation:${{ inputs.repo_branch }}"
       repo_name: "davidbrownell/v4-Common_Foundation"
@@ -30,7 +49,7 @@ jobs:
   # TODO: Testing
   _874c029c-7b80-434d-b0d1-4c784f2315c1:
     name: "Common_Foundation (Testing)"
-    uses: davidbrownell/v4-Common_Foundation/.github/workflows/exercise.yaml@CI-latest
+    uses: davidbrownell/v4-Common_Foundation/.github/workflows/callable_validate.yaml@CI-latest
     with:
       bootstrap_branch_overrides: "Common_Foundation:${{ inputs.repo_branch }}"
       repo_name: "davidbrownell/v4-Common_Foundation"
@@ -38,14 +57,14 @@ jobs:
 
   # TODO: _81490203-4a3f-4fd4-8944-310e1f4e8cd1:
   # TODO:   name: "Common_PythonDevelopment"
-  # TODO:   uses: davidbrownell/v4-Common_PythonDevelopment/.github/workflows/exercise_main.yaml@CI-v1
+  # TODO:   uses: davidbrownell/v4-Common_PythonDevelopment/.github/workflows/validate.yaml@CI-v1
   # TODO:   with:
   # TODO:     bootstrap_branch_overrides: "Common_Foundation:${{ inputs.repo_branch }}"
   # TODO:     repo_name: "davidbrownell/v4-Common_PythonDevelopment"
   # TODO:
   # TODO: _bbde9124-719c-4893-b69b-3d8facad8d74:
   # TODO:   name: "DavidBrownell_Backup"
-  # TODO:   uses: davidbrownell/v4-DavidBrownell_Backup/.github/workflows/exercise_main.yaml@CI-v1
+  # TODO:   uses: davidbrownell/v4-DavidBrownell_Backup/.github/workflows/validate.yaml@CI-v1
   # TODO:   with:
   # TODO:     bootstrap_branch_overrides: "Common_Foundation:${{ inputs.repo_branch }}"
   # TODO:     repo_name: "davidbrownell/v4-DavidBrownell_Backup"
