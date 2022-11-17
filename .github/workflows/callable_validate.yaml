@@ -41,7 +41,7 @@ on:
 
 jobs:
   _47cee973-862c-4394-914c-b798732ecbbd:
-    name: "[Common_Foundation] Build and Test"
+    name: "[Common_Foundation_1] Build and Test" # TODO: Remove _1 suffix
 
     strategy:
       matrix:
