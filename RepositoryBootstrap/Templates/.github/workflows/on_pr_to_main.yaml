@@ -9,4 +9,5 @@ on:
 jobs:
   _1fbc5ab1-736c-468f-b711-b825c52d87c8:
     name: "branch: ${{ github.base_ref }}"
-    uses: ./.github/workflows/exercise_main.yaml
+    # "<< Populate (github_workflow): Specify the name of your repository on Github in the form '<username>/<repo_name>' (e.g. 'davidbrownell/v4-Common_PythonDevelopment') >>"
+    uses: <username>/<repo_name>/.github/workflows/exercise_main.yaml@CI-latest
