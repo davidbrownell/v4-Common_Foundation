@@ -8,7 +8,7 @@
 # this one.
 #
 #     Code Generator:         Jinja2
-#     Input Filename:         workflows/callable_promote.jinja2.yaml
+#     Input Filename:         workflows/callable_promote_impl.jinja2.yaml
 #     Generated Date:         2022-11-17
 #
 # ----------------------------------------------------------------------
@@ -17,7 +17,7 @@
 
 # ----------------------------------------------------------------------
 # |
-# |  callable_promote.yaml
+# |  callable_promote_impl.yaml
 # |
 # |  David Brownell <db@DavidBrownell.com>
 # |      2022-11-17 10:42:21
