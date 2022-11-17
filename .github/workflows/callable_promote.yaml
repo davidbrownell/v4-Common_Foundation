@@ -8,7 +8,7 @@
 # this one.
 #
 #     Code Generator:         Jinja2
-#     Input Filename:         workflows/callable_validate_with_dependencies.jinja2.yaml
+#     Input Filename:         workflows/callable_promote.jinja2.yaml
 #     Generated Date:         2022-11-17
 #
 # ----------------------------------------------------------------------
@@ -17,10 +17,10 @@
 
 # ----------------------------------------------------------------------
 # |
-# |  callable_validate_with_dependencies.yaml
+# |  callable_promote.yaml
 # |
 # |  David Brownell <db@DavidBrownell.com>
-# |      2022-11-17 08:09:59
+# |      2022-11-17 10:42:21
 # |
 # ----------------------------------------------------------------------
 # |
@@ -30,29 +30,28 @@
 # |  http://www.boost.org/LICENSE_1_0.txt.
 # |
 # ----------------------------------------------------------------------
-name: "[callable] Validates Common_Foundation (and its dependencies)."
+name: "[callable] Promotes the Current Branch"
 
 on:
   workflow_call:
-    inputs:
-      repo_branch:                          {type: string, required: true}
 
 jobs:
-  _8a2a6711-9a4a-4b7e-9a9b-6d624bb23e81:
-    name: "Common_Foundation"
-    uses: davidbrownell/v4-Common_Foundation/.github/workflows/callable_validate.yaml@CI-latest
-    with:
-      bootstrap_branch_overrides: "Common_Foundation:${{ inputs.repo_branch }}"
-      repo_branch: ${{ inputs.repo_branch }}
+  _a8c61f57-d012-4690-9208-58b6e742f881:
+    name: "Stable Tag"
+    runs-on: ubuntu-latest
 
-  _81490203-4a3f-4fd4-8944-310e1f4e8cd1:
-    name: "Common_PythonDevelopment"
-    uses: davidbrownell/v4-Common_PythonDevelopment/.github/workflows/callable_validate.yaml@CI-v1
-    with:
-      bootstrap_branch_overrides: "Common_Foundation:${{ inputs.repo_branch }}"
+    steps:
+      - name: "[Impl] Dump Contexts"
+        uses: davidbrownell/v4-Common_Foundation/.github/actions/dump_contexts@CI-v1
 
-  # TODO: _bbde9124-719c-4893-b69b-3d8facad8d74:
-  # TODO:   name: "DavidBrownell_Backup"
-  # TODO:   uses: davidbrownell/v4-DavidBrownell_Backup/.github/workflows/validate.yaml@CI-v1
-  # TODO:   with:
-  # TODO:     bootstrap_branch_overrides: "Common_Foundation:${{ inputs.repo_branch }}"
+      - name: Checkout source
+        uses: actions/checkout@v3
+        with:
+          ref: refs/heads/${{ github.ref_name }}
+
+      - name: Create Tag
+        uses: davidbrownell/v4-Common_Foundation/.github/actions/create_tag@CI-v1
+        with:
+          tag_name:                         "${{ github.ref_name }}_stable"
+          tag_message:                      "🤖 Stability Verified on ${{ github.ref_name }}"
+          commit:                           "${{ github.sha }}"

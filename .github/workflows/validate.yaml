@@ -1,0 +1,82 @@
+# ----------------------------------------------------------------------
+# ----------------------------------------------------------------------
+# ----------------------------------------------------------------------
+#
+# This file is the result of a code generation process; any changes made
+# to this file will be overwritten during the next code generation
+# invocation. Any changes MUST be made in the source file rather than in
+# this one.
+#
+#     Code Generator:         Jinja2
+#     Input Filename:         workflows/validate.jinja2.yaml
+#     Generated Date:         2022-11-17
+#
+# ----------------------------------------------------------------------
+# ----------------------------------------------------------------------
+# ----------------------------------------------------------------------
+
+# ----------------------------------------------------------------------
+# |
+# |  validate.yaml
+# |
+# |  David Brownell <db@DavidBrownell.com>
+# |      2022-11-17 08:09:45
+# |
+# ----------------------------------------------------------------------
+# |
+# |  Copyright David Brownell 2022
+# |  Distributed under the Boost Software License, Version 1.0. See
+# |  accompanying file LICENSE_1_0.txt or copy at
+# |  http://www.boost.org/LICENSE_1_0.txt.
+# |
+# ----------------------------------------------------------------------
+name: "[callable] Validates Common_Foundation"
+
+on:
+  workflow_call:
+    inputs:
+      bootstrap_branch_overrides:           {type: string, required: false}
+      repo_branch:                          {type: string, required: false}
+
+jobs:
+  _47cee973-862c-4394-914c-b798732ecbbd:
+    name: "Build and Test"
+
+    strategy:
+      matrix:
+        os:
+          - macos-latest
+          - ubuntu-latest
+          - windows-latest
+
+        configuration:
+          - python310
+          # TODO: - python310_nolibs
+
+    uses: davidbrownell/v4-Common_Foundation/.github/workflows/callable_validate.yaml@CI-latest
+    with:
+      job_name_prefix:                      Common_Foundation
+      repo_name:                            davidbrownell/v4-Common_Foundation
+      repo_branch:                          ${{ inputs.repo_branch }}
+      bootstrap_branch_overrides:           ${{ inputs.bootstrap_branch_overrides }}
+
+      os:                                   ${{ matrix.os }}
+      configuration:                        ${{ matrix.configuration }}
+
+      run_Builder:                          true
+
+      # Use the following values to control how different test types are run:
+      #
+      #   0: Do not run these test types
+      #   1: Run these test types without code coverage
+      #   2: Run these test types with code coverage
+      #   3: Run these test types with and without code coverage
+
+      execute_UnitTests:                    3
+      execute_FunctionalTests:              1
+      execute_IntegrationTests:             1
+      execute_SystemTests:                  1
+      execute_LocalEndToEndTests:           1
+      execute_EndToEndTests:                0
+      execute_BuildVerificationTests:       0
+      execute_PerformanceTests:             0

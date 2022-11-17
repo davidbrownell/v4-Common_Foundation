@@ -8,7 +8,7 @@
 # this one.
 #
 #     Code Generator:         Jinja2
-#     Input Filename:         workflows/event_on_pr.jinja2.yaml
+#     Input Filename:         workflows/validate_with_dependencies.jinja2.yaml
 #     Generated Date:         2022-11-17
 #
 # ----------------------------------------------------------------------
@@ -17,10 +17,10 @@
 
 # ----------------------------------------------------------------------
 # |
-# |  event_on_pr.yaml
+# |  validate_with_dependencies.yaml
 # |
 # |  David Brownell <db@DavidBrownell.com>
-# |      2022-11-17 08:08:44
+# |      2022-11-17 08:09:59
 # |
 # ----------------------------------------------------------------------
 # |
@@ -30,15 +30,29 @@
 # |  http://www.boost.org/LICENSE_1_0.txt.
 # |
 # ----------------------------------------------------------------------
-name: "on pull request"
-run-name: ${{ github.run_number }} [${{ github.actor }}] on ${{ github.ref_name }}
+name: "[callable] Validates Common_Foundation (and its dependencies)."
 
 on:
-  pull_request:
-    branches:
-      - main
+  workflow_call:
+    inputs:
+      repo_branch:                          {type: string, required: true}
 
 jobs:
-  _5b21e650-3435-4467-961e-1f0cacd31dcb:
-    name: "Validate (target: ${{ github.base_ref }})"
+  _8a2a6711-9a4a-4b7e-9a9b-6d624bb23e81:
+    name: "Common_Foundation"
     uses: davidbrownell/v4-Common_Foundation/.github/workflows/validate.yaml@CI-latest
+    with:
+      bootstrap_branch_overrides: "Common_Foundation:${{ inputs.repo_branch }}"
+      repo_branch: ${{ inputs.repo_branch }}
+
+  _81490203-4a3f-4fd4-8944-310e1f4e8cd1:
+    name: "Common_PythonDevelopment"
+    uses: davidbrownell/v4-Common_PythonDevelopment/.github/workflows/validate.yaml@CI-v1
+    with:
+      bootstrap_branch_overrides: "Common_Foundation:${{ inputs.repo_branch }}"
+
+  _ad93907a-f916-4560-8624-c415efbb51b9:
+    name: "DavidBrownell_Backup"
+    uses: davidbrownell/v4-DavidBrownell_Backup/.github/workflows/validate.yaml@CI-v1
+    with:
+      bootstrap_branch_overrides: "Common_Foundation:${{ inputs.repo_branch }}"
