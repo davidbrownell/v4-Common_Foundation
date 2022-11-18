@@ -1,0 +1,12 @@
+name: "on pull request"
+run-name: ${{ github.run_number }} [${{ github.actor }}] on ${{ github.ref_name }}
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  _<<< guid() >>>:
+    name: "Validate"
+    uses: <<< git_username >>>/<<< git_repo >>>/.github/workflows/validate.yaml@CI-latest
