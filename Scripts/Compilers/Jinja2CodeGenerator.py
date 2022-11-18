@@ -18,6 +18,7 @@
 import datetime
 import os
 import textwrap
+import uuid
 
 from pathlib import Path
 from typing import Any, Callable, Dict, Generator, List as ListType, Optional, Sequence, Tuple, Union
@@ -376,9 +377,29 @@ class CodeGenerator(
                     continue
 
                 env.tests["valid_file"] = lambda value: (input_filename.parent / value).is_file()
+
                 env.filters["doubleslash"] = lambda value: value.replace("\\", "\\\\")
                 env.filters["env"] = lambda value: os.getenv(value)
                 env.filters["format_and_reduce"] = lambda items, template, join_str: join_str.join(template.format(item) for item in items)
+
+                # ----------------------------------------------------------------------
+                cached_guids: Dict[str, str] = {}
+
+                def CreateGuid(
+                    identifier: Optional[str]=None,
+                ) -> str:
+                    guid = cached_guids.get(identifier, None) if identifier is not None else None
+                    if guid is None:
+                        guid = str(uuid.uuid4()).lower()
+
+                        if identifier is not None:
+                            cached_guids[identifier] = guid
+
+                    return guid
+
+                # ----------------------------------------------------------------------
+
+                env.globals["guid"] = CreateGuid
 
                 try:
                     with input_filename.open() as f:

@@ -1,0 +1,21 @@
+name: "on push"
+run-name: ${{ github.run_number }} [${{ github.actor }}] on ${{ github.ref_name }}
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  _<<< guid("validate") >>>:
+    name: "Validate"
+    uses: <<< git_username >>>/<<< git_repo >>>/.github/workflows/validate_with_dependencies.yaml@CI-latest
+    with:
+      repo_branch:                          ${{ github.ref_name }}
+
+  _<<< guid() >>>:
+    name: "Promote"
+    uses: davidbrownell/v4-Common_Foundation/.github/workflows/callable_promote.yaml@CI-v1
+
+    needs:
+      - _<<< guid("validate") >>>
