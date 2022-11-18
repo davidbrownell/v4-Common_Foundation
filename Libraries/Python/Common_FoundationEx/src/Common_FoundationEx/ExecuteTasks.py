@@ -385,11 +385,13 @@ class _StatusFactory(object):
         task_id: TaskID,
         *,
         is_verbose: bool,
+        is_quiet: bool,
     ):
         self._stdout_context                = stdout_context
         self._progress_bar                  = progress_bar
         self._task_id                       = task_id
         self._is_verbose                    = is_verbose
+        self._is_quiet                      = is_quiet
 
     # ----------------------------------------------------------------------
     @contextmanager
@@ -404,7 +406,7 @@ class _StatusFactory(object):
             refresh=False,
             status="",
             total=None,
-            visible=True,
+            visible=not self._is_quiet,
         )
 
         self._progress_bar.start_task(self._task_id)
@@ -582,6 +584,7 @@ def _GenerateStatusInfo(
                             visible=False,
                         ),
                         is_verbose=dm.is_verbose,
+                        is_quiet=quiet,
                     ),
                 )
 
