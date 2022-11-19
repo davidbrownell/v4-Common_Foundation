@@ -9,7 +9,7 @@
 #
 #     Code Generator:         Jinja2
 #     Input Filename:         workflows/callable_validate.jinja2.yaml
-#     Generated Date:         2022-11-18
+#     Generated Date:         2022-11-19
 #
 # ----------------------------------------------------------------------
 # ----------------------------------------------------------------------
@@ -43,6 +43,11 @@ on:
         required: true
         description: "Official GitHub repo name in the form: <username>/<repo_name> (e.g. 'davidbrownell/v4-Common_Foundation')."
 
+      repo_branch:
+        type: string
+        required: true
+        description: Repository branch under test.
+
       job_name_prefix:
         type: string
         required: true
@@ -52,11 +57,6 @@ on:
         type: string
         required: false
         description: Forces Enlist.py to clone repositories according to specified branch.
-
-      repo_branch:
-        type: string
-        required: false
-        description: Repository branch under test.
 
       os:
         type: string

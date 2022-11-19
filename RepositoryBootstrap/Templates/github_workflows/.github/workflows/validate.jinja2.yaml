@@ -24,8 +24,8 @@ name: "[callable] Validates <<< friendly_repo_name >>>"
 on:
   workflow_call:
     inputs:
+      repo_branch:                          {type: string, required: true}
       bootstrap_branch_overrides:           {type: string, required: false}
-      repo_branch:                          {type: string, required: false}
 
 jobs:
   _<<< guid() >>>:

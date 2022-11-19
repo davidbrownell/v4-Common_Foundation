@@ -1,5 +1,5 @@
 name: "on pull request"
-run-name: ${{ github.run_number }} [${{ github.actor }}] on ${{ github.ref_name }}
+run-name: "${{ github.run_number }} [${{ github.actor }}] ${{ github.head_ref }} -> ${{ github.base_ref }}"
 
 on:
   pull_request:
@@ -10,3 +10,5 @@ jobs:
   _<<< guid() >>>:
     name: "Validate"
     uses: <<< git_username >>>/<<< git_repo >>>/.github/workflows/validate.yaml@CI-latest
+    with:
+      repo_branch:                          ${{ github.head_ref }}
