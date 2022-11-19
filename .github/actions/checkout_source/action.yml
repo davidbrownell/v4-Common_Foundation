@@ -9,7 +9,7 @@
 #
 #     Code Generator:         Jinja2
 #     Input Filename:         actions/checkout_source/action.jinja2.yml
-#     Generated Date:         2022-11-17
+#     Generated Date:         2022-11-18
 #
 # ----------------------------------------------------------------------
 # ----------------------------------------------------------------------
@@ -115,4 +115,4 @@ runs:
       if: ${{ inputs.repo_name }}
       shell: ${{ inputs.shell_name }}
       run: |
-        git clone --branch ${{ inputs.repo_branch ||        'main_stable' }} https://github.com/${{ inputs.repo_name }} "${{ steps.repo_directory.outputs.result }}"
+        git clone --branch ${{ inputs.repo_branch || 'main_stable' }} https://github.com/${{ inputs.repo_name }} "${{ steps.repo_directory.outputs.result }}"
