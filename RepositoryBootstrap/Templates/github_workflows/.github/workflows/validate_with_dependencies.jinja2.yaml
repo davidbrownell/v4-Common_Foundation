@@ -26,8 +26,8 @@ jobs:
     name: "<<< friendly_repo_name >>>"
     uses: <<< git_username >>>/<<< git_repo >>>/.github/workflows/validate.yaml@CI-latest
     with:
-      bootstrap_branch_overrides: "<<< friendly_repo_name >>>:${{ inputs.repo_branch }}"
       repo_branch: ${{ inputs.repo_branch }}
+      bootstrap_branch_overrides: "<<< friendly_repo_name >>>:${{ inputs.repo_branch }}"
 
   # ----------------------------------------------------------------------
   #dependents

@@ -18,8 +18,8 @@ name: "[callable] Validates Common_Foundation"
 on:
   workflow_call:
     inputs:
+      repo_branch:                          {type: string, required: true}
       bootstrap_branch_overrides:           {type: string, required: false}
-      repo_branch:                          {type: string, required: false}
 
 jobs:
   _47cee973-862c-4394-914c-b798732ecbbd:

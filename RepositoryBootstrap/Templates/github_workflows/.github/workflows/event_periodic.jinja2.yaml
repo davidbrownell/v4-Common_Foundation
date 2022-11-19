@@ -9,3 +9,5 @@ jobs:
   _<<< guid() >>>:
     name: "Validate"
     uses: <<< git_username >>>/<<< git_repo >>>/.github/workflows/validate.yaml@CI-latest
+    with:
+      repo_branch:                          ${{ github.ref_name }}

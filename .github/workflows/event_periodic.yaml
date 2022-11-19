@@ -9,7 +9,7 @@
 #
 #     Code Generator:         Jinja2
 #     Input Filename:         workflows/event_periodic.jinja2.yaml
-#     Generated Date:         2022-11-18
+#     Generated Date:         2022-11-19
 #
 # ----------------------------------------------------------------------
 # ----------------------------------------------------------------------
@@ -42,3 +42,5 @@ jobs:
   _b0665d98-3e6b-41d7-85ec-41f2eeb0ceee:
     name: "Validate"
     uses: davidbrownell/v4-Common_Foundation/.github/workflows/validate.yaml@CI-latest
+    with:
+      repo_branch:                          ${{ github.ref_name }}

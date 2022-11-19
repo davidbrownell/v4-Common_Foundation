@@ -9,7 +9,7 @@
 #
 #     Code Generator:         Jinja2
 #     Input Filename:         workflows/event_on_pr.jinja2.yaml
-#     Generated Date:         2022-11-18
+#     Generated Date:         2022-11-19
 #
 # ----------------------------------------------------------------------
 # ----------------------------------------------------------------------
@@ -31,7 +31,7 @@
 # |
 # ----------------------------------------------------------------------
 name: "on pull request"
-run-name: ${{ github.run_number }} [${{ github.actor }}] on ${{ github.ref_name }}
+run-name: "${{ github.run_number }} [${{ github.actor }}] ${{ github.head_ref }} -> ${{ github.base_ref }}"
 
 on:
   pull_request:
@@ -42,3 +42,5 @@ jobs:
   _5b21e650-3435-4467-961e-1f0cacd31dcb:
     name: "Validate (target: ${{ github.base_ref }})"
     uses: davidbrownell/v4-Common_Foundation/.github/workflows/validate.yaml@CI-latest
+    with:
+      repo_branch:                          ${{ github.head_ref }}
