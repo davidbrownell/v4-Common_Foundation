@@ -102,4 +102,4 @@ runs:
       if: ${{ inputs.repo_name }}
       shell: ${{ inputs.shell_name }}
       run: |
-        git clone --branch ${{ inputs.repo_branch ||        'main_stable' }} https://github.com/${{ inputs.repo_name }} "${{ steps.repo_directory.outputs.result }}"
+        git clone --branch ${{ inputs.repo_branch || 'main_stable' }} https://github.com/${{ inputs.repo_name }} "${{ steps.repo_directory.outputs.result }}"
