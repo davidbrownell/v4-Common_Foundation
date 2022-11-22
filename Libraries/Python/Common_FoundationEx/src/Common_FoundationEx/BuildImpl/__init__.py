@@ -747,8 +747,14 @@ class BuildInfoBase(ABC):
 
                 return False
 
-        if self.disable_if_dependency_environment and not __file__.startswith(Types.EnsureValid(os.getenv("DEVELOPMENT_ENVIRONMENT_REPOSITORY"))):
-            dm.WriteInfo("This build can not be used when its repository is activated as a dependency repository.")
-            return False
+        if self.disable_if_dependency_environment:
+            frame = inspect.stack()[-1]
+            mod = inspect.getmodule(frame[0])
+
+            filename = mod.__file__
+
+            if not filename.startswith(Types.EnsureValid(os.getenv("DEVELOPMENT_ENVIRONMENT_REPOSITORY"))):
+                dm.WriteInfo("This build can not be used when its repository is activated as a dependency repository.")
+                return False
 
         return True
