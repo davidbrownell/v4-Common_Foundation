@@ -518,7 +518,10 @@ class DoneManager(object):
             stream = StreamDecorator(None)
 
         yield stream
-        stream.flush()
+
+        if stream.wrote_content:
+            self._wrote_content = True
+            stream.flush()
 
     # ----------------------------------------------------------------------
     @contextmanager
@@ -545,7 +548,10 @@ class DoneManager(object):
             stream = StreamDecorator(None)
 
         yield stream
-        stream.flush()
+
+        if stream._write_content:
+            self._wrote_content = True
+            stream.flush()
 
     # ----------------------------------------------------------------------
     @contextmanager

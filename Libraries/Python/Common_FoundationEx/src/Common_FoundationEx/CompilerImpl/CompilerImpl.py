@@ -341,7 +341,12 @@ class CompilerImpl(
                     metadata: Dict[str, Any],
                 ) -> None:
                     if "input" in metadata:
-                        metadata["output_dir"] /= Path(*metadata["input"].parts[len_item_root_parts:])
+                        if metadata["input"].is_dir():
+                            input_dir = metadata["input"]
+                        else:
+                            input_dir = metadata["input"].parent
+
+                        metadata["output_dir"] /= Path(*input_dir.parts[len_item_root_parts:])
                     elif "inputs" in metadata:
                         if len(all_input_items) != 1:
                             metadata["output_dir"] /= str(index)

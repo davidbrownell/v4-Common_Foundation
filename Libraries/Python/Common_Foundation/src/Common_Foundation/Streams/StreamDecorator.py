@@ -94,6 +94,7 @@ class StreamDecorator(TextWriter):
 
         self._state: StreamDecorator._State = StreamDecorator._State.Prefix
 
+        self._wrote_content                 = False
         self._content: List[str]            = []
         self._col_offset                    = 0
 
@@ -134,6 +135,10 @@ class StreamDecorator(TextWriter):
     @property
     def has_streams(self) -> bool:
         return bool(self._streams)
+
+    @property
+    def wrote_content(self) -> bool:
+        return self._wrote_content
 
     # ----------------------------------------------------------------------
     def EnumStreams(self) -> Generator[Union[TextIO, TextWriter], None, None]:
@@ -409,6 +414,8 @@ class StreamDecorator(TextWriter):
 
                 if not wrote_content:
                     raise ex
+
+        self._wrote_content = True
 
         len_content = len(content)
 

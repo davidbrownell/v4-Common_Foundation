@@ -44,6 +44,7 @@ from Common_Foundation.ContextlibEx import ExitStack
 from Common_Foundation.EnumSource import EnumSource
 from Common_Foundation import PathEx
 from Common_Foundation.Shell.All import CurrentShell
+from Common_Foundation.Streams.Capabilities import Capabilities
 from Common_Foundation.Streams.DoneManager import DoneManager, DoneManagerFlags
 from Common_Foundation.Streams.StreamDecorator import StreamDecorator
 from Common_Foundation import TextwrapEx
@@ -462,9 +463,18 @@ def Build(
 
                                                 with ExitStack(UpdateOutput):
                                                     with open(final_info.log_file, "w") as f:
+                                                        # Ensure that the logs never have color or are considered to be
+                                                        # interactive, regardless of environment variables.
+                                                        Capabilities.Create(
+                                                            f,
+                                                            is_interactive=False,
+                                                            supports_colors=False,
+                                                            is_headless=True,
+                                                        )
+
                                                         result = execute_func(
                                                             configuration_info.configuration,
-                                                            output_dir,
+                                                            final_info.output_dir / "artifacts",
                                                             f,
                                                             OnStepProgress,
                                                             **TyperEx.ProcessDynamicArgs(

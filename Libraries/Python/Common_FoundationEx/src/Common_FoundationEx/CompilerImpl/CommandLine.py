@@ -31,7 +31,7 @@ from typer.models import OptionInfo
 from Common_Foundation.ContextlibEx import ExitStack
 from Common_Foundation import PathEx
 from Common_Foundation.Shell.All import CurrentShell
-from Common_Foundation.Streams.DoneManager import DoneManager, DoneManagerFlags  # pylint: disable=unused-import
+from Common_Foundation.Streams.DoneManager import DoneManager
 from Common_Foundation.Streams.StreamDecorator import StreamDecorator
 from Common_Foundation import TextwrapEx
 
@@ -40,6 +40,11 @@ from Common_FoundationEx.InflectEx import inflect
 
 from .CompilerImpl import CompilerImpl, InputType
 from .Mixins.OutputProcessorMixins.NoOutputProcessorMixin import NoOutputProcessorMixin
+
+# Imports that make the generated code a bit easier to write
+import pathlib                                                              # pylint: disable=unused-import
+
+from Common_Foundation.Streams.DoneManager import DoneManagerFlags          # pylint: disable=unused-import
 
 
 # ----------------------------------------------------------------------
@@ -126,13 +131,7 @@ def CreateInvokeCommandLineFunc(
         custom_args=custom_parameters.GetArgumentsCode(),
     )
 
-    global_vars = globals()
-
-    global_vars["app"] = app
-    global_vars["compiler"] = compiler
-    global_vars["custom_parameters"] = custom_parameters
-
-    exec(func, global_vars)  # pylint: disable=exec-used
+    exec(func, _CreateGlobalVars(app, compiler, custom_parameters))  # pylint: disable=exec-used
 
     return Impl  #  type: ignore  # pylint: disable=undefined-variable
 
@@ -182,13 +181,7 @@ def CreateCleanCommandLineFunc(
         custom_args=custom_parameters.GetArgumentsCode(),
     )
 
-    global_vars = globals()
-
-    global_vars["app"] = app
-    global_vars["compiler"] = compiler
-    global_vars["custom_parameters"] = custom_parameters
-
-    exec(func, global_vars)  # pylint: disable=exec-used
+    exec(func, _CreateGlobalVars(app, compiler, custom_parameters))  # pylint: disable=exec-used
 
     return Impl  #  type: ignore  # pylint: disable=undefined-variable
 
@@ -236,13 +229,7 @@ def CreateListCommandLineFunc(
         custom_args=custom_parameters.GetArgumentsCode(),
     )
 
-    global_vars = globals()
-
-    global_vars["app"] = app
-    global_vars["compiler"] = compiler
-    global_vars["custom_parameters"] = custom_parameters
-
-    exec(func, global_vars)  # pylint: disable=exec-used
+    exec(func, _CreateGlobalVars(app, compiler, custom_parameters))  # pylint: disable=exec-used
 
     return Impl  #  type: ignore  # pylint: disable=undefined-variable
 
@@ -287,6 +274,8 @@ class _CustomParameters(object):
 
             if annotation_name.startswith("typing."):
                 annotation_name = annotation_name[len("typing."):]
+            elif isinstance(annotation, str):
+                annotation_name = annotation
             else:
                 annotation_name = annotation.__name__
 
@@ -401,6 +390,33 @@ class _ContextInfo(object):
 # |
 # |  Private Functions
 # |
+# ----------------------------------------------------------------------
+def _CreateGlobalVars(
+    app,
+    compiler: CompilerImpl,
+    custom_parameters: _CustomParameters,
+):
+    global_vars = globals()
+
+    global_vars["app"] = app
+    global_vars["compiler"] = compiler
+    global_vars["compiler_type"] = type(compiler)
+    global_vars["custom_parameters"] = custom_parameters
+
+    if compiler.invocation_method_name == "Compile":
+        global_vars["CompilerImpl"] = type(compiler)
+    elif compiler.invocation_method_name == "Generate":
+        global_vars["CodeGenerator"] = type(compiler)
+        global_vars["code_generator"] = compiler
+    elif compiler.invocation_method_name == "Verify":
+        global_vars["Verifier"] = type(compiler)
+        global_vars["verifier"] = compiler
+    else:
+        assert False, compiler.invocation_method_name  # pragma: no cover
+
+    return global_vars
+
+
 # ----------------------------------------------------------------------
 def _InvokeImpl(
     compiler: CompilerImpl,
