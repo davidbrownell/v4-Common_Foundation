@@ -57,4 +57,4 @@ runs:
 
     - name: Activate
       shell: ${{ inputs.shell_name }}
-      run: ${{ steps.activate_statement.outputs.result }} --debug
+      run: ${{ steps.activate_statement.outputs.result }} --force --debug
