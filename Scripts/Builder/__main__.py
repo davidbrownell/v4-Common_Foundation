@@ -27,6 +27,7 @@ import traceback
 
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
+from io import StringIO
 from pathlib import Path
 from typing import Dict, Generator, List, Optional, Set, Tuple, Union
 
@@ -910,6 +911,21 @@ def _GetBuildInfos(
                                         raise Exception("'BuildInfo' was not found in '{}'.".format(build_file))
 
                                     build_info_instance = build_info_class()
+
+                                    sink = StringIO()
+
+                                    with DoneManager.Create(sink, "") as validate_dm:
+                                        if not build_info_instance.ValidateEnvironment(validate_dm):
+                                            progress.print(
+                                                "{}'{}' is not supported in this environment.".format(
+                                                    context.line_prefix,
+                                                    build_file,
+                                                ),
+                                                highlight=False,
+                                            )
+                                            context.persist_content = True
+
+                                            continue
 
                                     build_infos.append((build_file, build_info_instance))
 

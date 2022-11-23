@@ -159,6 +159,48 @@ class BuildInfoBase(ABC):
         }
 
     # ----------------------------------------------------------------------
+    def ValidateEnvironment(
+        self,
+        dm: DoneManager,
+    ) -> bool:
+        if (
+            self.required_development_environment
+            and self.required_development_environment.lower() not in [
+                CurrentShell.name.lower(),
+                CurrentShell.family_name.lower(),
+            ]
+        ):
+            dm.WriteInfo("This build can only be run on '{}'.\n".format(self.required_development_environment))
+            return False
+
+        if self.required_development_configurations:
+            current_configuration = os.getenv("DEVELOPMENT_ENVIRONMENT_REPOSITORY_CONFIGURATION")
+            assert current_configuration is not None
+
+            if not any(re.match(config_regex, current_configuration) for config_regex in self.required_development_configurations):
+                dm.WriteInfo(
+                    "This build can only be run in development environments activated with the {} {}; the current configuration is '{}'.".format(
+                        inflect.plural("configuration", len(self.required_development_configurations)),
+                        ", ".join("'{}'".format(config) for config in self.required_development_configurations),
+                        current_configuration,
+                    ),
+                )
+
+                return False
+
+        if self.disable_if_dependency_environment:
+            frame = inspect.stack()[-1]
+            mod = inspect.getmodule(frame[0])
+
+            filename = mod.__file__
+
+            if not filename.startswith(Types.EnsureValid(os.getenv("DEVELOPMENT_ENVIRONMENT_REPOSITORY"))):
+                dm.WriteInfo("This build can not be used when its repository is activated as a dependency repository.")
+                return False
+
+        return True
+
+    # ----------------------------------------------------------------------
     @Types.extensionmethod
     def GetNumCleanSteps(
         self,
@@ -642,7 +684,7 @@ class BuildInfoBase(ABC):
         get_num_steps_func: Callable[[Optional[str]], int],
         execute_func: "BuildInfoBase._ExecuteFuncType",
     ) -> None:
-        if not self._ValidateEnvironment(dm):
+        if not self.ValidateEnvironment(dm):
             return
 
         with dm.Nested("{}...".format(desc)) as execute_dm:
@@ -716,45 +758,3 @@ class BuildInfoBase(ABC):
             else:
                 with execute_dm.YieldVerboseStream() as stream:
                     stream.write(output)
-
-    # ----------------------------------------------------------------------
-    def _ValidateEnvironment(
-        self,
-        dm: DoneManager,
-    ) -> bool:
-        if (
-            self.required_development_environment
-            and self.required_development_environment.lower() not in [
-                CurrentShell.name.lower(),
-                CurrentShell.family_name.lower(),
-            ]
-        ):
-            dm.WriteInfo("This build can only be run on '{}'.\n".format(self.required_development_environment))
-            return False
-
-        if self.required_development_configurations:
-            current_configuration = os.getenv("DEVELOPMENT_ENVIRONMENT_REPOSITORY_CONFIGURATION")
-            assert current_configuration is not None
-
-            if not any(re.match(config_regex, current_configuration) for config_regex in self.required_development_configurations):
-                dm.WriteInfo(
-                    "This build can only be run in development environments activated with the {} {}; the current configuration is '{}'.".format(
-                        inflect.plural("configuration", len(self.required_development_configurations)),
-                        ", ".join("'{}'".format(config) for config in self.required_development_configurations),
-                        current_configuration,
-                    ),
-                )
-
-                return False
-
-        if self.disable_if_dependency_environment:
-            frame = inspect.stack()[-1]
-            mod = inspect.getmodule(frame[0])
-
-            filename = mod.__file__
-
-            if not filename.startswith(Types.EnsureValid(os.getenv("DEVELOPMENT_ENVIRONMENT_REPOSITORY"))):
-                dm.WriteInfo("This build can not be used when its repository is activated as a dependency repository.")
-                return False
-
-        return True
