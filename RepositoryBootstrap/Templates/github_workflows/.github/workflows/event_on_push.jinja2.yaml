@@ -6,6 +6,8 @@ on:
     branches:
       - main
 
+concurrency: "on_push-${{ github.ref_name }}"
+
 jobs:
   _<<< guid("validate") >>>:
     name: "Validate"
