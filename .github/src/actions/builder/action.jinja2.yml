@@ -32,7 +32,7 @@ runs:
   using: composite
   steps:
     - name: Builder
-      run: ${{ inputs.activate_statement }} && Builder${{ inputs.script_extension }} Build . ${{ inputs.working_dir }}/Builder --debug
+      run: ${{ inputs.activate_statement }} && Builder${{ inputs.script_extension }} Build . ${{ inputs.working_dir }}/Builder --bundle-artifacts --debug
       shell: ${{ inputs.shell_name }}
 
     - name: Builder [Upload]

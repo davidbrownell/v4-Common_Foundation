@@ -1,0 +1,62 @@
+# ----------------------------------------------------------------------
+# |
+# |  action.yml
+# |
+# |  David Brownell <db@DavidBrownell.com>
+# |      2022-11-23 12:10:25
+# |
+# ----------------------------------------------------------------------
+# |
+# |  Copyright David Brownell 2022
+# |  Distributed under the Boost Software License, Version 1.0. See
+# |  accompanying file LICENSE_1_0.txt or copy at
+# |  http://www.boost.org/LICENSE_1_0.txt.
+# |
+# ----------------------------------------------------------------------
+name: Unbundle Builder Artifacts
+description: Unbundles Builder artifacts for local processing.
+
+inputs:
+  archive_prefix:                           {type: string, required: true}
+  artifacts_path:                           {type: string, required: true}
+
+  os:                                       {type: string, required: true}
+
+  shell_name:                               {type: string, required: true}
+  working_dir:                              {type: string, required: true}
+
+outputs:
+  artifacts_dir:
+    description: "Directory that contains the unbundled content."
+    value: ${{ steps.artifacts_dir.outputs.result }}
+
+runs:
+  using: composite
+  steps:
+    - name: "[Impl] Prerequisites (Ubuntu)"
+      if: ${{ startsWith(inputs.os, 'ubuntu') }}
+      shell: ${{ inputs.shell_name }}
+      run: |
+        sudo apt-get install p7zip-full
+
+    - name: Download Builder Artifacts
+      uses: actions/download-artifact@v3
+      with:
+        name: "${{ inputs.archive_prefix }} Builder Artifacts"
+        path: ${{ inputs.working_dir }}
+
+    - name: Unbundle Artifact(s)
+      shell: ${{ inputs.shell_name }}
+      run: |
+        pushd "${{ inputs.working_dir }}/${{ inputs.artifacts_path }}"
+        7z x artifacts.7z
+
+    - name: "[Impl] Create 'artifacts_dir' Variable"
+      id: artifacts_dir
+      uses: actions/github-script@v6
+      with:
+        result-encoding: string
+        script: |
+          var path = require("path");
+
+          return path.join(String.raw`${{ inputs.working_dir }}`, String.raw`${{ inputs.artifacts_path }}`);

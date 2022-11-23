@@ -19,6 +19,7 @@ import datetime
 import importlib
 import itertools
 import multiprocessing
+import shutil
 import sys
 import textwrap
 import threading
@@ -48,6 +49,7 @@ from Common_Foundation.Shell.All import CurrentShell
 from Common_Foundation.Streams.Capabilities import Capabilities
 from Common_Foundation.Streams.DoneManager import DoneManager, DoneManagerFlags
 from Common_Foundation.Streams.StreamDecorator import StreamDecorator
+from Common_Foundation import SubprocessEx
 from Common_Foundation import TextwrapEx
 from Common_Foundation import Types
 
@@ -98,6 +100,7 @@ def Build(
     modes: List[Mode]=typer.Option(list(Mode), "--mode", case_sensitive=False, help="Names of modes to invoke."),
     debug_only: bool=typer.Option(False, "--debug-only", help="Only invoke configurations associated with debug builds."),
     release_only: bool=typer.Option(False, "--release-only", help="Only invoke configurations associated with release builds."),
+    bundle_artifacts: bool=typer.Option(False, "--bundle-artifacts", help="Bundle artifacts to compress generated contents."),
     single_threaded: bool=typer.Option(False, "--single-threaded", help="Only use a single thread."),
     continue_on_error: bool=typer.Option(False, "--continue-on-error", help="Continue execution when an error is encountered. By default, execution will stop when an error is encountered."),
     exit_on_warning: bool=typer.Option(False, "--exit-on-warning", help="Terminate execution when a warning is encountered. By default, execution will continue when a warning is encountered."),
@@ -358,6 +361,9 @@ def Build(
                                                 )
                                                 current_step = 0
 
+                                                if bundle_artifacts:
+                                                    num_steps += 1
+
                                                 progress.update(
                                                     task_id,
                                                     total=num_steps,
@@ -473,9 +479,11 @@ def Build(
                                                             is_headless=True,
                                                         )
 
+                                                        artifacts_dir = final_info.output_dir / "artifacts"
+
                                                         result = execute_func(
                                                             configuration_info.configuration,
-                                                            final_info.output_dir / "artifacts",
+                                                            artifacts_dir,
                                                             f,
                                                             OnStepProgress,
                                                             **TyperEx.ProcessDynamicArgs(
@@ -490,6 +498,59 @@ def Build(
                                                             result, final_info.short_desc = result
 
                                                         final_info.result = result or 0
+
+                                                        if (
+                                                            final_info.result == 0
+                                                            and bundle_artifacts
+                                                            and artifacts_dir.is_dir()
+                                                        ):
+                                                            OnStepProgress(current_step + 1, "Bundling artifacts...")
+
+                                                            with DoneManager.Create(
+                                                                f,
+                                                                "\nBundling artifacts...",
+                                                                output_flags=DoneManagerFlags.Create(
+                                                                    verbose=priority_group_dm.is_verbose,
+                                                                    debug=priority_group_dm.is_debug,
+                                                                ),
+                                                            ) as dm:
+                                                                with dm.Nested("Creating archive...") as archive_dm:
+                                                                    artifacts_file_name = "artifacts.7z"
+
+                                                                    if CurrentShell.family_name == "Linux":
+                                                                        zip_binary = "7zz"
+                                                                    else:
+                                                                        zip_binary = "7z"
+
+                                                                    command_line = "{} a {} *".format(zip_binary, artifacts_file_name)
+
+                                                                    result = SubprocessEx.Run(
+                                                                        command_line,
+                                                                        cwd=artifacts_dir,
+                                                                    )
+
+                                                                    archive_dm.result = result.returncode
+
+                                                                    if archive_dm.result != 0:
+                                                                        archive_dm.WriteError(result.output)
+                                                                    else:
+                                                                        with archive_dm.YieldVerboseStream() as stream:
+                                                                            stream.write(result.output)
+
+                                                                if dm.result == 0:
+                                                                    with dm.Nested("Moving archive..."):
+                                                                        PathEx.RemoveFile(final_info.output_dir / artifacts_file_name)
+
+                                                                        shutil.move(
+                                                                            artifacts_dir / artifacts_file_name,
+                                                                            final_info.output_dir,
+                                                                        )
+
+                                                                if dm.result == 0:
+                                                                    with dm.Nested("Removing artifacts directory..."):
+                                                                        PathEx.RemoveTree(artifacts_dir)
+
+                                                                final_info.result = dm.result
 
                                             except KeyboardInterrupt:  # pylint: disable=try-except-raise
                                                 raise
@@ -877,8 +938,10 @@ def _GetBuildInfos(
     # Extract the build infos sequentially, as importing them will modify the global sys.modules
     build_infos: List[Tuple[Path, BuildInfoBase]] = []
 
+    dm.WriteLine("")
+
     with dm.Nested(
-        "\nExtracting build information for {}...".format(inflect.no("build file", len(build_files))),
+        "Extracting build information for {}...".format(inflect.no("build file", len(build_files))),
     ) as extract_dm:
         errors: List[str] = []
 
