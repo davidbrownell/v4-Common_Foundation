@@ -54,6 +54,15 @@ def IsToolsDir(
 
 
 # ----------------------------------------------------------------------
+def IsPycacheDir(
+    path: Path,
+) -> bool:
+    """Returns True if the path is a python cache"""
+
+    return path.is_dir() and path.name == "__pycache__"
+
+
+# ----------------------------------------------------------------------
 def IsDetailsDir(
     path: Path,
 ) -> bool:
@@ -76,6 +85,7 @@ DEFAULT_SKIP_FUNCS: List[Callable[[Path], bool]]        = [
     IsSCMWorkingDir,
     IsGeneratedDir,
     IsToolsDir,
+    IsPycacheDir,
 ]
 
 ALL_SKIP_FUNCS: List[Callable[[Path], bool]]            = DEFAULT_SKIP_FUNCS + [

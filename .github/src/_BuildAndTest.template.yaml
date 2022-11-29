@@ -64,10 +64,11 @@ on:
 
       # ----------------------------------------------------------------------
       #  Builder
-      run_Builder:                          {type: boolean, required: true, default: true}
+      run_Builder:                          {type: boolean, required: false, default: false}
 
       # ----------------------------------------------------------------------
       #  Test Types
+      run_MatchTests:                       {type: boolean, required: false, default: false }
 
       # These tests will run by default
       execute_UnitTests:                    {type: number, required: true, default: 3} # Run with code coverage
@@ -160,8 +161,8 @@ jobs:
 <<% block prologue_steps %>><<% endblock %>>
 
       - name: Builder
-        uses: davidbrownell/v4-Common_Foundation/.github/actions/builder@CI-v1
         if: ${{ inputs.run_Builder == true || inputs.run_Builder == 'true' }}
+        uses: davidbrownell/v4-Common_Foundation/.github/actions/builder@CI-v1
         with:
           archive_prefix:                   ${{ steps.checkout_source.outputs.archive_prefix }}
 
@@ -175,6 +176,24 @@ jobs:
           activate_statement:               ${{ steps.activate.outputs.activate_statement }}
 
 <<%
+  set match_test_types = [
+    "UnitTests",
+  ]
+%>>
+<<% for test_type in match_test_types %>>
+      - name: Tester (Match Tests, <<< test_type >>>)
+        if: ${{ inputs.run_MatchTests == true || inputs.run_MatchTests == 'true' }}
+        uses: davidbrownell/v4-Common_Foundation/.github/actions/tester_match_tests@CI-v1
+        with:
+          script_extension:                 ${{ steps.initialize.outputs.script_extension }}
+          shell_name:                       ${{ steps.initialize.outputs.shell_name }}
+
+          activate_statement:               ${{ steps.activate.outputs.activate_statement }}
+
+          test_type:                        <<< test_type >>>
+<<% endfor %>>
+
+<<%
   set test_types = [
     "UnitTests",
     "FunctionalTests",
@@ -183,7 +202,7 @@ jobs:
     "LocalEndToEndTests",
     "EndToEndTests",
     "BuildVerificationTests",
-    "PerformanceTests"
+    "PerformanceTests",
   ]
 %>>
 <<%
@@ -202,8 +221,8 @@ jobs:
 %>>
   <<% for test_type in test_types %>>
       - name: Tester (<<< test_type >>><<< name_suffix >>>)
-        uses: davidbrownell/v4-Common_Foundation/.github/actions/tester@CI-v1
         if: <<< conditional_template.format(test_type=test_type) >>>
+        uses: davidbrownell/v4-Common_Foundation/.github/actions/tester@CI-v1
         with:
           archive_prefix:                   ${{ steps.checkout_source.outputs.archive_prefix }}
 

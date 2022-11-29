@@ -8,7 +8,7 @@
 # this one.
 #
 #     Code Generator:         Jinja2
-#     Input Filename:         workflows/event_on_pr.jinja2.yaml
+#     Input Filename:         actions/tester_match_tests/action.jinja2.yml
 #     Generated Date:         2022-11-29
 #
 # ----------------------------------------------------------------------
@@ -17,10 +17,10 @@
 
 # ----------------------------------------------------------------------
 # |
-# |  event_on_pr.yaml
+# |  action.yml
 # |
 # |  David Brownell <db@DavidBrownell.com>
-# |      2022-11-17 08:08:44
+# |      2022-11-29 14:13:02
 # |
 # ----------------------------------------------------------------------
 # |
@@ -30,17 +30,20 @@
 # |  http://www.boost.org/LICENSE_1_0.txt.
 # |
 # ----------------------------------------------------------------------
-name: "on pull request"
-run-name: "${{ github.run_number }} [${{ github.actor }}] ${{ github.head_ref }} -> ${{ github.base_ref }}"
+name: Tester (Match Tests)
+description: Runs `Tester MatchTests` on the repository.
 
-on:
-  pull_request:
-    branches:
-      - main
+inputs:
+  script_extension:                         {type: string, required: true}
+  shell_name:                               {type: string, required: true}
 
-jobs:
-  _5b21e650-3435-4467-961e-1f0cacd31dcb:
-    name: "Validate (target: ${{ github.base_ref }})"
-    uses: davidbrownell/v4-Common_Foundation/.github/workflows/validate.yaml@CI-latest
-    with:
-      repo_branch:                          ${{ github.head_ref }}
+  test_type:                                {type: string, required: true}
+
+  activate_statement:                       {type: string, required: true}
+
+runs:
+  using: composite
+  steps:
+    - name: "Tester (MatchTests, ${{ inputs.test_type }})"
+      run: ${{ inputs.activate_statement }} && Tester${{ inputs.script_extension }} MatchAllTests . ${{ inputs.test_type }} --verbose
+      shell: ${{ inputs.shell_name }}

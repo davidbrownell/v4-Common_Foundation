@@ -1553,6 +1553,8 @@ def _FindTests(
         for root, directories, filenames in EnumSource.EnumSource(directory):
             if root.name.endswith(test_type):
                 process_func(root, directories, filenames)
+            else:
+                directories[:] = []
 
     return test_items
 
@@ -1574,10 +1576,13 @@ def _MatchTestsImpl(
         suffix="\n" if dm.is_verbose else "",
     ) as search_dm:
         for root, _, filenames in EnumSource.EnumSource(input_dir, ignore_dir_funcs):
+            if root.name != test_type:
+                continue
+
             for filename in filenames:
                 fullpath = root / filename
 
-                if compiler.IsSupported(fullpath):
+                if compiler.IsSupportedTestItem(fullpath):
                     source_items.append(fullpath)
                     search_dm.WriteVerbose(str(fullpath))
 
@@ -1588,6 +1593,7 @@ def _MatchTestsImpl(
     with dm.Nested(
         "Removing ignored tests...",
         lambda: "{} removed".format(inflect.no("test file", len_test_items - len(test_items))),
+        suffix="\n",
     ) as remove_dm:
         # Remove any test items that correspond to sources that were explicitly removed.
         # We want to run these tests (so they shouldn't be removed from the output of `_FindTests`),
@@ -1598,7 +1604,7 @@ def _MatchTestsImpl(
             filename: Path,
         ) -> bool:
             for parent in filename.parents:
-                if any(ignore_dir_funcs(parent) for ignore_dir_funcs in ignore_dir_funcs):
+                if any(ignore_dir_func(parent) for ignore_dir_func in ignore_dir_funcs):
                     remove_dm.WriteVerbose(str(filename))
                     return False
 
@@ -1624,7 +1630,8 @@ def _MatchTestsImpl(
         while index < len(source_items):
             source_item = source_items[index]
 
-            test_item = compiler.ItemToTestName(source_item, test_type)
+            test_item = compiler.TestItemToName(source_item)
+
             if test_item and test_item.is_file():
                 compare_dm.WriteVerbose("{} -> {}\n".format(str(source_item).ljust(120), test_item))
                 matches += 1

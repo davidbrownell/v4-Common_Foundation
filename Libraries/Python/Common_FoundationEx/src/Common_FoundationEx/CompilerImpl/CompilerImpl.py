@@ -30,12 +30,11 @@ from rich.panel import Panel
 from Common_Foundation.EnumSource import EnumSource
 from Common_Foundation.Streams.DoneManager import DoneManager, DoneManagerFlags
 from Common_Foundation import TextwrapEx
-from Common_Foundation.Types import extensionmethod, overridemethod
+from Common_Foundation.Types import extensionmethod
 
 from Common_FoundationEx.InflectEx import inflect
 from Common_FoundationEx import TyperEx
 
-from .Interfaces.ICompilerIntrinsics import ICompilerIntrinsics
 from .Interfaces.IInputProcessor import IInputProcessor
 from .Interfaces.IInvocationQuery import IInvocationQuery, InvokeReason
 from .Interfaces.IInvoker import IInvoker

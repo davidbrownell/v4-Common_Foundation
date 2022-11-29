@@ -1,0 +1,32 @@
+# ----------------------------------------------------------------------
+# |
+# |  action.yml
+# |
+# |  David Brownell <db@DavidBrownell.com>
+# |      2022-11-29 14:13:02
+# |
+# ----------------------------------------------------------------------
+# |
+# |  Copyright David Brownell 2022
+# |  Distributed under the Boost Software License, Version 1.0. See
+# |  accompanying file LICENSE_1_0.txt or copy at
+# |  http://www.boost.org/LICENSE_1_0.txt.
+# |
+# ----------------------------------------------------------------------
+name: Tester (Match Tests)
+description: Runs `Tester MatchTests` on the repository.
+
+inputs:
+  script_extension:                         {type: string, required: true}
+  shell_name:                               {type: string, required: true}
+
+  test_type:                                {type: string, required: true}
+
+  activate_statement:                       {type: string, required: true}
+
+runs:
+  using: composite
+  steps:
+    - name: "Tester (MatchTests, ${{ inputs.test_type }})"
+      run: ${{ inputs.activate_statement }} && Tester${{ inputs.script_extension }} MatchAllTests . ${{ inputs.test_type }} --verbose
+      shell: ${{ inputs.shell_name }}
