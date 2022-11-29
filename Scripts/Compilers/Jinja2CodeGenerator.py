@@ -15,7 +15,6 @@
 # ----------------------------------------------------------------------
 """Compiles Jinja2 template files."""
 
-import datetime
 import os
 import textwrap
 import uuid
@@ -419,7 +418,6 @@ class CodeGenerator(
                             {line_prefix}
                             {line_prefix}     Code Generator:         {name}
                             {line_prefix}     Input Filename:         {input}
-                            {line_prefix}     Generated Date:         {date}
                             {line_prefix}
                             {line_prefix} ----------------------------------------------------------------------
                             {line_prefix} ----------------------------------------------------------------------
@@ -434,7 +432,6 @@ class CodeGenerator(
                                 context["code_gen_header_input_filename"]
                                 or PathEx.CreateRelativePath(context["input_root"], input_filename).as_posix()
                             ),
-                            date=datetime.datetime.now().strftime('%Y-%m-%d'),
                             template_content=template_content.rstrip(),
                         )
 
