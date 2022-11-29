@@ -9,7 +9,6 @@
 #
 #     Code Generator:         Jinja2
 #     Input Filename:         workflows/callable_validate.jinja2.yaml
-#     Generated Date:         2022-11-29
 #
 # ----------------------------------------------------------------------
 # ----------------------------------------------------------------------
@@ -477,3 +476,5 @@ jobs:
 
           test_type:                        PerformanceTests
           code_coverage:                    true
+
+
