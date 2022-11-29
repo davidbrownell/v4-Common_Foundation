@@ -9,7 +9,7 @@
 #
 #     Code Generator:         Jinja2
 #     Input Filename:         workflows/validate.jinja2.yaml
-#     Generated Date:         2022-11-23
+#     Generated Date:         2022-11-29
 #
 # ----------------------------------------------------------------------
 # ----------------------------------------------------------------------
@@ -64,6 +64,7 @@ jobs:
       configuration:                        ${{ matrix.configuration }}
 
       run_Builder:                          true
+      run_MatchTests:                       true
 
       # Use the following values to control how different test types are run:
       #

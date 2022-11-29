@@ -47,6 +47,7 @@ jobs:
       configuration:                        ${{ matrix.configuration }}
 
       run_Builder:                          true
+      run_MatchTests:                       true
 
       # Use the following values to control how different test types are run:
       #

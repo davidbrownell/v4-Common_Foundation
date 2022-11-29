@@ -105,7 +105,7 @@ def TyperDictArgument(
 
 
 # ----------------------------------------------------------------------
-def TypeDictOption(
+def TyperDictOption(
     default: Optional[Any],                 # None or ...
     type_definitions: TypeDefinitionsType,
     *option_info_args,
@@ -116,7 +116,7 @@ def TypeDictOption(
     Creates a typer.models.OptionInfo object that is able to process key-value-pairs provided
     on the command line as a string.
 
-    See `TypeDictArgument` for examples usage.
+    See `TyperDictArgument` for examples usage.
 
     See the typer documentation for differences between Arguments and Options:
         https://typer.tiangolo.com/tutorial/first-steps/#what-is-a-cli-argument
@@ -130,6 +130,17 @@ def TypeDictOption(
         option_info_args,
         option_info_kwargs,
     )
+
+
+# ----------------------------------------------------------------------
+# TODO: Remove in next major version
+def TypeDictOption(*args, **kwargs) -> Any:
+    """\
+    This method is deprecated and will be removed in the next major version;
+    use `TyperDictOption` instead.
+    """
+
+    return TyperDictOption(*args, **kwargs)
 
 
 # ----------------------------------------------------------------------

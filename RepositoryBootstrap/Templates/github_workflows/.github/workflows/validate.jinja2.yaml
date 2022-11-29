@@ -125,6 +125,7 @@ jobs:
       configuration:                        ${{ matrix.configuration }}
 
       run_Builder:                          true
+      run_MatchTests:                       true
 
       # ----------------------------------------------------------------------
       #test-types
