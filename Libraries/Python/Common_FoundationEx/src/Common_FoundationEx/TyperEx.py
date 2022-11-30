@@ -413,7 +413,7 @@ def _TyperImpl(
         regex = re.compile(
             r"""(?#
             Start of Line                   )^(?#
-            Key                             )(?P<key>_?[a-zA-Z][a-zA-Z0-9_-]*)(?#
+            Key                             )(?P<key>(?:\\[:=]|[^:=])+)(?#
             Optional Value Begin            )(?:(?#
                 Sep                         )\s*[:=]\s*(?#
                 Value                       )(?P<value>.+)(?#
@@ -433,8 +433,8 @@ def _TyperImpl(
                     ),
                 )
 
-            key = match.group("key")
-            value = match.group("value")
+            key = match.group("key").replace("\\:", ":").replace("\\=", "=")
+            value = match.group("value").replace("\\:", ":").replace("\\=", "=")
 
             arguments.append((key, value))
 
