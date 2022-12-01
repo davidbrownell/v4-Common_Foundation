@@ -97,7 +97,13 @@ class WindowsShell(Shell):
 
     @property
     def user_directory(self) -> Path:
-        path = os.getenv("HOMEPATH") or os.getenv("APPDATA")
+        home_drive = os.getenv("HOMEDRIVE")
+        home_path = os.getenv("HOMEPATH")
+
+        if home_drive is not None and home_path is not None:
+            return Path(home_drive) / home_path
+
+        path = os.getenv("HOMEPATH")
         assert path is not None
 
         return Path(path)
