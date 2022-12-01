@@ -23,7 +23,7 @@ import textwrap
 from enum import auto, Enum
 from typing import Callable, List, Optional, Pattern, Union
 
-from .Streams.Capabilities import Capabilities
+from Common_Foundation.Streams.Capabilities import Capabilities
 
 
 # ----------------------------------------------------------------------
@@ -487,3 +487,35 @@ def CreateStatusText(
         parts.append("{} warnings".format(prefix))
 
     return ", ".join(parts)
+
+
+# ----------------------------------------------------------------------
+def BoundedLJust(
+    value: str,
+    length: int,
+) -> str:
+    """\
+    Returns a string that is length chars long. Content will be left-justified or
+    trimmed (with an ellipsis) if necessary.
+    """
+
+    # The length must be greater than the length of the ellipsis
+    assert length > 3, length
+
+    if len(value) <= length:
+        value = value.ljust(length)
+    else:
+        chars_to_trim = (len(value) - length + 3) / 2
+        midpoint = int(math.floor(len(value) / 2))
+
+        # Ensure a consistent ellipsis placement
+        if not length & 1 and not len(value) & 1:
+            midpoint -= 1
+
+        value = "{}...{}".format(
+            value[:(midpoint - math.floor(chars_to_trim))],
+            value[(midpoint + math.ceil(chars_to_trim)):],
+        )
+
+    assert len(value) == length, (len(value), length)
+    return value
