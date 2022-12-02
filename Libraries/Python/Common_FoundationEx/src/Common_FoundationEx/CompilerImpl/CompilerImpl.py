@@ -100,6 +100,7 @@ class CompilerImpl(
         *,
         requires_output_dir: bool,
         can_execute_in_parallel: bool=True,
+        potential_test_item_separators: Optional[List[str]]=None,
     ):
         self.invocation_method_name         = invocation_method_name
         self.name                           = name
@@ -109,6 +110,8 @@ class CompilerImpl(
         self.can_execute_in_parallel        = can_execute_in_parallel
 
         self._invocation_description        = invocation_description
+
+        self._potential_test_item_separators            = potential_test_item_separators or ["_", "."]
 
     # ----------------------------------------------------------------------
     @extensionmethod
@@ -191,11 +194,24 @@ class CompilerImpl(
             if self.IsSupportedTestItem(item):
                 return item
 
-            return item.parent / "{}.{}{}".format(
-                item.stem,
-                inflect.singular_noun(test_type_name) or test_type_name,
-                item.suffix,
-            )
+            if item.is_file() and item.stat().st_size == 0:
+                return None
+
+            potential_filename: Optional[Path] = None
+
+            for sep in self._potential_test_item_separators:
+                potential_filename = item.parent / test_type_name / "{}{}{}{}".format(
+                    item.stem,
+                    sep,
+                    inflect.singular_noun(test_type_name) or test_type_name,
+                    item.suffix,
+                )
+
+                if potential_filename.is_file():
+                    return potential_filename
+
+            assert potential_filename is not None
+            return potential_filename
 
         assert False, self.input_type  # pragma: no cover
 
@@ -235,7 +251,12 @@ class CompilerImpl(
             if not match:
                 return None
 
-            return item.parent / "{}{}".format(match.group("prefix"), match.group("extension"))
+            root = item.parent
+
+            if root.name.lower().endswith("tests"):
+                root = root.parent
+
+            return root / "{}{}".format(match.group("prefix"), match.group("extension"))
 
         assert False, self.input_type  # pragma: no cover
 

@@ -57,11 +57,6 @@ class Verifier(VerifierBase, IInvoker):
         return filename_or_directory.is_file()
 
     # ----------------------------------------------------------------------
-    @overridemethod
-    def IsSupportedTestItem(self, item: Path) -> bool:
-        return False
-
-    # ----------------------------------------------------------------------
     # ----------------------------------------------------------------------
     # ----------------------------------------------------------------------
     @overridemethod

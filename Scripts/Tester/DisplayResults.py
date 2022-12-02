@@ -36,7 +36,7 @@ from Common_Foundation import TextwrapEx
 
 from Common_FoundationEx.InflectEx import inflect
 
-from Results import ConfigurationResult, ListResult, Result, TestIterationResult, TestResult
+from Results import ConfigurationResult, FindResult, Result, TestIterationResult, TestResult
 
 
 # ----------------------------------------------------------------------
@@ -656,7 +656,7 @@ def DisplayQuiet(
 # ----------------------------------------------------------------------
 def DisplayListResults(
     dm: DoneManager,
-    list_results: List[ListResult],
+    find_results: List[FindResult],
     *,
     border_style: str="bold white",
     by_compiler_style: str="deep_sky_blue1",
@@ -683,31 +683,31 @@ def DisplayListResults(
     results_by_test_parser: Dict[str, Set[Path]] = {}
     results_by_test_type: Dict[str, Set[Path]] = {}
 
-    for list_result in list_results:
-        path_info = all_path_info.get(list_result.path, None)
+    for find_result in find_results:
+        path_info = all_path_info.get(find_result.path, None)
         if path_info is None:
-            path_info = PathInfo(list_result.test_type, list_result.is_enabled)
+            path_info = PathInfo(find_result.test_type, find_result.is_enabled)
 
-            all_path_info[list_result.path] = path_info
+            all_path_info[find_result.path] = path_info
         else:
-            assert path_info.test_type == list_result.test_type
-            assert path_info.is_enabled == list_result.is_enabled
+            assert path_info.test_type == find_result.test_type
+            assert path_info.is_enabled == find_result.is_enabled
 
         if not dm.capabilities.is_headless:
-            if list_result.compiler.name not in compiler_links:
-                compiler_links[list_result.compiler.name] = "link=file:///{}".format(Path(inspect.getfile(type(list_result.compiler))).as_posix())
-            if list_result.test_parser.name not in test_parser_links:
-                test_parser_links[list_result.test_parser.name] = "link=file:///{}".format(Path(inspect.getfile(type(list_result.test_parser))).as_posix())
+            if find_result.compiler.name not in compiler_links:
+                compiler_links[find_result.compiler.name] = "link=file:///{}".format(Path(inspect.getfile(type(find_result.compiler))).as_posix())
+            if find_result.test_parser.name not in test_parser_links:
+                test_parser_links[find_result.test_parser.name] = "link=file:///{}".format(Path(inspect.getfile(type(find_result.test_parser))).as_posix())
 
-        path_info.compilers.add(list_result.compiler.name)
-        path_info.test_parsers.add(list_result.test_parser.name)
+        path_info.compilers.add(find_result.compiler.name)
+        path_info.test_parsers.add(find_result.test_parser.name)
 
-        for configuration in (list_result.configurations or []):
+        for configuration in (find_result.configurations or []):
             path_info.configurations.add(configuration)
 
-        results_by_compiler.setdefault(list_result.compiler.name, set()).add(list_result.path)
-        results_by_test_parser.setdefault(list_result.test_parser.name, set()).add(list_result.path)
-        results_by_test_type.setdefault(list_result.test_type, set()).add(list_result.path)
+        results_by_compiler.setdefault(find_result.compiler.name, set()).add(find_result.path)
+        results_by_test_parser.setdefault(find_result.test_parser.name, set()).add(find_result.path)
+        results_by_test_type.setdefault(find_result.test_type, set()).add(find_result.path)
 
     with dm.YieldStdout() as stdout_context:
         column_item_regex = re.compile(
@@ -844,8 +844,8 @@ def DisplayListResults(
                                     Panel(
                                         TextwrapEx.CreateTable(
                                             [
-                                                "Configs",
-                                                "Test Parsers",
+                                                "Config(s)",
+                                                "Test Parser(s)",
                                                 "Test Type",
                                                 "Path",
                                                 "Enabled",
@@ -884,8 +884,8 @@ def DisplayListResults(
                                     Panel(
                                         TextwrapEx.CreateTable(
                                             [
-                                                "Configs",
-                                                "Compilers",
+                                                "Config(s)",
+                                                "Compiler(s)",
                                                 "Test Type",
                                                 "Path",
                                                 "Enabled",
@@ -924,9 +924,9 @@ def DisplayListResults(
                                     Panel(
                                         TextwrapEx.CreateTable(
                                             [
-                                                "Configs",
-                                                "Compilers",
-                                                "Test Parsers",
+                                                "Config(s)",
+                                                "Compiler(s)",
+                                                "Test Parser(s)",
                                                 "Path",
                                                 "Enabled",
                                             ],
