@@ -279,7 +279,8 @@ class Result(object):
 
 # ----------------------------------------------------------------------
 @dataclass(frozen=True)
-class ListResult(object):
+class FindResult(object):
+
     # ----------------------------------------------------------------------
     compiler: CompilerImpl
     test_parser: TestParserImpl

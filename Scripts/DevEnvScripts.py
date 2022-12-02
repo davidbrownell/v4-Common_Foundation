@@ -139,7 +139,7 @@ def _OnDisplay() -> None:
             Panel(
                 Group(
                     *(
-                        CreateRepositoryPanel(repo_id, repo_name, repo_root, script_infos)
+                        CreateRepositoryPanel(repo_id, repo_name, Path(repo_root), script_infos)
                         for repo_id, (repo_name, repo_root, script_infos) in content.items()
                     ),
 

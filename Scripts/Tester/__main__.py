@@ -15,14 +15,11 @@
 # ----------------------------------------------------------------------
 """General purpose test executor."""
 
-import os
-import re
 import sys
 import textwrap
 
-from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
+from typing import Dict, List, Optional, Set, Tuple
 
 try:
     import typer
@@ -32,10 +29,6 @@ except ModuleNotFoundError:
     sys.stdout.write("\nERROR: This script is not available in a 'nolibs' environment.\n")
     sys.exit(-1)
 
-from Common_Foundation.ContextlibEx import ExitStack
-from Common_Foundation import EnumSource
-from Common_Foundation import PathEx
-from Common_Foundation.Shell.All import CurrentShell
 from Common_Foundation.Streams.DoneManager import DoneManager, DoneManagerFlags
 from Common_Foundation.Streams.StreamDecorator import StreamDecorator
 from Common_Foundation import TextwrapEx
@@ -43,366 +36,10 @@ from Common_Foundation import Types
 
 from Common_FoundationEx.CompilerImpl.CompilerImpl import CompilerImpl, InputType
 from Common_FoundationEx.InflectEx import inflect
-from Common_FoundationEx.TesterPlugins.CodeCoverageValidatorImpl import CodeCoverageValidatorImpl
-from Common_FoundationEx.TesterPlugins.TestExecutorImpl import TestExecutorImpl
-from Common_FoundationEx.TesterPlugins.TestParserImpl import TestParserImpl
 from Common_FoundationEx import TyperEx
 
+import CommandLineImpl
 import DisplayResults
-from ExecuteTests import ExecuteTests
-from Results import ListResult
-from TestTypes import TYPES as TEST_TYPE_INFOS
-
-
-# ----------------------------------------------------------------------
-sys.path.insert(0, Types.EnsureValid(os.getenv("DEVELOPMENT_ENVIRONMENT_FOUNDATION")))
-with ExitStack(lambda: sys.path.pop(0)):
-    assert os.path.isdir(sys.path[0]), sys.path[0]
-
-    from RepositoryBootstrap.SetupAndActivate import DynamicPluginArchitecture  # pylint: disable=import-error
-
-
-# ----------------------------------------------------------------------
-IGNORE_FILENAME                             = "Tester-ignore"
-DO_NOT_PARSE_FILENAME                       = "Tester-DoNotParse"
-VERBOSE_PLUGIN_ENVIRONMENT_VAR_NAME         = "TESTER_VERBOSE_PLUGIN_INFO"
-
-# ----------------------------------------------------------------------
-@dataclass(frozen=True)
-class Configuration(object):
-    """Collection of plugins easily described by a single name"""
-
-    name: str
-    priority: int
-
-    compiler: CompilerImpl
-    test_parser: TestParserImpl
-
-    test_executor: Optional[TestExecutorImpl]
-    code_coverage_validator: Optional[CodeCoverageValidatorImpl]
-
-    # ----------------------------------------------------------------------
-    def ToString(self) -> str:
-        return "{}, {}, {}, {}".format(
-            self.compiler.name,
-            self.test_parser.name,
-            "<None>" if self.test_executor is None else self.test_executor.name,
-            "<None>" if self.code_coverage_validator is None else self.code_coverage_validator.name,
-        )
-
-
-# ----------------------------------------------------------------------
-_COMPILERS: List[CompilerImpl]                                              = []
-_TEST_EXECUTORS: List[TestExecutorImpl]                                     = []
-_TEST_PARSERS: List[TestParserImpl]                                         = []
-_CODE_COVERAGE_VALIDATORS: List[CodeCoverageValidatorImpl]                  = []
-
-_CONFIGURATIONS: List[Configuration]                                        = []
-
-
-# ----------------------------------------------------------------------
-def InitGlobals():
-    with DoneManager.Create(
-        sys.stdout,
-        "\nCalculating dynamic content...",
-        [
-            lambda: inflect.no("compiler", len(_COMPILERS)),
-            lambda: inflect.no("test executor", len(_TEST_EXECUTORS)),
-            lambda: inflect.no("test parser", len(_TEST_PARSERS)),
-            lambda: inflect.no("code coverage validator", len(_CODE_COVERAGE_VALIDATORS)),
-            lambda: inflect.no("configuration", len(_CONFIGURATIONS)),
-        ],
-        display_exception_details=False,
-        output_flags=DoneManagerFlags.Create(verbose=bool(os.getenv(VERBOSE_PLUGIN_ENVIRONMENT_VAR_NAME))),
-    ) as dm:
-        # ----------------------------------------------------------------------
-        def LoadPlugins() -> None:
-            # Load the plugins
-            for mod in DynamicPluginArchitecture.EnumeratePlugins("DEVELOPMENT_ENVIRONMENT_COMPILERS"):
-                potential_names = ["Compiler", "Verifier", ]
-
-                found = False
-
-                for potential_name in potential_names:
-                    compiler = getattr(mod, potential_name, None)
-                    if compiler is not None:
-                        try:
-                            _COMPILERS.append(compiler())
-                        except:
-                            dm.WriteError(mod.__file__ or "")
-                            raise
-
-                        found = True
-                        break
-
-                if not found:
-                    raise Exception(
-                        "The names {} were not found in '{}'.\n".format(
-                            ", ".join("'{}'".format(name) for name in potential_names),
-                            mod.__file__,
-                        ),
-                    )
-
-            for mod in DynamicPluginArchitecture.EnumeratePlugins("DEVELOPMENT_ENVIRONMENT_TEST_EXECUTORS"):
-                executor = getattr(mod, "TestExecutor", None)
-                if executor is None:
-                    raise Exception("'TestExecutor' was not found in '{}'.".format(mod.__file__))
-
-                try:
-                    _TEST_EXECUTORS.append(executor())
-                except:
-                    dm.WriteError(mod.__file__ or "")
-                    raise
-
-            for mod in DynamicPluginArchitecture.EnumeratePlugins("DEVELOPMENT_ENVIRONMENT_TEST_PARSERS"):
-                test_parser = getattr(mod, "TestParser", None)
-                if test_parser is None:
-                    raise Exception("'TestParser was not found in '{}'.".format(mod.__file__))
-
-                try:
-                    _TEST_PARSERS.append(test_parser())
-                except:
-                    dm.WriteError(mod.__file__ or "")
-                    raise
-
-            for mod in DynamicPluginArchitecture.EnumeratePlugins("DEVELOPMENT_ENVIRONMENT_CODE_COVERAGE_VALIDATORS"):
-                validator = getattr(mod, "CodeCoverageValidator", None)
-                if validator is None:
-                    raise Exception("'CodeCoverageValidator' was not found in '{}'.".format(mod.__file__))
-
-                try:
-                    _CODE_COVERAGE_VALIDATORS.append(validator())
-                except:
-                    dm.WriteError(mod.__file__ or "")
-                    raise
-
-        # ----------------------------------------------------------------------
-        def CreateConfigurations() -> None:
-            # Create the configurations
-            configuration_data: Dict[str, Dict[str, Tuple[str, int]]] = {}
-
-            config_item_regex = re.compile(
-                r"""(?#
-                Start                               )^(?#
-                Config Name                         )(?P<config_name>.+?)(?#
-                Sep                                 )\s*-\s*(?#
-                Plugin Type                         )(?P<type>(?:compiler|test_parser|coverage_executor|coverage_validator))(?#
-                Sep                                 )\s*-\s*(?#
-                Plugin Name                         )(?P<plugin_name>.+?)(?#
-                Optional Begin                      )(?:(?#
-                    Sep                             )\s*-\s*(?#
-                    Priority                        )pri\s*=\s*(?P<priority>\d+)(?#
-                Optional End                        ))?(?#
-                End                                 )$(?#
-                )""",
-            )
-
-            for var in CurrentShell.EnumEnvironmentVariableValues("DEVELOPMENT_ENVIRONMENT_TESTER_CONFIGURATIONS"):
-                match = config_item_regex.match(var)
-                if not match:
-                    raise Exception("'{}' is not a valid configuration item.".format(var))
-
-                configuration_data.setdefault(match.group("config_name"), {})[match.group("type")] = (
-                    match.group("plugin_name"),
-                    int(match.group("priority") or 0),
-                )
-
-            for config_name, config_data in configuration_data.items():
-                # Get the names
-                compiler_name, compiler_priority = config_data.get("compiler", (None, 0))
-                if compiler_name is None:
-                    raise Exception("'compiler' was not found for the configuration '{}'.".format(config_name))
-
-                test_parser_name, test_parser_priority = config_data.get("test_parser", (None, 0))
-                if test_parser_name is None:
-                    raise Exception("'test_parser' was not found for the configuration '{}'.".format(config_name))
-
-                coverage_executor_name, coverage_executor_priority = config_data.get("coverage_executor", (None, 0))
-                coverage_validator_name, coverage_validator_priority = config_data.get("coverage_validator", (None, 0))
-
-                # Get the plugins
-                compiler = next((compiler for compiler in _COMPILERS if compiler.name == compiler_name), None)
-                if compiler is None:
-                    raise Exception("The compiler name '{}' in the configuration '{}' is not valid.".format(compiler_name, config_name))
-
-                test_parser = next((test_parser for test_parser in _TEST_PARSERS if test_parser.name == test_parser_name), None)
-                if test_parser is None:
-                    raise Exception("The test parser name '{}' in the configuration '{}' is not valid.".format(test_parser_name, config_name))
-
-                if coverage_executor_name is None:
-                    coverage_executor = None
-                else:
-                    coverage_executor = next((ce for ce in _TEST_EXECUTORS if ce.name == coverage_executor_name), None)
-                    if coverage_executor is None:
-                        raise Exception("The coverage executor name '{}' in the configuration '{}' is not valid.".format(coverage_executor_name, config_name))
-
-                if coverage_validator_name is None:
-                    coverage_validator = None
-                else:
-                    coverage_validator = next((cv for cv in _CODE_COVERAGE_VALIDATORS if cv.name == coverage_validator_name), None)
-                    if coverage_validator is None:
-                        raise Exception("The coverage validator '{}' in the configuration '{}' is not valid.".format(coverage_validator_name, config_name))
-
-                # Save the configuration
-                _CONFIGURATIONS.append(
-                    Configuration(
-                        config_name,
-                        max(
-                            compiler_priority,
-                            test_parser_priority,
-                            coverage_executor_priority,
-                            coverage_validator_priority,
-                        ),
-                        compiler,
-                        test_parser,
-                        coverage_executor,
-                        coverage_validator,
-                    ),
-                )
-
-            _CONFIGURATIONS.sort(key=lambda value: value.priority)
-
-        # ----------------------------------------------------------------------
-        def ValidateConfigurations() -> None:
-            disabled_compilers: Set[CompilerImpl] = set()
-            disabled_test_executors: Set[TestExecutorImpl] = set()
-            disabled_test_parsers: Set[TestParserImpl] = set()
-            disabled_code_coverage_validators: Set[CodeCoverageValidatorImpl] = set()
-
-            # Compilers
-            index = 0
-
-            while index < len(_COMPILERS):
-                compiler = _COMPILERS[index]
-
-                validate_result = compiler.ValidateEnvironment()
-                if validate_result is not None:
-                    dm.WriteVerbose("The compiler '{}' is not valid in this environment ({}).\n".format(compiler.name, validate_result))
-                    disabled_compilers.add(compiler)
-
-                    del _COMPILERS[index]
-                    continue
-
-                index += 1
-
-            if not _COMPILERS:
-                raise Exception("No compilers were found. Set the environment variable '{}' to display more information.".format(VERBOSE_PLUGIN_ENVIRONMENT_VAR_NAME))
-
-            # Test Executors
-            index = 0
-
-            while index < len(_TEST_EXECUTORS):
-                test_executor = _TEST_EXECUTORS[index]
-
-                validate_result = test_executor.ValidateEnvironment()
-                if validate_result is not None:
-                    dm.WriteVerbose("The test executor '{}' is not valid in this environment ({}).\n".format(test_executor.name, validate_result))
-                    disabled_test_executors.add(test_executor)
-
-                    del _TEST_EXECUTORS[index]
-                    continue
-
-                index += 1
-
-            if not _TEST_EXECUTORS:
-                raise Exception("No test executors were found. Set the environment variable '{}' to display more information.".format(VERBOSE_PLUGIN_ENVIRONMENT_VAR_NAME))
-
-            # Test Parsers
-            index = 0
-
-            while index < len(_TEST_PARSERS):
-                test_parser = _TEST_PARSERS[index]
-
-                validate_result = test_parser.ValidateEnvironment()
-                if validate_result is not None:
-                    dm.WriteVerbose("The test parser '{}' is not valid in this environment ({}).\n".format(test_parser.name, validate_result))
-                    disabled_test_parsers.add(test_parser)
-
-                    del _TEST_PARSERS[index]
-                    continue
-
-                index += 1
-
-            if not _TEST_PARSERS:
-                raise Exception("No test parsers were found. Set the environment variable '{}' to display more information.".format(VERBOSE_PLUGIN_ENVIRONMENT_VAR_NAME))
-
-            # Code Coverage Validators
-            index = 0
-
-            while index < len(_CODE_COVERAGE_VALIDATORS):
-                code_coverage_validator = _CODE_COVERAGE_VALIDATORS[index]
-
-                validate_result = code_coverage_validator.ValidateEnvironment()
-                if validate_result is not None:
-                    dm.WriteVerbose("The code coverage validator '{}' is not valid in this environment ({}).\n".format(code_coverage_validator.name, validate_result))
-                    disabled_code_coverage_validators.add(code_coverage_validator)
-
-                    del _CODE_COVERAGE_VALIDATORS[index]
-                    continue
-
-                index += 1
-
-            if not _CODE_COVERAGE_VALIDATORS:
-                raise Exception("No code coverage validators were found. Set the environment variable '{}' to display more information.".format(VERBOSE_PLUGIN_ENVIRONMENT_VAR_NAME))
-
-            # Remove configurations that are no longer valid
-            index = 0
-
-            while index < len(_CONFIGURATIONS):
-                configuration = _CONFIGURATIONS[index]
-
-                should_remove = False
-
-                if not should_remove and configuration.compiler in disabled_compilers:
-                    dm.WriteVerbose(
-                        "The configuration '{}' is not valid in this environment as the compiler '{}' has been disabled.\n".format(
-                            configuration.name,
-                            configuration.compiler.name,
-                        ),
-                    )
-
-                    should_remove = True
-
-                if not should_remove and configuration.test_parser in disabled_test_parsers:
-                    dm.WriteVerbose(
-                        "The configuration '{}' is not valid in this environment as the test parser '{}' has been disabled.\n".format(
-                            configuration.name,
-                            configuration.test_parser.name,
-                        ),
-                    )
-
-                    should_remove = True
-
-                if should_remove:
-                    if configuration.test_executor in disabled_test_executors:
-                        object.__setattr__(configuration, "test_executor", None)
-                    if configuration.code_coverage_validator in disabled_code_coverage_validators:
-                        object.__setattr__(configuration, "code_coverage_validator", None)
-
-                    del _CONFIGURATIONS[index]
-                    continue
-
-                index += 1
-
-        # ----------------------------------------------------------------------
-
-        LoadPlugins()
-        CreateConfigurations()
-        ValidateConfigurations()
-
-    # ----------------------------------------------------------------------
-
-InitGlobals()
-del InitGlobals
-
-
-# ----------------------------------------------------------------------
-_compiler_enum                              = Types.StringsToEnum("CompilerEnum", [compiler.name for compiler in _COMPILERS])
-_optional_test_executor_enum                = Types.StringsToEnum("OptionalTestExecutorEnum", ["None", ] + [test_executor.name for test_executor in _TEST_EXECUTORS])
-_test_parser_enum                           = Types.StringsToEnum("TestParserEnum", [test_parser.name for test_parser in _TEST_PARSERS])
-_code_coverage_validator_enum               = Types.StringsToEnum("CodeCoverageValidatorEnum", [code_coverage_validator.name for code_coverage_validator in _CODE_COVERAGE_VALIDATORS])
-_optional_code_coverage_validator_enum      = Types.StringsToEnum("OptionalCodeCoverageValidatorEnum", ["None", ] + [code_coverage_validator.name for code_coverage_validator in _CODE_COVERAGE_VALIDATORS])
-_configuration_enum                         = Types.StringsToEnum("ConfigurationEnum", [configuration.name for configuration in _CONFIGURATIONS])
 
 
 # ----------------------------------------------------------------------
@@ -434,7 +71,7 @@ def _HelpEpilog() -> str:
                         "<None>" if config.test_executor is None else config.test_executor.name,
                         "<None>" if config.code_coverage_validator is None else config.code_coverage_validator.name,
                     ]
-                    for index, config in enumerate(_CONFIGURATIONS)
+                    for index, config in enumerate(CommandLineImpl.CONFIGURATIONS)
                 ],
             ),
         ),
@@ -453,7 +90,7 @@ def _HelpEpilog() -> str:
                 ["Name", "Description"],
                 [
                     ["{}) {}".format(index + 1, compiler.name), compiler.description]
-                    for index, compiler in enumerate(_COMPILERS)
+                    for index, compiler in enumerate(CommandLineImpl.COMPILERS)
                 ],
             ),
         ),
@@ -472,7 +109,7 @@ def _HelpEpilog() -> str:
                 ["Name", "Description"],
                 [
                     ["{}) {}".format(index + 1, test_parser.name), test_parser.description]
-                    for index, test_parser in enumerate(_TEST_PARSERS)
+                    for index, test_parser in enumerate(CommandLineImpl.TEST_PARSERS)
                 ],
             ),
         ),
@@ -491,7 +128,7 @@ def _HelpEpilog() -> str:
                 ["Name", "Description"],
                 [
                     ["{}) {}".format(index + 1, test_executor.name), test_executor.description]
-                    for index, test_executor in enumerate(_TEST_EXECUTORS)
+                    for index, test_executor in enumerate(CommandLineImpl.TEST_EXECUTORS)
                 ],
             ),
         ),
@@ -510,7 +147,7 @@ def _HelpEpilog() -> str:
                 ["Name", "Description"],
                 [
                     ["{}) {}".format(index + 1, code_coverage_validator.name), code_coverage_validator.description]
-                    for index, code_coverage_validator in enumerate(_CODE_COVERAGE_VALIDATORS)
+                    for index, code_coverage_validator in enumerate(CommandLineImpl.CODE_COVERAGE_VALIDATORS)
                 ],
             ),
         ),
@@ -623,7 +260,7 @@ def TestItem(
     verbose: bool=_verbose_option,
     debug: bool=_debug_option,
 
-    code_coverage_validator: Optional[_code_coverage_validator_enum]=_code_coverage_validator_option,  # type: ignore
+    code_coverage_validator: Optional[CommandLineImpl.code_coverage_validator_enum]=_code_coverage_validator_option,  # type: ignore
 
     compiler_flags: Optional[List[str]]=_compiler_flags_option,
     test_executor_flags: Optional[List[str]]=_test_executor_flags_option,
@@ -639,8 +276,8 @@ def TestItem(
         ),
     ) as dm:
         # ----------------------------------------------------------------------
-        def GetConfiguration() -> Optional[Configuration]:
-            for config in _CONFIGURATIONS:
+        def GetConfiguration() -> Optional[CommandLineImpl.Configuration]:
+            for config in CommandLineImpl.CONFIGURATIONS:
                 if (
                     config.compiler.IsSupported(filename_or_directory)
                     and config.compiler.IsSupportedTestItem(filename_or_directory)
@@ -656,7 +293,7 @@ def TestItem(
         if configuration is None:
             raise typer.BadParameter("Unable to find a configuration with a compiler and test parser that supports '{}'.".format(filename_or_directory))
 
-        return _TestImpl(
+        return CommandLineImpl.Execute(
             dm,
             configuration,
             filename_or_directory,
@@ -686,7 +323,7 @@ def TestItem(
 # ----------------------------------------------------------------------
 @app.command("TestType", rich_help_panel="Testing with Configurations", no_args_is_help=True)
 def TestType(
-    config_name: _configuration_enum=_configuration_argument,  # type: ignore
+    config_name: CommandLineImpl.configuration_enum=_configuration_argument,  # type: ignore
     input_dir: Path=_directory_input_argument,
     output_dir: Path=_output_argument,
     test_type: str=_test_type_argument,
@@ -710,7 +347,7 @@ def TestType(
     verbose: bool=_verbose_option,
     debug: bool=_debug_option,
 
-    code_coverage_validator: Optional[_code_coverage_validator_enum]=_code_coverage_validator_option,  # type: ignore
+    code_coverage_validator: Optional[CommandLineImpl.code_coverage_validator_enum]=_code_coverage_validator_option,  # type: ignore
 
     compiler_flags: Optional[List[str]]=_compiler_flags_option,
     test_executor_flags: Optional[List[str]]=_test_executor_flags_option,
@@ -721,7 +358,7 @@ def TestType(
 ) -> None:
     """Runs all tests associated with the specified test classification and configuration (e.g. run all python unit tests)."""
 
-    configuration = next((config for config in _CONFIGURATIONS if config.name == config_name.value), None)
+    configuration = next((config for config in CommandLineImpl.CONFIGURATIONS if config.name == config_name.value), None)
     assert configuration is not None
 
     ignore_ignore_filenames = Types.EnsurePopulatedList(ignore_ignore_filenames)
@@ -732,7 +369,7 @@ def TestType(
             debug=debug,
         ),
     ) as dm:
-        return _TestImpl(
+        return CommandLineImpl.Execute(
             dm,
             configuration,
             input_dir,
@@ -785,7 +422,7 @@ def TestAll(
     verbose: bool=_verbose_option,
     debug: bool=_debug_option,
 
-    code_coverage_validator: Optional[_code_coverage_validator_enum]=_code_coverage_validator_option,  # type: ignore
+    code_coverage_validator: Optional[CommandLineImpl.code_coverage_validator_enum]=_code_coverage_validator_option,  # type: ignore
 
     compiler_flags: Optional[List[str]]=_compiler_flags_option,
     test_executor_flags: Optional[List[str]]=_test_executor_flags_option,
@@ -804,16 +441,16 @@ def TestAll(
             debug=debug,
         ),
     ) as dm:
-        for config_index, config in enumerate(_CONFIGURATIONS):
+        for config_index, config in enumerate(CommandLineImpl.CONFIGURATIONS):
             with dm.Nested(
                 "Testing '{}' ({} of {})...".format(
                     config.name,
                     config_index + 1,
-                    len(_CONFIGURATIONS),
+                    len(CommandLineImpl.CONFIGURATIONS),
                 ),
                 suffix="\n\n",
             ) as nested_dm:
-                _TestImpl(
+                CommandLineImpl.Execute(
                     nested_dm,
                     config,
                     input_dir,
@@ -844,7 +481,7 @@ def TestAll(
 @app.command("MatchTests", rich_help_panel="Test Matching", no_args_is_help=True)
 def MatchTests(
     input_dir: Path=_directory_input_argument,
-    compiler: _compiler_enum=_compiler_argument,  # type: ignore
+    compiler: CommandLineImpl.compiler_enum=_compiler_argument,  # type: ignore
     test_type: str=_test_type_argument,
     verbose: bool=_verbose_option,
 ) -> None:
@@ -855,7 +492,7 @@ def MatchTests(
             verbose=verbose,
         ),
     ) as dm:
-        resolved_compiler = next((compiler_type for compiler_type in _COMPILERS if compiler_type.name == compiler.value), None)
+        resolved_compiler = next((compiler_type for compiler_type in CommandLineImpl.COMPILERS if compiler_type.name == compiler.value), None)
         assert resolved_compiler is not None
 
         if resolved_compiler.input_type != InputType.Files:
@@ -879,12 +516,12 @@ def MatchAllTests(
             verbose=verbose,
         ),
     ) as dm:
-        for config_index, config in enumerate(_CONFIGURATIONS):
+        for config_index, config in enumerate(CommandLineImpl.CONFIGURATIONS):
             with dm.Nested(
                 "Matching '{}' ({} of {})...".format(
                     config.name,
                     config_index + 1,
-                    len(_CONFIGURATIONS),
+                    len(CommandLineImpl.CONFIGURATIONS),
                 ),
                 suffix="\n",
             ) as config_dm:
@@ -900,10 +537,10 @@ def MatchAllTests(
 def Execute(
     filename_or_directory: Path=_generic_input_argument,
 
-    compiler: _compiler_enum=_compiler_argument,                                                        # type: ignore
-    test_executor: _optional_test_executor_enum=_test_executor_argument,                                # type: ignore
-    test_parser: _test_parser_enum=_test_parser_argument,                                               # type: ignore
-    code_coverage_validator: _optional_code_coverage_validator_enum=_code_coverage_validator_argument,  # type: ignore
+    compiler: CommandLineImpl.compiler_enum=_compiler_argument,                                                        # type: ignore
+    test_executor: CommandLineImpl.optional_test_executor_enum=_test_executor_argument,                                # type: ignore
+    test_parser: CommandLineImpl.test_parser_enum=_test_parser_argument,                                               # type: ignore
+    code_coverage_validator: CommandLineImpl.optional_code_coverage_validator_enum=_code_coverage_validator_argument,  # type: ignore
 
     iterations: int=_iterations_option,
     continue_iterations_on_error: bool=_continue_iterations_on_error_option,
@@ -938,23 +575,23 @@ def Execute(
             debug=debug,
         ),
     ) as dm:
-        resolved_compiler = next((compiler_type for compiler_type in _COMPILERS if compiler_type.name == compiler.value), None)
+        resolved_compiler = next((compiler_type for compiler_type in CommandLineImpl.COMPILERS if compiler_type.name == compiler.value), None)
         assert resolved_compiler is not None
 
         if test_executor.value == "None":
             resolved_test_executor = None
         else:
-            resolved_test_executor = next((te_type for te_type in _TEST_EXECUTORS if te_type.name == test_executor.value), None)
+            resolved_test_executor = next((te_type for te_type in CommandLineImpl.TEST_EXECUTORS if te_type.name == test_executor.value), None)
             assert resolved_test_executor is not None
 
-        resolved_test_parser = next((tp_type for tp_type in _TEST_PARSERS if tp_type.name == test_parser.value), None)
+        resolved_test_parser = next((tp_type for tp_type in CommandLineImpl.TEST_PARSERS if tp_type.name == test_parser.value), None)
         assert resolved_test_parser is not None
 
         is_valid_code_coverage_validator = code_coverage_validator.value != "None"
 
-        return _TestImpl(
+        return CommandLineImpl.Execute(
             dm,
-            Configuration(
+            CommandLineImpl.Configuration(
                 "Custom",
                 0,
                 resolved_compiler,
@@ -992,10 +629,10 @@ def ExecuteTree(
     input_dir: Path=_directory_input_argument,
     output_dir: Path=_output_argument,
 
-    compiler: _compiler_enum=_compiler_argument,                                                        # type: ignore
-    test_executor: _optional_test_executor_enum=_test_executor_argument,                                # type: ignore
-    test_parser: _test_parser_enum=_test_parser_argument,                                               # type: ignore
-    code_coverage_validator: _optional_code_coverage_validator_enum=_code_coverage_validator_argument,  # type: ignore
+    compiler: CommandLineImpl.compiler_enum=_compiler_argument,                                                        # type: ignore
+    test_executor: CommandLineImpl.optional_test_executor_enum=_test_executor_argument,                                # type: ignore
+    test_parser: CommandLineImpl.test_parser_enum=_test_parser_argument,                                               # type: ignore
+    code_coverage_validator: CommandLineImpl.optional_code_coverage_validator_enum=_code_coverage_validator_argument,  # type: ignore
 
     test_type: str=_test_type_argument,
 
@@ -1037,23 +674,23 @@ def ExecuteTree(
             debug=debug,
         ),
     ) as dm:
-        resolved_compiler = next((compiler_type for compiler_type in _COMPILERS if compiler_type.name == compiler.value), None)
+        resolved_compiler = next((compiler_type for compiler_type in CommandLineImpl.COMPILERS if compiler_type.name == compiler.value), None)
         assert resolved_compiler is not None
 
         if test_executor.value == "None":
             resolved_test_executor = None
         else:
-            resolved_test_executor = next((te_type for te_type in _TEST_EXECUTORS if te_type.name == test_executor.value), None)
+            resolved_test_executor = next((te_type for te_type in CommandLineImpl.TEST_EXECUTORS if te_type.name == test_executor.value), None)
             assert resolved_test_executor is not None
 
-        resolved_test_parser = next((tp_type for tp_type in _TEST_PARSERS if tp_type.name == test_parser.value), None)
+        resolved_test_parser = next((tp_type for tp_type in CommandLineImpl.TEST_PARSERS if tp_type.name == test_parser.value), None)
         assert resolved_test_parser is not None
 
         is_valid_code_coverage_validator = code_coverage_validator.value != "None"
 
-        return _TestImpl(
+        return CommandLineImpl.Execute(
             dm,
-            Configuration(
+            CommandLineImpl.Configuration(
                 "Custom",
                 0,
                 resolved_compiler,
@@ -1098,467 +735,18 @@ def ListFunc(
     with DoneManager.CreateCommandLine(
         output_flags=DoneManagerFlags.Create(verbose=verbose, debug=debug),
     ) as dm:
-        directory_compiler_info: Dict[CompilerImpl, List[TestParserImpl]] = {}
-        filename_compiler_info: Dict[CompilerImpl, List[TestParserImpl]] = {}
-
-        for compiler in _COMPILERS:
-            test_parsers: List[TestParserImpl] = [
-                test_parser for test_parser in _TEST_PARSERS if test_parser.IsSupportedCompiler(compiler)
-            ]
-
-            if test_parsers:
-                if compiler.input_type == InputType.Directories:
-                    directory_compiler_info[compiler] = test_parsers
-                elif compiler.input_type == InputType.Files:
-                    filename_compiler_info[compiler] = test_parsers
-                else:
-                    assert False, compiler.input_type  # pragma: no cover
-
-        if not directory_compiler_info and not filename_compiler_info:
-            dm.WriteInfo("No compilers were found.\n")
-            return
-
-        configuration_map: Dict[Tuple[CompilerImpl, TestParserImpl], List[str]] = {}
-
-        for configuration in _CONFIGURATIONS:
-            configuration_map.setdefault((configuration.compiler, configuration.test_parser), []).append(configuration.name)
-
-        list_results: List[ListResult] = []
-
-        with dm.Nested(
-            "Searching for tests in '{}'...".format(input_dir),
-            lambda: "{} found".format(inflect.no("test item", len(list_results))),
-            suffix="\n",
-        ) as search_dm:
-            for root, directories, filenames in EnumSource.EnumSource(input_dir):
-                if (root / DO_NOT_PARSE_FILENAME).exists():
-                    search_dm.WriteVerbose("Skipping '{}' due to '{}'.\n".format(root, DO_NOT_PARSE_FILENAME))
-
-                    directories[:] = []
-                    continue
-
-                # Process compilers that operate on directories
-                for compiler, test_parsers in directory_compiler_info.items():
-                    if (
-                        compiler.IsSupported(root)
-                        and compiler.IsSupportedTestItem(root)
-                    ):
-                        for test_parser in test_parsers:
-                            if test_parser.IsSupportedTestItem(root):
-                                configurations = configuration_map.get((compiler, test_parser), None)
-                                if configurations is None and not all_tests:
-                                    continue
-
-                                list_results.append(
-                                    ListResult(
-                                        compiler,
-                                        test_parser,
-                                        configurations,
-                                        root.name,
-                                        root,
-                                        is_enabled=not (root / IGNORE_FILENAME).exists(),
-                                    ),
-                                )
-
-                # Process compilers that operate on filenames
-                if filename_compiler_info:
-                    for filename in filenames:
-                        fullpath = root / filename
-
-                        for compiler, test_parsers in filename_compiler_info.items():
-                            if (
-                                compiler.IsSupported(fullpath)
-                                and compiler.IsSupportedTestItem(fullpath)
-                            ):
-                                for test_parser in test_parsers:
-                                    if test_parser.IsSupportedTestItem(fullpath):
-                                        configurations = configuration_map.get((compiler, test_parser), None)
-                                        if configurations is None and not all_tests:
-                                            continue
-
-                                        list_results.append(
-                                            ListResult(
-                                                compiler,
-                                                test_parser,
-                                                configurations,
-                                                root.name,
-                                                fullpath,
-                                                is_enabled=not (fullpath.parent / "{}-ignore".format(fullpath.name)).exists(),
-                                            ),
-                                        )
-
-        DisplayResults.DisplayListResults(dm, list_results)
-
-
-# ----------------------------------------------------------------------
-# ----------------------------------------------------------------------
-# ----------------------------------------------------------------------
-def _TestImpl(
-    dm: DoneManager,
-
-    configuration: Configuration,
-    filename_or_directory: Path,
-    output_dir: Optional[Path],
-    test_type: Optional[str],
-    *,
-    code_coverage: bool,
-    parallel_tests: Optional[bool],
-    single_threaded: bool,
-
-    iterations: int,
-    continue_iterations_on_error: bool,
-
-    debug_only: bool,
-    release_only: bool,
-    build_only: bool,
-    skip_build: bool,
-
-    ignore_ignore_filenames: Optional[List[Path]],
-
-    quiet: bool,
-
-    code_coverage_validator_name: Optional[_code_coverage_validator_enum],  # type: ignore
-    code_coverage_mismatch_is_error: bool,
-
-    compiler_flags: Optional[List[str]],
-    test_executor_flags: Optional[List[str]],
-    test_parser_flags: Optional[List[str]],
-    code_coverage_validator_flags: Optional[List[str]],
-
-    junit_xml_output_filename: Optional[str],
-) -> None:
-    if debug_only and release_only:
-        raise typer.BadParameter("Debug only and Release only cannot be used together.")
-
-    # Get the test executors
-    test_executor: Optional[TestExecutorImpl] = None
-
-    if code_coverage:
-        test_executor = configuration.test_executor
-        parallel_tests = False
-
-    if test_executor is None:
-        test_executor = next((executor for executor in _TEST_EXECUTORS if executor.name == "Standard"), None)
-
-    assert test_executor is not None
-
-    if code_coverage and not test_executor.is_code_coverage_executor:
-        message = "The test executor '{}' does not support code coverage.".format(test_executor.name)
-
-        if code_coverage_mismatch_is_error:
-            raise typer.BadParameter(message)
-
-        dm.WriteInfo(message)
-        return
-
-    # Get the code coverage validator
-    code_coverage_validator: Optional[CodeCoverageValidatorImpl] = None
-
-    if code_coverage:
-        if code_coverage_validator_name:
-            code_coverage_validator = next((validator for validator in _CODE_COVERAGE_VALIDATORS if validator.name == code_coverage_validator_name.value), None)
-            assert code_coverage_validator is not None
-        else:
-            code_coverage_validator = configuration.code_coverage_validator
-            if code_coverage_validator is None:
-                code_coverage_validator = next((validator for validator in _CODE_COVERAGE_VALIDATORS if validator.name == "Standard"), None)
-                assert code_coverage_validator is not None
-
-    # Create the initial set of metadata based on provided flags
-    metadata: Dict[str, Any] = {
-        **_ResolveFlags("code coverage validator", code_coverage_validator, code_coverage_validator_flags),
-        **_ResolveFlags("test parser", configuration.test_parser, test_parser_flags),
-        **_ResolveFlags("test executor", test_executor, test_executor_flags),
-        **_ResolveFlags("compiler", configuration.compiler, compiler_flags),
-    }
-
-    # Invoke
-    if (
-        filename_or_directory.is_file()
-        or (
-            filename_or_directory.is_dir()
-            and configuration.compiler.IsSupported(filename_or_directory)
-            and configuration.compiler.IsSupportedTestItem(filename_or_directory)
-        )
-    ):
-        if quiet and filename_or_directory.is_file():
-            raise typer.BadParameter("'quiet' is only used when executing tests via a directory.")
-
-        if junit_xml_output_filename is not None:
-            raise typer.BadParameter("JUnit XML output is only used when executing tests via a directory.")
-
-        results = ExecuteTests.Execute(
+        results = CommandLineImpl.Find(
             dm,
-            [filename_or_directory],
-            CurrentShell.CreateTempDirectory(),
-            configuration.compiler,
-            configuration.test_parser,
-            test_executor,
-            code_coverage_validator,
-            metadata,
-            parallel_tests=parallel_tests or False,
-            single_threaded=single_threaded,
-            iterations=iterations,
-            continue_iterations_on_error=continue_iterations_on_error,
-            debug_only=debug_only,
-            release_only=release_only,
-            build_only=build_only,
-            skip_build=skip_build,
-            quiet=False,
-            junit_xml_output_filename=junit_xml_output_filename,
+            input_dir,
+            ignore_ignore_filenames=None,
+            include_all_tests=all_tests,
         )
 
-        if results:
-            DisplayResults.Display(dm, results)
-
-        return
-
-    if output_dir is None:
-        raise typer.BadParameter("An output directory must be specified when the input is a directory.")
-
-    if test_type is None:
-        raise typer.BadParameter("The test type must be specified when the input is a directory.")
-
-    if parallel_tests is None:
-        test_type_info = next((test_type_info for test_type_info in TEST_TYPE_INFOS if test_type_info.name == test_type), None)
-        if test_type_info is not None:
-            parallel_tests = test_type_info.execute_in_parallel
-        else:
-            parallel_tests = False
-
-    test_items = _FindTests(
-        dm,
-        filename_or_directory,
-        test_type,
-        configuration.compiler,
-        configuration.test_parser,
-        ignore_ignore_filenames=ignore_ignore_filenames,
-    )
-
-    if not test_items:
-        dm.WriteLine("No tests found matching '{}'.".format(test_type))
-        return
-
-    results = ExecuteTests.Execute(
-        dm,
-        test_items,
-        output_dir,
-        configuration.compiler,
-        configuration.test_parser,
-        test_executor,
-        code_coverage_validator,
-        metadata,
-        parallel_tests=parallel_tests,
-        single_threaded=single_threaded,
-        iterations=iterations,
-        continue_iterations_on_error=continue_iterations_on_error,
-        debug_only=debug_only,
-        release_only=release_only,
-        build_only=build_only,
-        skip_build=skip_build,
-        quiet=quiet,
-        junit_xml_output_filename=junit_xml_output_filename,
-    )
-
-    if results:
-        if not quiet:
-            DisplayResults.Display(dm, results)
-
-        DisplayResults.DisplayQuiet(dm, results)
+        DisplayResults.DisplayListResults(dm, results)
 
 
 # ----------------------------------------------------------------------
-def _FindTests(
-    dm: DoneManager,
-    directory: Path,
-    test_type: str,
-    compiler: CompilerImpl,
-    test_parser: Optional[TestParserImpl],
-    ignore_ignore_filenames: Optional[List[Path]],
-) -> List[Path]:
-    assert directory.is_dir(), directory
-
-    ignore_ignore_filenames = ignore_ignore_filenames or []
-
-    if test_parser:
-        is_supported_test_item_func = lambda path: test_parser.IsSupportedTestItem(path)  # pylint: disable=unnecessary-lambda
-        test_parser_name = test_parser.name
-    else:
-        is_supported_test_item_func = lambda _: True
-        test_parser_name = "ignored"
-
-    test_items: List[Path] = []
-    ignored_count = 0
-    ignore_override_count = 0
-
-    with dm.Nested(
-        "Searching for tests in '{}'...".format(directory),
-        [
-            lambda: "{} found".format(inflect.no("test item", len(test_items))),
-            lambda: "{} ignored".format(inflect.no("test item", ignored_count)),
-            lambda: "{} overridden".format(inflect.no("ignore file", ignore_override_count)),
-        ],
-        suffix="\n",
-    ) as search_dm:
-        if compiler.input_type == InputType.Files:
-            # ----------------------------------------------------------------------
-            def ProcessFiles(
-                root: Path,
-                directories: List[str],  # pylint: disable=unused-argument
-                filenames: List[str],
-            ) -> None:
-                nonlocal ignored_count
-                nonlocal ignore_override_count
-
-                for filename in filenames:
-                    fullpath = root / filename
-
-                    if not compiler.IsSupported(fullpath):
-                        search_dm.WriteVerbose(
-                            "'{}' is not supported by the compiler '{}'.\n".format(
-                                fullpath,
-                                compiler.name,
-                            ),
-                        )
-
-                        continue
-
-                    if not compiler.IsSupportedTestItem(fullpath):
-                        search_dm.WriteVerbose(
-                            "'{}' is not supported test item for the compiler '{}'.\n".format(
-                                fullpath,
-                                compiler.name,
-                            ),
-                        )
-
-                        continue
-
-                    if not is_supported_test_item_func(fullpath):
-                        search_dm.WriteVerbose(
-                            "'{}' is not supported by the test parser '{}'.\n".format(
-                                fullpath,
-                                test_parser_name,
-                            ),
-                        )
-
-                        continue
-
-                    potential_ignore_filename = fullpath.parent / "{}-ignore".format(fullpath.name)
-                    if potential_ignore_filename.exists():
-                        if potential_ignore_filename in ignore_ignore_filenames:
-                            search_dm.WriteVerbose(
-                                "The ignore filename '{}' was explicitly overridden.\n".format(potential_ignore_filename),
-                            )
-
-                            ignore_override_count += 1
-
-                        else:
-                            search_dm.WriteVerbose(
-                                "'{}' has been excluded due to the ignore item '{}'.\n".format(
-                                    fullpath,
-                                    potential_ignore_filename,
-                                ),
-                            )
-
-                            ignored_count += 1
-
-                            continue
-
-                    test_items.append(fullpath)
-
-            # ----------------------------------------------------------------------
-
-            process_func = ProcessFiles
-
-        elif compiler.input_type == InputType.Directories:
-            # ----------------------------------------------------------------------
-            def ProcessDirectories(
-                root: Path,
-                directories: List[str],
-                filename: List[str],        # pylint: disable=unused-argument
-            ) -> None:
-                nonlocal ignored_count
-                nonlocal ignore_override_count
-
-                for parent in root.parents:
-                    potential_do_not_parse_filename = parent / DO_NOT_PARSE_FILENAME
-
-                    if potential_do_not_parse_filename.exists():
-                        search_dm.WriteVerbose("Skipping '{}' due to '{}'.\n".format(root, potential_do_not_parse_filename))
-
-                        return
-
-                if not compiler.IsSupported(root):
-                    search_dm.WriteVerbose(
-                        "'{}' is not supported by the compiler '{}'.\n".format(
-                            root,
-                            compiler.name,
-                        ),
-                    )
-
-                    return
-
-                if not compiler.IsSupportedTestItem(root):
-                    search_dm.WriteVerbose(
-                        "'{}' is not supported test item for the compiler '{}'.\n".format(
-                            root,
-                            compiler.name,
-                        ),
-                    )
-
-                    return
-
-                if not is_supported_test_item_func(root):
-                    search_dm.WriteVerbose(
-                        "'{}' is not supported by the test parser '{}'.\n".format(
-                            root,
-                            test_parser_name,
-                        ),
-                    )
-
-                    return
-
-                potential_ignore_filename = root / IGNORE_FILENAME
-                if potential_ignore_filename.exists():
-                    if potential_ignore_filename in ignore_ignore_filenames:
-                        search_dm.WriteVerbose(
-                            "The ignore filename '{}' was explicitly overridden.\n".format(potential_ignore_filename),
-                        )
-
-                        ignore_override_count += 1
-
-                    else:
-                        search_dm.WriteVerbose(
-                            "'{}' has been excluded due to the ignore item '{}'.\n".format(
-                                root,
-                                potential_ignore_filename.name,
-                            ),
-                        )
-
-                        ignored_count += 1
-
-                        return
-
-                directories[:] = []
-
-                test_items.append(root)
-
-            # ----------------------------------------------------------------------
-
-            process_func = ProcessDirectories
-
-        else:
-            assert False, compiler.input_type  # pragma: no cover
-
-        for root, directories, filenames in EnumSource.EnumSource(directory):
-            if root.name.endswith(test_type):
-                process_func(root, directories, filenames)
-            else:
-                directories[:] = []
-
-    return test_items
-
-
+# ----------------------------------------------------------------------
 # ----------------------------------------------------------------------
 def _MatchTestsImpl(
     dm: DoneManager,
@@ -1566,176 +754,127 @@ def _MatchTestsImpl(
     compiler: CompilerImpl,
     test_type: str,
 ) -> None:
-    ignore_dir_funcs: List[Callable[[Path], bool]] = EnumSource.ALL_SKIP_FUNCS
+    tests = CommandLineImpl.Filter(
+        dm,
+        CommandLineImpl.Find(
+            dm,
+            input_dir,
+            ignore_ignore_filenames=[],
+            include_all_tests=True,
+        ),
+        test_type,
+        compiler.name,
+        test_parser_name=None,
+    )
 
-    source_items: List[Path] = []
+    if not tests:
+        return
 
-    with dm.Nested(
-        "Parsing '{}'...".format(input_dir),
-        lambda: "{} found".format(inflect.no("test file", len(source_items))),
-        suffix="\n" if dm.is_verbose else "",
-    ) as search_dm:
-        for root, _, filenames in EnumSource.EnumSource(input_dir, ignore_dir_funcs):
-            if root.name != test_type:
-                continue
-
-            for filename in filenames:
-                fullpath = root / filename
-
-                if compiler.IsSupportedTestItem(fullpath):
-                    source_items.append(fullpath)
-                    search_dm.WriteVerbose(str(fullpath))
-
-    test_items: List[Path] = _FindTests(dm, input_dir, test_type, compiler, None, None)
-
-    len_test_items = len(test_items)
+    test_mismatches: Dict[Path, Path] = {}
+    source_mismatches: Dict[Path, Path] = {}
+    processed_source_dirs: Set[Path] = set()
 
     with dm.Nested(
-        "Removing ignored tests...",
-        lambda: "{} removed".format(inflect.no("test file", len_test_items - len(test_items))),
-        suffix="\n",
-    ) as remove_dm:
-        # Remove any test items that correspond to sources that were explicitly removed.
-        # We want to run these tests (so they shouldn't be removed from the output of `_FindTests`),
-        # but we don't want them to appear in the output of this list.
-
-        # ----------------------------------------------------------------------
-        def IsMissingTest(
-            filename: Path,
-        ) -> bool:
-            for parent in filename.parents:
-                if any(ignore_dir_func(parent) for ignore_dir_func in ignore_dir_funcs):
-                    remove_dm.WriteVerbose(str(filename))
-                    return False
-
-            return True
-
-        # ----------------------------------------------------------------------
-
-        test_items = [test_item for test_item in test_items if IsMissingTest(test_item)]
-
-    # Compare the tests with the source items and report the differences
-    matches = 0
-
-    with dm.Nested(
-        "Comparing...",
+        "\nOrganizing content...",
         [
-            lambda: "{} matched".format(inflect.no("test", matches)),
-            lambda: "{} unmatched".format(inflect.no("source item", len(source_items))),
-            lambda: "{} unmatched".format(inflect.no("test item", len(test_items))),
+            lambda: "{} source {} found".format(len(source_mismatches), inflect.plural("mismatch", len(source_mismatches))),
+            lambda: "{} test {} found".format(len(test_mismatches), inflect.plural("mismatch", len(test_mismatches))),
         ],
-        suffix="\n" if dm.is_verbose else "",
-    ) as compare_dm:
-        index = 0
-        while index < len(source_items):
-            source_item = source_items[index]
-
-            test_item = compiler.TestItemToName(source_item)
-
-            if test_item and test_item.is_file():
-                compare_dm.WriteVerbose("{} -> {}\n".format(str(source_item).ljust(120), test_item))
-                matches += 1
-
-                if test_item in test_items:
-                    test_items.remove(test_item)
-
-                del source_items[index]
-
+    ):
+        for test in tests:
+            # We can only perform this validation for compilers that operate on files
+            if test.compiler.input_type != InputType.Files:
                 continue
 
-            index += 1
+            test_dir = test.path.parent
+
+            source_name = compiler.TestItemToName(test.path)
+            if source_name is not None and not source_name.exists():
+                test_mismatches[test.path] = source_name
+
+            source_dir = test_dir.parent
+
+            if source_dir in processed_source_dirs:
+                continue
+
+            processed_source_dirs.add(source_dir)
+
+            for item in source_dir.iterdir():
+                if not item.is_file():
+                    continue
+
+                test_name = compiler.ItemToTestName(item, test_type)
+                if test_name is not None and not test_name.exists():
+                    source_mismatches[item] = test_name
 
     # ----------------------------------------------------------------------
     def DisplayItems(
         header: str,
-        items: List[Path],
+        mismatches: Dict[Path, Path],
     ) -> None:
         with dm.YieldStream() as stream:
+            stream.write("\n{}\n{}\n\n".format(header, "=" * len(header)))
+
             indented_stream = StreamDecorator(stream, "    ")
 
-            common_path = PathEx.GetCommonPath(*items)
+            len_input_dir_parts = len(input_dir.parts)
 
-            if common_path:
-                len_common_path_parts = 0 if common_path is None else len(common_path.parts)
-
-                display_info = {
-                    str(Path(*source_item.parts[len_common_path_parts:])) : source_item
-                    for source_item in source_items
-                }
-
-                indented_stream.write(
-                    "\n\nAll files are relative to '{}'.\n\n".format(
-                        common_path if dm.capabilities.is_headless else TextwrapEx.CreateAnsiHyperLink(
-                            "file:///{}".format(common_path.as_posix()),
-                            str(common_path),
-                        ),
-                    ),
-                )
-
-                # ----------------------------------------------------------------------
-                def DecorateRowsWithLink(
-                    index: int,  # pylint: disable=unused-argument
-                    values: List[str],
-                ) -> List[str]:
-                    if not dm.capabilities.is_headless:
-                        fullpath = display_info[values[0].strip()]
-
-                        values[0] = TextwrapEx.CreateAnsiHyperLinkEx(
-                            "file:///{}".format(fullpath.as_posix()),
-                            values[0],
-                        )
-
-                    return values
-
-                # ----------------------------------------------------------------------
-
-                decorate_rows_func = DecorateRowsWithLink
-
-            else:
-                display_info = {str(source_item): source_item for source_item in source_items}
-
-                decorate_rows_func = lambda index, values: values
-
-            indented_stream.write("\n")
+            rows: List[Tuple[Path, Path]] = list(mismatches.items())
 
             indented_stream.write(
-                TextwrapEx.CreateTable(
-                    [header],
-                    [
-                        [display] for display in display_info
-                    ],
-                    decorate_values_func=decorate_rows_func,
+                "All files are relative to '{}'.\n\n".format(
+                    input_dir if dm.capabilities.is_headless else TextwrapEx.CreateAnsiHyperLink(
+                        "file:///{}".format(input_dir.as_posix()),
+                        str(input_dir),
+                    ),
                 ),
             )
 
-            indented_stream.write("\n")
+            # ----------------------------------------------------------------------
+            def DecorateRowsWithLink(
+                index: int,
+                values: List[str],
+            ) -> List[str]:
+                if not dm.capabilities.is_headless:
+                    fullpath = rows[index][0]
+
+                    values[0] = TextwrapEx.CreateAnsiHyperLinkEx(
+                        "file:///{}".format(fullpath.as_posix()),
+                        values[0],
+                    )
+
+                return values
+
+            # ----------------------------------------------------------------------
+
+            indented_stream.write(
+                TextwrapEx.CreateTable(
+                    [
+                        "Filename",
+                        "Expected Match",
+                    ],
+                    [
+                        [
+                            str(Path(*cols[0].parts[len_input_dir_parts:])),
+                            str(Path(*cols[1].parts[len_input_dir_parts:])),
+                        ]
+                        for cols in rows
+                    ],
+                    decorate_values_func=DecorateRowsWithLink,
+                ),
+            )
+
+            indented_stream.write("\n\n")
 
         dm.result = -1
 
     # ----------------------------------------------------------------------
 
-    if source_items:
-        DisplayItems("Source Files Unmatched", source_items)
+    if source_mismatches:
+        DisplayItems("Source Files Unmatched", source_mismatches)
 
-    if test_items:
-        DisplayItems("Test Items Unmatched", test_items)
-
-
-# ----------------------------------------------------------------------
-def _ResolveFlags(
-    desc: str,
-    plugin: Union[None, CompilerImpl, TestExecutorImpl, TestParserImpl, CodeCoverageValidatorImpl],
-    flags: Optional[List[str]],
-) -> Dict[str, Any]:
-    resolved_flags = TyperEx.PostprocessDictArgument(flags)
-
-    if not plugin:
-        if resolved_flags:
-            raise typer.BadParameter("{desc} flags are not valid without a {desc}.".format(desc=desc))
-
-        return {}
-
-    return TyperEx.ProcessArguments(plugin.GetCustomCommandLineArgs(), resolved_flags.items())
+    if test_mismatches:
+        DisplayItems("Test Items Unmatched", test_mismatches)
 
 
 # ----------------------------------------------------------------------
