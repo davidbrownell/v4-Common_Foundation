@@ -181,7 +181,7 @@ class BuildInfoBase(ABC):
                 dm.WriteInfo(
                     "This build can only be run in development environments activated with the {} {}; the current configuration is '{}'.".format(
                         inflect.plural("configuration", len(self.required_development_configurations)),
-                        ", ".join("'{}'".format(config) for config in self.required_development_configurations),
+                        ", ".join("'{}'".format(config.pattern) for config in self.required_development_configurations),
                         current_configuration,
                     ),
                 )
