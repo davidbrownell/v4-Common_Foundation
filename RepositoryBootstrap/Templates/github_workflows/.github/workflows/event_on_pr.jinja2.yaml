@@ -8,7 +8,7 @@ on:
 
 jobs:
   _<<< guid() >>>:
-    name: "Validate"
+    name: "Validate (target: ${{ github.base_ref }})"
     uses: <<< git_username >>>/<<< git_repo >>>/.github/workflows/validate.yaml@CI-latest
     with:
       repo_branch:                          ${{ github.head_ref }}
