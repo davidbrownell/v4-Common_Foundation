@@ -154,7 +154,7 @@ Once in an [activated](#activated) environment, run any of these commands to exp
 ## Terminology
 
 <dl>
-<dt><a name="repository"></a>Repository<dt>
+<dt><a name="repository"></a>Repository</dt>
 <dd>An instance of a revision control system for source code that controls the access, creation, maintenance, modification and use of source code. A repository based on <code>Common_Foundation</code> can be a standard repository or a <a href="#mixin-repository">Mixin Repository</a>.</dd>
 
 <dt><a name="enlistment"></a>Enlistment</dt>
