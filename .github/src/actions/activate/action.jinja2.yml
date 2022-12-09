@@ -17,10 +17,19 @@ name: Activate
 description: Runs `Activate` on the repository.
 
 inputs:
+  # This inputs into this composite action are a bit redundant to the information that we receive back from the
+  # call to the Initialize composite action. This is because this functionality was implemented before the
+  # initialize functionality was implemented the way that it is today. So, we are keeping the existing signature
+  # around in the name of backwards compatibility. Major version bumps should rereconsider this composite
+  # action's interface.
   repo_dir:                                 {type: string, required: true}
   os:                                       {type: string, required: true}
   configuration:                            {type: string, required: true}
   shell_name:                               {type: string, required: true}
+
+  working_dir:                              {type: string, required: true}
+
+  is_mixin_repository:                      {type: boolean, required: false, default: false}
 
 outputs:
   activate_statement:
@@ -30,22 +39,49 @@ outputs:
 runs:
   using: composite
   steps:
+    # outputs:
+    #   - local_script_prefix
+    #   - script_extension
+    #   - shell_name
+    #   - source_command
+    #   - sudo_command
+    #   - working_dir
+    #
+    - name: "[Impl] Initialize OS-Specific Variables"
+      id: initialize
+      uses: davidbrownell/v4-Common_Foundation/.github/actions/initialize@CI-v1
+      with:
+        os:                               ${{ inputs.os }}
+
     - name: Activate Statement
       id: activate_statement
       uses: actions/github-script@v6
       with:
         result-encoding: string
         script: |
+          const path = require("path");
+
+          const is_mixin_repository = "${{ inputs.is_mixin_repository }}".toLowerCase() === "true";
+          const is_windows = "${{ inputs.os }}".startsWith("windows");
+
+          const repo_dir = String.raw`${{ inputs.repo_dir }}`;
+
+          var pushd_suffix;
+
+          if(is_windows)
+            pushd_suffix = "";
+          else
+            pushd_suffix = " >> /dev/null";
+
           var activate_statement;
 
-          if("${{ inputs.os }}".startsWith("windows")) {
-            activate_statement = "pushd \"" + String.raw`${{ inputs.repo_dir }}` + "\" && Activate.cmd";
+          if(is_mixin_repository) {
+            activate_statement = "pushd \"" + repo_dir + "\"" + pushd_suffix + " && ${{ steps.initialize.outputs.source_command }} \"" + path.join(String.raw`${{ inputs.working_dir }}`, "code", "Common", "Foundation", "Activate") + "${{ steps.initialize.outputs.script_extension }}\" \"python310\" --mixin .";
           } else {
-            activate_statement = "pushd \"" + String.raw`${{ inputs.repo_dir }}` + "\" >> /dev/null && . ./Activate.sh";
-          }
+            activate_statement = "pushd \"" + repo_dir + "\"" + pushd_suffix + " && ${{ steps.initialize.outputs.source_command }}${{ steps.initialize.outputs.local_script_prefix }}Activate${{ steps.initialize.outputs.script_extension }}";
 
-          if("${{ inputs.configuration }}" !== "None") {
-            activate_statement += " ${{ inputs.configuration }}";
+            if("${{ inputs.configuration }}" !== "None")
+              activate_statement += " \"${{ inputs.configuration }}\"";
           }
 
           return activate_statement;

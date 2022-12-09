@@ -117,6 +117,7 @@ jobs:
     uses: davidbrownell/v4-Common_Foundation/.github/workflows/callable_validate.yaml@CI-v1
     with:
       job_name_prefix:                      "<<< friendly_repo_name >>>"
+      is_mixin_repository:                  <<< is_mixin_repository >>>
       repo_name:                            <<< git_username >>>/<<< git_repo >>>
       repo_branch:                          ${{ inputs.repo_branch }}
       bootstrap_branch_overrides:           ${{ inputs.bootstrap_branch_overrides }}

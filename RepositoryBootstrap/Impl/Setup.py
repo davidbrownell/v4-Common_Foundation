@@ -765,10 +765,9 @@ def _SetupBootstrap(
 
     # Find the foundation repository (we will only find this if the repo has a direct dependency on it)
     foundation_repo = None
-    foundation_repo_id = uuid.UUID("DD6FCD30-B043-4058-B0D5-A6C8BC0374F4")
 
     for repo in all_repos:
-        if repo.id == foundation_repo_id:
+        if repo.id == Constants.COMMON_FOUNDATION_REPOSITORY_ID:
             foundation_repo = repo
             break
 

@@ -357,11 +357,13 @@ def Execute(
 
                     `chmod a+x *.sh`
 
-                b) Committing using the message:
+                b) Apply copyright notices to generated files (as needed).
+
+                c) Committing using the message:
 
                     "🎉 [started_project] Initial project scaffolding."
 
-                c) Creating a tag (git) / branch (hg) based on that commit named
+                d) Creating a tag (git) / branch (hg) based on that commit named
 
                     "main_stable"
             """,
@@ -435,6 +437,7 @@ def _InitGithubWorkflows(
 
     git_username = _Prompt("What is the github username or organization that will host this repository? ")
     repo_name = _Prompt("What is the repository name? ", config.friendly_name)
+    is_mixin_repository = _Prompt("Is this repository a mixin repository (specify that it isn't unless you are absolutely certain that it is)? ", "no").lower() in ["yes", "y"]
 
     dm.WriteLine("")
 
@@ -455,6 +458,7 @@ def _InitGithubWorkflows(
             "--jinja2-context", '"git_username:{}"'.format(git_username),
             "--jinja2-context", '"git_repo:{}"'.format(repo_name),
             "--jinja2-context", '"friendly_repo_name:{}"'.format(config.friendly_name),
+            "--jinja2-context", '"is_mixin_repository:{}"'.format(str(is_mixin_repository).lower()),
             "--single-task",
         ]
 
@@ -477,6 +481,12 @@ def _InitGithubWorkflows(
 
         with this_dm.YieldVerboseStream() as stream:
             stream.write(result.output)
+
+        # Remove the conditional compilation file
+        for item in config.root.iterdir():
+            if item.is_file() and item.suffix == ".data" and item.stem.endswith(".ConditionalInvocationQueryMixin"):
+                item.unlink()
+                break
 
     return [
         textwrap.dedent(

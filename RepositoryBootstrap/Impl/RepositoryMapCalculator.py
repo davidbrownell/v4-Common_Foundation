@@ -137,6 +137,9 @@ class EncounteredRepoData(DataTypes.EnhancedRepoData):
                 raise Exception("A mixin repository cannot have configurations.")
 
             for config_data in self.configurations.values():
+                if any(dependency.repository_id != Constants.COMMON_FOUNDATION_REPOSITORY_ID for dependency in config_data.dependencies):
+                    raise Exception("A mixin repository cannot have dependencies.")
+
                 if config_data.version_specs.tools:
                     raise Exception("A mixin repository cannot specify tool versions.")
 
