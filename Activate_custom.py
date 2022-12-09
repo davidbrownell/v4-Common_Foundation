@@ -233,7 +233,7 @@ def GetCustomActions(
 
                                 It is recommended that you change this setting to not modify line endings:
 
-                                    1) 'git config --global core.autocrlf false'
+                                    1) 'git config core.autocrlf false'
 
                                 """,
                             ),
