@@ -6,4 +6,6 @@ The contents of this directory are convoluted, as all outputs after code generat
 
 `manual_`: Workflows that can be triggered by a human on github. These workflows should invoke functionality similar to workflows invoked by events.
 
+`sca_`: Static Code Analysis (SCA) workflows triggered by PRs, commits to mainline branches, and periodic invocations.
+
 `validate_`: Workflows that validate the current repository and can be invoked by other repositories (generally, as part of their dependency-validation process).

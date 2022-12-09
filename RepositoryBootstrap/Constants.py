@@ -16,7 +16,10 @@
 """Contains Constants used during the Repository bootstrapping process"""
 
 import textwrap
+import uuid
 
+# ----------------------------------------------------------------------
+COMMON_FOUNDATION_REPOSITORY_ID                         = uuid.UUID("DD6FCD30-B043-4058-B0D5-A6C8BC0374F4")
 
 # ----------------------------------------------------------------------
 SETUP_ENVIRONMENT_NAME                                  = "Setup"

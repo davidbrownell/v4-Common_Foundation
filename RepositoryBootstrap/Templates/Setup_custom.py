@@ -1,6 +1,6 @@
 # pylint: disable=missing-module-docstring
 
-import uuid
+import uuid                                             # pylint: disable=unused-import
 
 from typing import Dict, List, Optional, Union
 
@@ -11,6 +11,7 @@ from Common_Foundation.Shell import Commands                                # ty
 from Common_Foundation.Streams.DoneManager import DoneManager               # type: ignore  # pylint: disable=import-error,unused-import
 
 from RepositoryBootstrap import Configuration                               # type: ignore  # pylint: disable=import-error,unused-import
+from RepositoryBootstrap import Constants                                   # type: ignore  # pylint: disable=import-error,unused-import
 
 
 # ----------------------------------------------------------------------
@@ -38,7 +39,7 @@ def GetConfigurations() -> Union[
         "",
         [
             Configuration.Dependency(
-                uuid.UUID("DD6FCD30-B043-4058-B0D5-A6C8BC0374F4"),
+                Constants.COMMON_FOUNDATION_REPOSITORY_ID,
                 "Common_Foundation",
                 "python310",
                 "https://github.com/davidbrownell/v4-Common_Foundation.git",

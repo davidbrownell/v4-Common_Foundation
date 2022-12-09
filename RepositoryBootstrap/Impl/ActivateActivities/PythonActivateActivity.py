@@ -118,13 +118,11 @@ class PythonActivateActivity(ActivateActivity):
             display_exceptions=False,
         ):
             if configuration is not None and configuration.endswith("nolibs"):
-                common_foundation_repo_id = uuid.UUID("DD6FCD30-B043-4058-B0D5-A6C8BC0374F4")
-
                 # ----------------------------------------------------------------------
                 def IsSupportedRepository(
                     repo: DataTypes.ConfiguredRepoDataWithPath,
                 ) -> bool:
-                    return repo.id == common_foundation_repo_id
+                    return repo.id == Constants.COMMON_FOUNDATION_REPOSITORY_ID
 
                 # ----------------------------------------------------------------------
 
