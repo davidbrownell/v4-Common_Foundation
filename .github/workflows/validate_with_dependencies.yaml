@@ -37,6 +37,13 @@ on:
       repo_branch:                          {type: string, required: true}
 
 jobs:
+  _1757731e-3dcd-4df9-8a3b-b008dd7301c6:
+    name: "Common_EmailMixin"
+    uses: davidbrownell/v4-Common_EmailMixin/.github/workflows/validate.yaml@CI-latest
+    with:
+      repo_branch: main_stable
+      bootstrap_branch_overrides: "Common_Foundation:${{ inputs.repo_branch }}"
+
   _8a2a6711-9a4a-4b7e-9a9b-6d624bb23e81:
     name: "Common_Foundation"
     uses: davidbrownell/v4-Common_Foundation/.github/workflows/validate.yaml@CI-latest
