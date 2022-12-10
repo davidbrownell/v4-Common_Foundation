@@ -498,7 +498,7 @@ class Repository(DistributedRepositoryBase):
             assert False, branch_type  # pragma: no cover
 
         commands: List[str] = [
-            'git merge --ff-only{}'.format(command_suffix),
+            'git merge{}'.format(command_suffix),
         ]
 
         if update_arg is None:
