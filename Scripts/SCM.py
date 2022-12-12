@@ -43,6 +43,7 @@ from Common_Foundation import PathEx
 from Common_Foundation.SourceControlManagers.All import ALL_SCMS
 from Common_Foundation.SourceControlManagers.SourceControlManager import DistributedRepository, Repository, SourceControlManager
 from Common_Foundation.SourceControlManagers import UpdateMergeArgs
+from Common_Foundation.Streams.Capabilities import Capabilities
 from Common_Foundation.Streams.DoneManager import DoneManager, DoneManagerFlags
 from Common_Foundation.Streams.StreamDecorator import StreamDecorator
 from Common_Foundation import SubprocessEx
@@ -118,7 +119,7 @@ def Info(
                 for scm in ALL_SCMS
             ]
 
-        if sys.stdout.isatty():
+        if Capabilities.Get(sys.stdout).supports_colors:
             # This script may be called early within the development cycle, so not using colorama
             col_header_color_on = TextwrapEx.BRIGHT_WHITE_COLOR_ON
             yes_color_on = TextwrapEx.BRIGHT_GREEN_COLOR_ON
