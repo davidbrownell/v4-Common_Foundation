@@ -238,20 +238,7 @@ def Transform(
 ) -> List[Optional[TransformedType]]:
     """Executes functions that return values"""
 
-    temp_directory = CurrentShell.CreateTempDirectory()
-
-    # ----------------------------------------------------------------------
-    def OnExit():
-        # Delete the temp directory if all has worked as expected
-        if dm.result == 0:
-            PathEx.RemoveTree(temp_directory)
-            return
-
-        dm.WriteInfo("The temporary directory '{}' was preserved due to errors during the transformation process.".format(temp_directory))
-
-    # ----------------------------------------------------------------------
-
-    with ExitStack(OnExit):
+    with _YieldTemporaryDirectory(dm) as temp_directory:
         cpu_count = multiprocessing.cpu_count()
 
         num_threads = min(len(tasks), cpu_count)
@@ -277,6 +264,140 @@ def Transform(
             num_threads=num_threads,
             refresh_per_second=refresh_per_second,
         )
+
+
+# ----------------------------------------------------------------------
+QueueStep2FuncType                          = Callable[
+    [Status],
+    Optional[str],                          # Final status message
+]
+
+
+QueueStep1FuncType                          = Callable[
+    [
+        Callable[[str], None],
+    ],
+    Tuple[
+        Optional[int],                      # Num steps
+        QueueStep2FuncType,
+    ],
+]
+
+
+@contextmanager
+def YieldQueueExecutor(
+    dm: DoneManager,
+    desc: str,
+    *,
+    quiet: bool=False,
+    max_num_threads: Optional[int]=None,
+    refresh_per_second: Optional[float]=None,
+) -> Iterator[
+    Callable[
+        [
+            str,                            # Task description
+            QueueStep1FuncType,
+        ],
+        None,
+    ]
+]:
+    """Yields a callable that can be used to enqueue tasks executed by workers running across multiple threads"""
+
+    with _YieldTemporaryDirectory(dm) as temp_directory:
+        num_threads = multiprocessing.cpu_count() if max_num_threads is None else max_num_threads
+
+        with _GenerateStatusInfo(
+            None,
+            dm,
+            desc,
+            [
+                TaskData("", thread_index)
+                for thread_index in range(num_threads)
+            ],
+            quiet=quiet,
+            refresh_per_second=refresh_per_second,
+        ) as (status_factories, on_task_complete_func):
+            queue: List[Tuple[str, QueueStep1FuncType]] = []
+            queue_lock = threading.Lock()
+
+            queue_semaphore = threading.Semaphore(0)
+            quit_event = threading.Event()
+
+            # ----------------------------------------------------------------------
+            def EnqueueFunc(
+                task_desc: str,
+                func: QueueStep1FuncType,
+            ) -> None:
+                with queue_lock:
+                    queue.append((task_desc, func))
+                    queue_semaphore.release()
+
+            # ----------------------------------------------------------------------
+            def Impl(
+                thread_index: int,
+            ) -> None:
+                log_filename = temp_directory / "{:06}.log".format(thread_index)
+                status_factory = status_factories[thread_index]
+
+                with ExitStack(status_factory.Stop):
+                    while True:
+                        queue_semaphore.acquire()
+
+                        with queue_lock:
+                            if not queue:
+                                assert quit_event.is_set()
+                                break
+
+                            task_desc, step1_func = queue.pop(0)
+
+                        # ----------------------------------------------------------------------
+                        def ExecuteTasksStep1(*args, **kargs) -> Tuple[Path, ExecuteTasksStep2FuncType]:  # pylint: disable=unused-argument
+                            return log_filename, ExecuteTasksStep2
+
+                        # ----------------------------------------------------------------------
+                        def ExecuteTasksStep2(
+                            on_simple_status_func: Callable[[str], None],
+                        ) -> Tuple[Optional[int], ExecuteTasksStep3FuncType]:
+                            num_steps, step2_func = step1_func(on_simple_status_func)
+
+                            # ----------------------------------------------------------------------
+                            def ExecuteTasksStep3(
+                                status: Status,
+                            ) -> Tuple[int, Optional[str]]:
+                                return 0, step2_func(status)
+
+                            # ----------------------------------------------------------------------
+
+                            return num_steps, ExecuteTasksStep3
+
+                        # ----------------------------------------------------------------------
+
+                        _ExecuteTask(
+                            desc,
+                            TaskData(task_desc, None),
+                            ExecuteTasksStep1,
+                            status_factory,
+                            on_task_complete_func,
+                            is_debug=dm.is_debug,
+                        )
+
+            # ----------------------------------------------------------------------
+
+            with ThreadPoolExecutor(
+                max_workers=num_threads,
+            ) as executor:
+                futures = [
+                    executor.submit(Impl, thread_index)
+                    for thread_index in range(num_threads)
+                ]
+
+                yield EnqueueFunc
+
+                quit_event.set()
+                queue_semaphore.release(num_threads)
+
+                for future in futures:
+                    future.result()
 
 
 # ----------------------------------------------------------------------
@@ -429,7 +550,7 @@ class _StatusFactory(object):
 # ----------------------------------------------------------------------
 @contextmanager
 def _GenerateStatusInfo(
-    display_num_tasks: int,
+    display_num_tasks: Optional[int],
     dm: DoneManager,
     desc: str,
     tasks: List[TaskData],
@@ -451,7 +572,10 @@ def _GenerateStatusInfo(
     wrote_info = False
 
     with dm.Nested(
-        "{} {}...".format(desc, inflect.no("item", display_num_tasks)),
+        "{}{}...".format(
+            desc,
+            "" if display_num_tasks is None else inflect.no("item", display_num_tasks),
+        ),
         [
             lambda: "{} succeeded".format(inflect.no("item", success_count)),
             lambda: "{} with errors".format(inflect.no("item", error_count)),
@@ -479,7 +603,10 @@ def _GenerateStatusInfo(
             )
 
             total_progress_id = progress_bar.add_task(
-                "{}Total Progress".format(stdout_context.line_prefix),
+                "{}{}".format(
+                    stdout_context.line_prefix,
+                    "Working" if display_num_tasks is None else "Total Progress",
+                ),
                 total=display_num_tasks,
                 status="",
             )
@@ -781,10 +908,7 @@ def _TransformCompressed(
         dm,
         desc,
         [
-            TaskData(
-                "",
-                thread_index,
-            )
+            TaskData("", thread_index)
             for thread_index in range(num_threads)
         ],
         quiet=quiet,
@@ -857,10 +981,7 @@ def _TransformCompressed(
             max_workers=num_threads,
         ) as executor:
             futures = [
-                executor.submit(
-                    Impl,
-                    thread_index,
-                )
+                executor.submit(Impl, thread_index)
                 for thread_index in range(num_threads)
             ]
 
@@ -868,3 +989,35 @@ def _TransformCompressed(
                 future.result()
 
     return all_results
+
+
+# ----------------------------------------------------------------------
+@contextmanager
+def _YieldTemporaryDirectory(
+    dm: DoneManager,
+) -> Iterator[Path]:
+    temp_directory = CurrentShell.CreateTempDirectory()
+
+    # ----------------------------------------------------------------------
+    def OnExit():
+        # Delete the temp directory if all has worked as expected
+        if dm.result == 0:
+            PathEx.RemoveTree(temp_directory)
+            return
+
+        if dm.capabilities.is_headless:
+            dm.WriteInfo("\nThe temporary working directory '{}' was preserved due to errors encountered while executing tasks.".format(temp_directory))
+        else:
+            dm.WriteInfo(
+                "\nThe {} was preserved due to errors encountered while executing tasks.".format(
+                    TextwrapEx.CreateAnsiHyperLink(
+                        "file:///{}".format(temp_directory.as_posix()),
+                        "temporary working directory",
+                    ),
+                ),
+            )
+
+    # ----------------------------------------------------------------------
+
+    with ExitStack(OnExit):
+        yield temp_directory
