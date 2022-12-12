@@ -76,7 +76,7 @@ class Capabilities(object):
 
         assert (
             getattr(stream, cls._EMBEDDED_CAPABILITIES_ATTRIBUTE_NAME, None) is None
-        ), "Capabilities are assigned to a stream when it is first created and cannot be changed. Consider using the method `YieldCapabilities`."
+        ), "Capabilities are assigned to a stream when it is first created and cannot be changed. Consider using the method `Alter`."
 
         result = cls._CreateInstance(
             stream,
