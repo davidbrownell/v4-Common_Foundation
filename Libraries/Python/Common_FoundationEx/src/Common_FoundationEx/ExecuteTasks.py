@@ -574,7 +574,7 @@ def _GenerateStatusInfo(
     with dm.Nested(
         "{}{}...".format(
             desc,
-            "" if display_num_tasks is None else inflect.no("item", display_num_tasks),
+            "" if display_num_tasks is None else " " + inflect.no("item", display_num_tasks),
         ),
         [
             lambda: "{} succeeded".format(inflect.no("item", success_count)),
