@@ -164,12 +164,20 @@ class CompilerImpl(
     ) -> bool:
         """Return True if the item looks like a test item."""
 
-        if self.input_type == InputType.Files and item.name.lower().endswith("test"):
+        if self.input_type == InputType.Files and item.stem.lower().endswith("test"):
             return True
-        if self.input_type == InputType.Directories and item.name.lower().endswith("tests"):
+        if self.input_type == InputType.Directories and item.stem.lower().endswith("tests"):
             return True
 
         return any(parent.name.lower().endswith("tests") for parent in item.parents)
+
+    # ----------------------------------------------------------------------
+    @extensionmethod
+    def SupportsTestItemMatching(
+        self,
+    ) -> bool:
+        """Return True if the compiler supports test item matching"""
+        return self.input_type != InputType.Directories
 
     # ----------------------------------------------------------------------
     @extensionmethod

@@ -754,6 +754,10 @@ def _MatchTestsImpl(
     compiler: CompilerImpl,
     test_type: str,
 ) -> None:
+    if not compiler.SupportsTestItemMatching():
+        dm.WriteInfo("The compiler '{}' does not support test item matching.\n".format(compiler.name))
+        return
+
     tests = CommandLineImpl.Filter(
         dm,
         CommandLineImpl.Find(
@@ -789,9 +793,7 @@ def _MatchTestsImpl(
             test_dir = test.path.parent
 
             source_name = compiler.TestItemToName(test.path)
-            if source_name is None:
-                test_mismatches[test.path] = test.path
-            elif not source_name.exists():
+            if source_name is not None and not source_name.exists():
                 test_mismatches[test.path] = source_name
 
             source_dir = test_dir.parent

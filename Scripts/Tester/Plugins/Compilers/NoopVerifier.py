@@ -57,6 +57,13 @@ class Verifier(VerifierBase, IInvoker):
         return filename_or_directory.is_file()
 
     # ----------------------------------------------------------------------
+    @overridemethod
+    def SupportsTestItemMatching(self) -> bool:
+        # This compiler is designed to match anything, so we don't want it tp produce False positives
+        # when we can't find tests associated with source files matched by this compiler.
+        return False
+
+    # ----------------------------------------------------------------------
     # ----------------------------------------------------------------------
     # ----------------------------------------------------------------------
     @overridemethod
