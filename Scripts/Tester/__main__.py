@@ -789,7 +789,9 @@ def _MatchTestsImpl(
             test_dir = test.path.parent
 
             source_name = compiler.TestItemToName(test.path)
-            if source_name is not None and not source_name.exists():
+            if source_name is None:
+                test_mismatches[test.path] = test.path
+            elif not source_name.exists():
                 test_mismatches[test.path] = source_name
 
             source_dir = test_dir.parent
