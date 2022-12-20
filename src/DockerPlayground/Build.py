@@ -511,7 +511,7 @@ def BuildVerificationTest(
                         " && ".join(
                             [
                                 ". ./Activate.sh {} --debug".format(dev_environment_config),
-                                "Tester.sh TestType python_simple Scripts /tmp/TesterOutput UnitTests --debug",
+                                "Tester.sh TestType basic_python_unittest Scripts /tmp/TesterOutput UnitTests --debug",
                                 "Builder.sh Build . /tmp/BuilderOutput --debug",
                             ],
                         ),
@@ -522,7 +522,7 @@ def BuildVerificationTest(
                         " && ".join(
                             [
                                 "Activate.cmd {} --debug".format(dev_environment_config),
-                                r"Tester.cmd TestType python_simple Scripts C:\Temp\TesterOutput UnitTests --debug",
+                                r"Tester.cmd TestType basic_python_unittest Scripts C:\Temp\TesterOutput UnitTests --debug",
                                 r"Builder.cmd Build . C:\Temp\BuilderOutput --debug",
                             ],
                         ),
