@@ -19,6 +19,9 @@ on:
   workflow_call:
     inputs:
       repo_branch:                          {type: string, required: true}
+      force_setup:                          {type: boolean, required: false, default: false}
+      force_activate:                       {type: boolean, required: false, default: false}
+
       bootstrap_branch_overrides:           {type: string, required: false}
 
 jobs:
@@ -36,7 +39,7 @@ jobs:
           - python310
           # TODO: - python310_nolibs
 
-    uses: davidbrownell/v4-Common_Foundation/.github/workflows/callable_validate.yaml@CI-latest
+    uses: davidbrownell/v4-Common_Foundation/.github/workflows/callable_validate.yaml@CI-ExperimentalCache # CI-latest
     with:
       job_name_prefix:                      Common_Foundation
       repo_name:                            davidbrownell/v4-Common_Foundation
@@ -45,6 +48,9 @@ jobs:
 
       os:                                   ${{ matrix.os }}
       configuration:                        ${{ matrix.configuration }}
+
+      force_setup:                          ${{ inputs.force_setup }}
+      force_activate:                       ${{ inputs.force_activate }}
 
       run_Builder:                          true
       run_MatchTests:                       true

@@ -29,14 +29,14 @@ import typer
 
 from typer.core import TyperGroup
 
-from Common_Foundation.ContextlibEx import ExitStack  # type: ignore
-from Common_Foundation.Shell import Commands  # type: ignore
-from Common_Foundation.Shell.All import CurrentShell  # type: ignore
-from Common_Foundation.Streams.DoneManager import DoneManager, DoneManagerFlags  # type: ignore
-from Common_Foundation.Streams.StreamDecorator import StreamDecorator  # type: ignore
-from Common_Foundation import TextwrapEx  # type: ignore
+from Common_Foundation.ContextlibEx import ExitStack                                # type: ignore
+from Common_Foundation.Shell import Commands                                        # type: ignore
+from Common_Foundation.Shell.All import CurrentShell                                # type: ignore
+from Common_Foundation.Streams.DoneManager import DoneManager, DoneManagerFlags     # type: ignore
+from Common_Foundation.Streams.StreamDecorator import StreamDecorator               # type: ignore
+from Common_Foundation import TextwrapEx                                            # type: ignore
 
-from .ActivationData import ActivationData
+from .ActivationData import ActivationData, Fingerprints
 from .EnvironmentBootstrap import EnvironmentBootstrap
 from .GenerateCommands import GenerateCommands
 
@@ -71,6 +71,7 @@ def Activate(
     repository_root: Path=typer.Argument(..., exists=True, file_okay=False, resolve_path=True, help="Root of the repository."),
     configuration: str=typer.Argument(..., help="Configuration to activate; 'None' implies the default configuration."),
     force: bool=typer.Option(False, "--force", help="Force the regeneration of environment data; if not specified, activation will attempt to use cached data."),
+    force_if_necessary: bool=typer.Option(False, "--force-if-necessary", help="Force the regeneration of environment data when necessary."),
     mixin: Optional[List[Path]]=typer.Option(None, exists=True, file_okay=False, resolve_path=True, help="Activate a mixin repository at the specified folder location along with this repository."),
     verbose: bool=typer.Option(False, "--verbose", help= "Write verbose information to the terminal."),
     debug: bool=typer.Option(False, "--debug", help="Write additional debug information to the terminal."),
@@ -89,11 +90,13 @@ def Activate(
             heading=None,
             line_prefix="",
             display=False,
+            display_exceptions=False,
             output_flags=DoneManagerFlags.Create(
                 verbose=verbose,
                 debug=debug,
             ),
         ) as dm:
+            nonlocal force
             nonlocal configuration_value
 
             environment_activated_key = os.getenv(Constants.DE_REPO_ACTIVATED_KEY)
@@ -102,12 +105,61 @@ def Activate(
             else:
                 activation_key = str(uuid.uuid4()).upper().replace("-", "")
 
+            # Load the activation data
             activation_data = ActivationData.Load(
                 dm,
                 repository_root,
                 configuration_value,  # pylint: disable=used-before-assignment
                 force=force or environment_activated_key is None,
             )
+
+            # Ensure that the generated dir exists
+            generated_dir = activation_data.GetActivationDir()
+            generated_dir.mkdir(parents=True, exist_ok=True)
+
+            # Determine if the fingerprints activated in the past match the fingerprints
+            # calculated with this activation data. If they don't match, the repository
+            # needs to be activated with the force flag.
+            prev_fingerprints_filename = generated_dir / Constants.GENERATED_ACTIVATION_FINGERPRINT_FILENAME
+
+            update_fingerprints_file = False
+
+            if force or not prev_fingerprints_filename.is_file():
+                update_fingerprints_file = True
+            else:
+                with prev_fingerprints_filename.open() as f:
+                    prev_fingerprint_content = Fingerprints.CreateFromJson(
+                        activation_data.root,
+                        json.load(f),
+                    )
+
+                if prev_fingerprint_content != activation_data.fingerprints:
+                    if force_if_necessary:
+                        dm.WriteInfo("\nThe repository or one of its dependencies have changed; force will be applied.\n\n")
+                        force = True
+
+                    if not force:
+                        raise Exception(
+                            textwrap.dedent(
+                                """\
+                                ****************************************************************************************************
+                                {repo_root}
+                                ****************************************************************************************************
+
+                                This repository or one of its dependencies have changed.
+
+                                Please run '{activate}' with the '--force' or '--force-if-necessary' flag.
+
+                                ****************************************************************************************************
+                                ****************************************************************************************************
+                                """,
+                            ).format(
+                                repo_root=repository_root,
+                                activate="{}{}".format(Constants.ACTIVATE_ENVIRONMENT_NAME, CurrentShell.script_extensions[0]),
+                            ),
+                        )
+
+                    update_fingerprints_file = True
 
             # ----------------------------------------------------------------------
             def LoadMixinLibrary(
@@ -152,10 +204,6 @@ def Activate(
             for mixin in mixins:
                 LoadMixinLibrary(mixin)
 
-            # Ensure that the generated dir exists
-            generated_dir = activation_data.GetActivationDir()
-            generated_dir.mkdir(parents=True, exist_ok=True)
-
             # Create the parameters
             kwargs = {
                 "activation_key": activation_key,
@@ -195,6 +243,9 @@ def Activate(
                 _ActivatePrompt,
                 _ActivateActivatedKey,
             ]
+
+            if update_fingerprints_file:
+                activities.append(_ActivateFingerprintsFile)
 
             # Invoke the activities
             commands: List[Commands.Command] = []
@@ -626,6 +677,20 @@ def _ActivateActivatedKey(
     return [
         Commands.Set(Constants.DE_REPO_ACTIVATED_KEY, activation_key),
     ]
+
+
+# ----------------------------------------------------------------------
+def _ActivateFingerprintsFile(
+    activation_key: str,                    # pylint: disable=unused-argument
+    dm: DoneManager,                        # pylint: disable=unused-argument
+    configuration: Optional[str],           # pylint: disable=unused-argument
+    activation_data: ActivationData,
+    version_specs: VersionSpecs,            # pylint: disable=unused-argument
+    generated_dir: Path,
+    force: bool,                            # pylint: disable=unused-argument
+) -> None:
+    with (generated_dir / Constants.GENERATED_ACTIVATION_FINGERPRINT_FILENAME).open("w") as f:
+        json.dump(activation_data.fingerprints.ToJson(activation_data.root), f)
 
 
 # ----------------------------------------------------------------------

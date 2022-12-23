@@ -33,27 +33,26 @@ name: Checkout Source
 description: Checks out source code.
 
 inputs:
-  repo_name:                                {type: string, required: false}
+  repo_name:                                {type: string, required: true}
   repo_branch:                              {type: string, required: false}
 
   os:                                       {type: string, required: true}
   configuration:                            {type: string, required: true}
 
   shell_name:                               {type: string, required: true}
-  working_dir:                              {type: string, required: true}
 
 outputs:
   archive_prefix:
     description: "Prefix that can be applied to archive names to prevent collisions."
     value: ${{ steps.archive_prefix.outputs.result }}
 
-  repo_name:
-    description: "Name of the repository under build."
-    value: ${{ steps.repo_name.outputs.result }}
-
   repo_dir:
     description: "Directory to the repository under build."
-    value: ${{ steps.repo_directory.outputs.result }}
+    value: ${{ steps.repo_dir.outputs.result }}
+
+  repo_dependencies_dir:
+    description: "Directory to the repositories dependencies."
+    value: ${{ steps.repo_dependencies_dir.outputs.result }}
 
 runs:
   using: composite
@@ -65,53 +64,38 @@ runs:
       with:
         result-encoding: string
         script: |
-          if(!"${{ inputs.repo_name }}") {
-            return "[${{ github.run_number }}, ${{ github.event.repository.name }}, ${{ inputs.os }}, ${{ inputs.configuration }}]";
-          }
-
           var source_repo_name = "${{ inputs.repo_name }}".split("/", 2)[1];
 
           return "[${{ github.run_number }}, " + source_repo_name + ", ${{ inputs.os }}, ${{ inputs.configuration }}]"
 
-    - name: Repo Name
-      id: repo_name
-      uses: actions/github-script@v6
-      with:
-        result-encoding: string
-        script: |
-          if(!"${{ inputs.repo_name }}") {
-            return "${{ github.repository }}";
-          }
-
-          return "${{ inputs.repo_name }}";
-
     - name: Repo Directory
-      id: repo_directory
+      id: repo_dir
       uses: actions/github-script@v6
       with:
         result-encoding: string
         script: |
-          if(!"${{ inputs.repo_name }}") {
-            return process.cwd();
-          }
-
           var path = require("path");
 
-          return path.join(String.raw`${{ inputs.working_dir }}`, "repo_under_test");
+          return path.join(process.env.GITHUB_WORKSPACE, "repo_under_test");
+
+    - name: Repo Dependencies Directory
+      id: repo_dependencies_dir
+      uses: actions/github-script@v6
+      with:
+        result-encoding: string
+        script: |
+          var path = require("path");
+
+          return path.join(process.env.GITHUB_WORKSPACE, "repo_dependencies");
 
     - name: Results
       shell: ${{ steps.shell_name.outputs.result }}
       run: |
         echo "Archive Prefix: '${{ steps.archive_prefix.outputs.result }}'"
-        echo "Repo Name: '${{ steps.repo_name.outputs.result }}'"
-        echo "Repo Directory: '${{ steps.repo_directory.outputs.result }}'"
-
-    - name: Checkout Source (Standard)
-      uses: actions/checkout@v3
-      if: ${{ !inputs.repo_name }}
+        echo "Repo Directory: '${{ steps.repo_dir.outputs.result }}'"
+        echo "Repo Dependencies Directory: '${{ steps.repo_dependencies_dir.outputs.result }}'"
 
     - name: Checkout Source (Custom Repo)
-      if: ${{ inputs.repo_name }}
       shell: ${{ inputs.shell_name }}
       run: |
-        git clone --branch ${{ inputs.repo_branch || 'main_stable' }} https://github.com/${{ inputs.repo_name }} "${{ steps.repo_directory.outputs.result }}"
+        git clone --branch ${{ inputs.repo_branch || 'main_stable' }} https://github.com/${{ inputs.repo_name }} "${{ steps.repo_dir.outputs.result }}"

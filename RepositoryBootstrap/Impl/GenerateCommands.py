@@ -15,7 +15,6 @@
 # ----------------------------------------------------------------------
 """Contains functionality used when generating commands to be executed during environment setup/activation"""
 
-import sys
 import textwrap
 import traceback
 

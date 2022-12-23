@@ -35,7 +35,7 @@ description: Creates a tag in the repository.
 inputs:
   tag_name:                                 {type: string, required: true}
   tag_message:                              {type: string, required: true}
-  commit:                                   {type: string, required: true }
+  commit:                                   {type: string, required: true}
 
 runs:
   using: composite
