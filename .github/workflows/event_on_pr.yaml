@@ -40,6 +40,6 @@ on:
 jobs:
   _5b21e650-3435-4467-961e-1f0cacd31dcb:
     name: "Validate (target: ${{ github.base_ref }})"
-    uses: davidbrownell/v4-Common_Foundation/.github/workflows/validate.yaml@CI-latest
+    uses: davidbrownell/v4-Common_Foundation/.github/workflows/validate.yaml@CI-ExperimentalCache # TODO: CI-latest
     with:
       repo_branch:                          ${{ github.head_ref }}
