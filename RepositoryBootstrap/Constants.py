@@ -36,10 +36,13 @@ DEFAULT_CONFIGURATION_NAME                              = "DefaultConfig"
 HOOK_ENVIRONMENT_CUSTOMIZATION_FILENAME                 = "ScmHook_custom.py"
 
 TEMPORARY_FILE_EXTENSION                                                    = ".SourceRepositoryTools"
+
 GENERATED_DIRECTORY_NAME                                                    = "Generated"
 GENERATED_BOOTSTRAP_JSON_FILENAME                                           = "EnvironmentBootstrap.json"
 GENERATED_BOOTSTRAP_DATA_FILENAME                                           = "EnvironmentBootstrap.data"
+
 GENERATED_ACTIVATION_FILENAME                                               = "EnvironmentActivation.json"
+GENERATED_ACTIVATION_FINGERPRINT_FILENAME                                   = "EnvironmentActivation.fingerprints.json"
 GENERATED_ACTIVATION_ORIGINAL_ENVIRONMENT_FILENAME_TEMPLATE                 = "EnvironmentActivation.OriginalEnvironment.{{}}{}".format(TEMPORARY_FILE_EXTENSION)
 
 LIBRARIES_SUBDIR                                        = "Libraries"

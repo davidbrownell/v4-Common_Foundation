@@ -1,0 +1,89 @@
+# ----------------------------------------------------------------------
+# ----------------------------------------------------------------------
+# ----------------------------------------------------------------------
+#
+# This file is the result of a code generation process; any changes made
+# to this file will be overwritten during the next code generation
+# invocation. Any changes MUST be made in the source file rather than in
+# this one.
+#
+#     Code Generator:         Jinja2
+#     Input Filename:         actions/create_cache_key/action.jinja2.yml
+#
+# ----------------------------------------------------------------------
+# ----------------------------------------------------------------------
+# ----------------------------------------------------------------------
+
+# ----------------------------------------------------------------------
+# |
+# |  action.yml
+# |
+# |  David Brownell <db@DavidBrownell.com>
+# |      2022-12-23 11:37:25
+# |
+# ----------------------------------------------------------------------
+# |
+# |  Copyright David Brownell 2022
+# |  Distributed under the Boost Software License, Version 1.0. See
+# |  accompanying file LICENSE_1_0.txt or copy at
+# |  http://www.boost.org/LICENSE_1_0.txt.
+# |
+# ----------------------------------------------------------------------
+name: Create Cache Key
+description: Creates a key that can be used for a GitHub action cache.
+
+inputs:
+  repo_branch:                              {type: string, required: true}
+
+  os:                                       {type: string, required: true}
+  configuration:                            {type: string, required: true}
+
+  shell_name:                               {type: string, required: true}
+
+  cache_suffix:                             {type: string, required: false}
+
+outputs:
+  cache_key:
+    description: The cache key.
+    value: ${{ steps.cache_key.outputs.result }}
+
+# Normally, a cache key will be dependent upon a specific file or set of files; the cache is
+# updated when there is a change in those contents. Unfortunately, we don't have access to
+# all the files that potential invalidate the cache at this stage in the workflow (# a cache may need to be updated when a dependency of this repository is updated; by this time
+# we have enlisted the the repository but have not yet enlisted in its dependencies).
+#
+# Rather than using a set of files as the cache, we are using a date that will force the
+# invalidation of the cache after a period of time. When a change in a dependency happens, we
+# won't get the full benefits of the cache until it is regenerated when the period of time
+# expiries. Hopefully, the periodic builds running at night will see the cache regeneration
+# most often.
+runs:
+  using: composite
+  steps:
+    - name: Create Cache Key
+      id: cache_key
+      uses: actions/github-script@v6
+      with:
+        result-encoding: string
+        script: |
+          const now = new Date();
+
+          const month = String(now.getMonth() + 1).padStart(2, '0');
+          const day = String(now.getDate()).padStart(2, '0');
+          const year = now.getFullYear();
+
+          const suffix = (
+            () => {
+              if("${{ inputs.cache_suffix}}" !== "")
+                return "-${{ inputs.cache_suffix }}";
+
+              return "";
+            }
+          )();
+
+          return `build_and_test-${{ inputs.repo_branch }}-${{ inputs.os }}-${{ inputs.configuration }}-${year}.${month}.${day}${suffix}`;
+
+    - name: Results
+      shell: ${{ inputs.shell }}
+      run: |
+        echo "Cache Key: '${{ steps.cache_key.outputs.result }}'"

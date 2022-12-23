@@ -41,13 +41,63 @@ from .. import DataTypes
 
 # ----------------------------------------------------------------------
 @dataclass(frozen=True)
+class Fingerprints(object):
+    # ----------------------------------------------------------------------
+    values: Dict[Path, str]
+
+    # ----------------------------------------------------------------------
+    def ToJson(
+        self,
+        root: Path,
+    ) -> Dict[str, Any]:
+        return {
+            PathEx.CreateRelativePath(root, path).as_posix(): fingerprint
+            for path, fingerprint in self.values.items()
+        }
+
+    # ----------------------------------------------------------------------
+    @staticmethod
+    def FromJson(
+        repo_root: Path,
+        data: Dict[str, Any],
+    ) -> Dict[Path, Any]:
+        # ----------------------------------------------------------------------
+        def RestoreRelativePath(
+            value: str,
+        ) -> Path:
+            fullpath = (repo_root / PurePath(value)).resolve()
+
+            if not fullpath.is_dir():
+                raise Exception("'{}' is not a valid directory.".format(fullpath))
+
+            return fullpath
+
+        # ----------------------------------------------------------------------
+
+        return {
+            RestoreRelativePath(path): fingerprint
+            for path, fingerprint in data.items()
+        }
+
+    # ----------------------------------------------------------------------
+    @classmethod
+    def CreateFromJson(
+        cls,
+        repo_root: Path,
+        data: Dict[str, Any],
+    ) -> "Fingerprints":
+        return cls(cls.FromJson(repo_root, data))
+
+
+# ----------------------------------------------------------------------
+@dataclass(frozen=True)
 class ActivationData(object):
     # ----------------------------------------------------------------------
     id: uuid.UUID
     root: Path
     configuration: Optional[str]
 
-    fingerprints: Dict[Path, str]
+    fingerprints: Fingerprints
 
     version_specs: VersionSpecs
     prioritized_repositories: List[DataTypes.ConfiguredRepoDataWithPath]
@@ -66,10 +116,7 @@ class ActivationData(object):
         return {
             "id": str(self.id),
             "configuration": self.configuration,
-            "fingerprints": {
-                PathEx.CreateRelativePath(self.root, path).as_posix(): fingerprint
-                for path, fingerprint in self.fingerprints.items()
-            },
+            "fingerprints": self.fingerprints.ToJson(self.root),
             "version_specs": self.version_specs.ToJson(),
             "prioritized_repositories": [repo.ToJson() for repo in self.prioritized_repositories],
             "is_mixin_repo": self.is_mixin_repo,
@@ -81,26 +128,9 @@ class ActivationData(object):
         repo_root: Path,
         data: Dict[str, Any],
     ) -> Dict[str, Any]:
-        # ----------------------------------------------------------------------
-        def RestoreRelativePath(
-            value: str,
-        ) -> Path:
-            fullpath = (repo_root / PurePath(value)).resolve()
-
-            if not fullpath.is_dir():
-                raise Exception("'{}' is not a valid directory.".format(str(fullpath)))
-
-            return fullpath
-
-        # ----------------------------------------------------------------------
-
         data["id"] = uuid.UUID(data["id"])
         data["configuration"] = JsonEx.JsonToOptional(data["configuration"])
-
-        data["fingerprints"] = {
-            RestoreRelativePath(path): fingerprint
-            for path, fingerprint in data["fingerprints"].items()
-        }
+        data["fingerprints"] = Fingerprints.CreateFromJson(repo_root, data["fingerprints"])
 
         return data
 
@@ -158,7 +188,7 @@ class ActivationData(object):
                 [repo.root for repo in result.prioritized_repositories if not repo.is_mixin_repo],
             )
 
-            original_fingerprints = result.fingerprints
+            original_fingerprints = result.fingerprints.values
 
             if calculated_fingerprints != original_fingerprints:
                 # Something has changed. Attempt to provide more context.
@@ -185,7 +215,7 @@ class ActivationData(object):
                             lines.append(line_template.format(str(k), "Modified"))
                             is_critical_error = True
                         else:
-                            lines.append(line_template.format(str(k), "Identical"))
+                            lines.append(line_template.format(str(k), "<No Change>"))
 
                     for k in original_fingerprints.keys():
                         if k not in calculated_fingerprints:
@@ -199,7 +229,7 @@ class ActivationData(object):
                             {repo_root}
                             ****************************************************************************************************
 
-                            It appears that one or more of the repositories that this repository depends on have changed.
+                            This repository or one of its dependencies have changed.
 
                             Please run '{setup}' for this repository again.
 
@@ -628,7 +658,7 @@ class ActivationData(object):
             root_repo.id,
             root_repo.root,
             configuration,
-            this_working_data.bootstrap.fingerprints[configuration],
+            Fingerprints(this_working_data.bootstrap.fingerprints[configuration]),
             VersionSpecs(tool_version_info, library_version_info),
             dependencies,
             is_mixin_repo=this_working_data.bootstrap.is_mixin_repo,

@@ -20,6 +20,10 @@ inputs:
   os:                                       {type: string, required: true}
 
 outputs:
+  github_workspace:
+    description: "The GITHUB_WORKSPACE environment variable."
+    value: ${{ steps.github_workspace.outputs.result }}
+
   local_script_prefix:
     description: "Prefix used when invoking a script in the current directory."
     value: ${{ steps.local_script_prefix.outputs.result }}
@@ -37,24 +41,20 @@ outputs:
     value: ${{ steps.source_command.outputs.result }}
 
   sudo_command:
-    description: "Common used to invoke privileged operations."
+    description: "Command used to invoke privileged operations."
     value: ${{ steps.sudo_command.outputs.result }}
-
-  working_dir:
-    description: "Working directory."
-    value: ${{ steps.working_directory.outputs.result }}
 
 runs:
   using: composite
   steps:
 <<%
   set values = [
+    ("Github Workspace", "github_workspace", "process.env.GITHUB_WORKSPACE", "process.env.GITHUB_WORKSPACE"),
     ("Local Script Prefix", "local_script_prefix", '""', '"./"'),
     ("Script Extension", "script_extension", '".cmd"', '".sh"'),
     ("Shell Name", "shell_name", '"cmd"', '"bash"'),
     ("Source Command", "source_command", '""', '". "'),
     ("Sudo Command", "sudo_command", '""', '"sudo "'),
-    ("Working Directory", "working_directory", "process.env.RUNNER_TEMP", "process.env.RUNNER_TEMP"),
   ]
 %>>
 <<% for name, id, windows_value, linux_value in values %>>

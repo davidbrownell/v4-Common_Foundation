@@ -36,6 +36,10 @@ inputs:
   os:                                       {type: string, required: true}
 
 outputs:
+  github_workspace:
+    description: "The GITHUB_WORKSPACE environment variable."
+    value: ${{ steps.github_workspace.outputs.result }}
+
   local_script_prefix:
     description: "Prefix used when invoking a script in the current directory."
     value: ${{ steps.local_script_prefix.outputs.result }}
@@ -53,16 +57,20 @@ outputs:
     value: ${{ steps.source_command.outputs.result }}
 
   sudo_command:
-    description: "Common used to invoke privileged operations."
+    description: "Command used to invoke privileged operations."
     value: ${{ steps.sudo_command.outputs.result }}
-
-  working_dir:
-    description: "Working directory."
-    value: ${{ steps.working_directory.outputs.result }}
 
 runs:
   using: composite
   steps:
+
+    - name: Github Workspace
+      id: github_workspace
+      uses: actions/github-script@v6
+      with:
+        result-encoding: string
+        script: |
+          return "${{ inputs.os }}".startsWith("windows") ? process.env.GITHUB_WORKSPACE : process.env.GITHUB_WORKSPACE;
 
     - name: Local Script Prefix
       id: local_script_prefix
@@ -104,20 +112,12 @@ runs:
         script: |
           return "${{ inputs.os }}".startsWith("windows") ? "" : "sudo ";
 
-    - name: Working Directory
-      id: working_directory
-      uses: actions/github-script@v6
-      with:
-        result-encoding: string
-        script: |
-          return "${{ inputs.os }}".startsWith("windows") ? process.env.RUNNER_TEMP : process.env.RUNNER_TEMP;
-
     - name: Results
       shell: ${{ steps.shell_name.outputs.result }}
       run: |
+        echo "Github Workspace: '${{ steps.github_workspace.outputs.result }}'"
         echo "Local Script Prefix: '${{ steps.local_script_prefix.outputs.result }}'"
         echo "Script Extension: '${{ steps.script_extension.outputs.result }}'"
         echo "Shell Name: '${{ steps.shell_name.outputs.result }}'"
         echo "Source Command: '${{ steps.source_command.outputs.result }}'"
         echo "Sudo Command: '${{ steps.sudo_command.outputs.result }}'"
-        echo "Working Directory: '${{ steps.working_directory.outputs.result }}'"

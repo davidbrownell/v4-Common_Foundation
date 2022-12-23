@@ -17,19 +17,15 @@ name: Activate
 description: Runs `Activate` on the repository.
 
 inputs:
-  # This inputs into this composite action are a bit redundant to the information that we receive back from the
-  # call to the Initialize composite action. This is because this functionality was implemented before the
-  # initialize functionality was implemented the way that it is today. So, we are keeping the existing signature
-  # around in the name of backwards compatibility. Major version bumps should rereconsider this composite
-  # action's interface.
   repo_dir:                                 {type: string, required: true}
+  repo_dependencies_dir:                    {type: string, required: true}
+
   os:                                       {type: string, required: true}
   configuration:                            {type: string, required: true}
-  shell_name:                               {type: string, required: true}
-
-  working_dir:                              {type: string, required: true}
 
   is_mixin_repository:                      {type: boolean, required: false, default: false}
+
+  force:                                    {type: boolean, required: false, default: false}
 
 outputs:
   activate_statement:
@@ -45,11 +41,10 @@ runs:
     #   - shell_name
     #   - source_command
     #   - sudo_command
-    #   - working_dir
     #
     - name: "[Impl] Initialize OS-Specific Variables"
       id: initialize
-      uses: davidbrownell/v4-Common_Foundation/.github/actions/initialize@CI-v1
+      uses: davidbrownell/v4-Common_Foundation/.github/actions/initialize@CI-ExperimentalCache # CI-v1
       with:
         os:                               ${{ inputs.os }}
 
@@ -76,7 +71,7 @@ runs:
           var activate_statement;
 
           if(is_mixin_repository) {
-            activate_statement = "pushd \"" + repo_dir + "\"" + pushd_suffix + " && ${{ steps.initialize.outputs.source_command }} \"" + path.join(String.raw`${{ inputs.working_dir }}`, "code", "Common", "Foundation", "Activate") + "${{ steps.initialize.outputs.script_extension }}\" \"python310\" --mixin .";
+            activate_statement = "pushd \"" + repo_dir + "\"" + pushd_suffix + " && ${{ steps.initialize.outputs.source_command }} \"" + path.join(String.raw`${{ inputs.repo_dependencies_dir }}`, "Common", "Foundation", "Activate") + "${{ steps.initialize.outputs.script_extension }}\" \"python310\" --mixin .";
           } else {
             activate_statement = "pushd \"" + repo_dir + "\"" + pushd_suffix + " && ${{ steps.initialize.outputs.source_command }}${{ steps.initialize.outputs.local_script_prefix }}Activate${{ steps.initialize.outputs.script_extension }}";
 
@@ -87,10 +82,11 @@ runs:
           return activate_statement;
 
     - name: Results
-      shell: ${{ inputs.shell_name }}
+      shell: ${{ steps.initialize.outputs.shell_name }}
       run: |
         echo "Activate Statement: ${{ steps.activate_statement.outputs.result }}"
 
     - name: Activate
-      shell: ${{ inputs.shell_name }}
-      run: ${{ steps.activate_statement.outputs.result }} --force --debug
+      shell: ${{ steps.initialize.outputs.shell_name }}
+      run: |
+        ${{ steps.activate_statement.outputs.result }} --debug ${{ ((inputs.force == true || inputs.force == 'true') && '--force') || '--force-if-necessary' }}
