@@ -18,7 +18,9 @@ description: Creates a key that can be used for a GitHub action cache.
 
 inputs:
   repo_name:                                {type: string, required: true}
-  repo_branch:                              {type: string, required: true}
+
+  # TODO: Remove this
+  repo_branch:                              {type: string, required: false}
 
   os:                                       {type: string, required: true}
   configuration:                            {type: string, required: true}
@@ -34,7 +36,8 @@ outputs:
 
 # Normally, a cache key will be dependent upon a specific file or set of files; the cache is
 # updated when there is a change in those contents. Unfortunately, we don't have access to
-# all the files that potential invalidate the cache at this stage in the workflow (# a cache may need to be updated when a dependency of this repository is updated; by this time
+# all the files that potential invalidate the cache at this stage in the workflow (a cache
+# may need to be updated when a dependency of this repository is updated; by this time
 # we have enlisted the the repository but have not yet enlisted in its dependencies).
 #
 # Rather than using a set of files as the cache, we are using a date that will force the
@@ -68,7 +71,7 @@ runs:
             }
           )();
 
-          return `build_and_test-${repo_name}-${{ inputs.repo_branch }}-${{ inputs.configuration }}-${year}.${month}.${day}-${{ inputs.os }}${suffix}`;
+          return `build_and_test-${repo_name}-${{ inputs.configuration }}-${year}.${month}.${day}-${{ inputs.os }}${suffix}`;
 
     - name: Results
       shell: ${{ inputs.shell }}
