@@ -19,9 +19,6 @@ description: Creates a key that can be used for a GitHub action cache.
 inputs:
   repo_name:                                {type: string, required: true}
 
-  # TODO: Remove this
-  repo_branch:                              {type: string, required: false}
-
   os:                                       {type: string, required: true}
   configuration:                            {type: string, required: true}
 
