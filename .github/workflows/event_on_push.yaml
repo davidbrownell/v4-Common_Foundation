@@ -36,7 +36,6 @@ on:
   push:
     branches:
       - main
-  workflow_dispatch:
 
 concurrency: "on_push-${{ github.ref_name }}"
 

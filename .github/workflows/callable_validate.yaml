@@ -158,7 +158,6 @@ jobs:
         uses: davidbrownell/v4-Common_Foundation/.github/actions/create_cache_key@CI-ExperimentalCache # TODO: CI-v1
         with:
           repo_name:                        ${{ inputs.repo_name }}
-          repo_branch:                      ${{ inputs.repo_branch }}
 
           os:                               ${{ inputs.os }}
           configuration:                    ${{ inputs.configuration }}
