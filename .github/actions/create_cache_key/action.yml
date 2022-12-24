@@ -33,6 +33,7 @@ name: Create Cache Key
 description: Creates a key that can be used for a GitHub action cache.
 
 inputs:
+  repo_name:                                {type: string, required: true}
   repo_branch:                              {type: string, required: true}
 
   os:                                       {type: string, required: true}
@@ -72,6 +73,8 @@ runs:
           const day = String(now.getDate()).padStart(2, '0');
           const year = now.getFullYear();
 
+          const repo_name = "${{ inputs.repo_name }}".split("/").pop();
+
           const suffix = (
             () => {
               if("${{ inputs.cache_suffix}}" !== "")
@@ -81,7 +84,7 @@ runs:
             }
           )();
 
-          return `build_and_test-${{ inputs.repo_branch }}-${{ inputs.os }}-${{ inputs.configuration }}-${year}.${month}.${day}${suffix}`;
+          return `build_and_test-${repo_name}-${{ inputs.repo_branch }}-${{ inputs.configuration }}-${year}.${month}.${day}-${{ inputs.os }}${suffix}`;
 
     - name: Results
       shell: ${{ inputs.shell }}
