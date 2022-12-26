@@ -42,21 +42,10 @@ on:
         required: true
         description: Repository branch under test.
 
-      is_mixin_repository:
-        type: boolean
-        required: false
-        description: True if the repository is a mixin repository.
-        default: false
-
       job_name_prefix:
         type: string
         required: true
         description: "Prefix for the job; should be the friendly name of the repository or something similarly identifiable (e.g. 'Common_Foundation')."
-
-      bootstrap_branch_overrides:
-        type: string
-        required: false
-        description: Forces Enlist.py to clone repositories according to specified branch.
 
       os:
         type: string
@@ -68,6 +57,17 @@ on:
         required: true
         description: "Name of the configuration to use when setting up and activating the environment (specify the 'None' string value for repositories that aren't configurable)."
 
+      bootstrap_branch_overrides:
+        type: string
+        required: false
+        description: Forces Enlist.py to clone repositories according to specified branch.
+
+      is_mixin_repository:
+        type: boolean
+        required: false
+        description: True if the repository is a mixin repository.
+        default: false
+
       force_setup:
         type: boolean
         required: false
@@ -78,6 +78,12 @@ on:
         type: boolean
         required: false
         description: "Appends the '--force' flag when activating repositories."
+        default: false
+
+      no_cache:
+        type: boolean
+        required: false
+        description: "Disables caching."
         default: false
 
       # ----------------------------------------------------------------------
@@ -152,6 +158,7 @@ jobs:
       #   - cache_key
       - name: Create Cache Key
         id: cache_key
+        if: ${{ !(inputs.no_cache == true || inputs.no_cache == 'true') }}
         uses: davidbrownell/v4-Common_Foundation/.github/actions/create_cache_key@CI-ExperimentalCache # TODO: CI-v1
         with:
           repo_name:                        ${{ inputs.repo_name }}
@@ -161,8 +168,11 @@ jobs:
 
           shell_name:                       ${{ steps.initialize.outputs.shell_name }}
 
+      # outputs:
+      #   - cache-hit
       - name: Cache
         id: generated_cache
+        if: ${{ !(inputs.no_cache == true || inputs.no_cache == 'true') }}
         uses: actions/cache@v3
         with:
           key: ${{ steps.cache_key.outputs.cache_key }}
