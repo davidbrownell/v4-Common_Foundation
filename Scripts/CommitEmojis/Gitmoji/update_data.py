@@ -45,7 +45,7 @@ app                                         = typer.Typer(
 # ----------------------------------------------------------------------
 @app.command("Update", no_args_is_help=False)
 def Update(
-    url_base: str=typer.Option("https://raw.githubusercontent.com/carloscuesta/gitmoji/master/src/data", "--url-base", help="Base url of the gitmoji data."),
+    url_base: str=typer.Option("https://raw.githubusercontent.com/carloscuesta/gitmoji/master/packages/gitmojis/src", "--url-base", help="Base url of the gitmoji data."),
     filenames: List[str]=typer.Option(["gitmojis.json", "schema.json"], "--filename", help="gitmoji files to download."),
     verbose: bool=typer.Option(False, "--verbose", help="Write verbose information to the terminal."),
     debug: bool=typer.Option(False, "--debug", help="Write debug information to the terminal."),
