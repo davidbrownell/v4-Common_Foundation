@@ -454,7 +454,7 @@ class _StatusFactory(object):
 
             if self._num_steps is not None:
                 status = "({} of {}) {}".format(
-                    self._current_step,
+                    self._current_step + 1,
                     self._num_steps,
                     status or "",
                 )
