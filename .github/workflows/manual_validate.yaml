@@ -41,11 +41,11 @@ on:
 
 jobs:
   _f4dfba31-0393-4d24-b807-b4fcf0703a5c:
-    name: "Validate"
-    uses: davidbrownell/v4-Common_Foundation/.github/workflows/validate.yaml@CI-ExperimentalCache # CI-latest
+    name: "Validate (${{ github.ref_name }})"
+    uses: davidbrownell/v4-Common_Foundation/.github/workflows/validate.yaml@CI-latest
     with:
-      repo_branch:                          ${{ github.ref_name }}
+      repo_branch: ${{ github.ref_name }}
 
-      force_setup:                          ${{ inputs.force_setup }}
-      force_activate:                       ${{ inputs.force_activate }}
-      no_cache:                             ${{ inputs.no_cache }}
+      force_setup: ${{ inputs.force_setup }}
+      force_activate: ${{ inputs.force_activate }}
+      no_cache: ${{ inputs.no_cache }}

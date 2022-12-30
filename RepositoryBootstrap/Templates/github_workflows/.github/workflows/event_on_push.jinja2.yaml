@@ -10,10 +10,10 @@ concurrency: "on_push-${{ github.ref_name }}"
 
 jobs:
   _<<< guid("validate") >>>:
-    name: "Validate"
+    name: "Validate (${{ github.ref_name }})"
     uses: <<< git_username >>>/<<< git_repo >>>/.github/workflows/validate_with_dependencies.yaml@CI-latest
     with:
-      repo_branch:                          ${{ github.ref_name }}
+      repo_branch: ${{ github.ref_name }}
 
   _<<< guid() >>>:
     name: "Promote"

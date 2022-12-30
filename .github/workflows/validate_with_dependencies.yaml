@@ -46,14 +46,14 @@ jobs:
 
   _8a2a6711-9a4a-4b7e-9a9b-6d624bb23e81:
     name: "Common_Foundation"
-    uses: davidbrownell/v4-Common_Foundation/.github/workflows/validate.yaml@CI-ExperimentalCache # TODO: CI-latest
+    uses: davidbrownell/v4-Common_Foundation/.github/workflows/validate.yaml@CI-latest
     with:
       repo_branch: ${{ inputs.repo_branch }}
       bootstrap_branch_overrides: "Common_Foundation:${{ inputs.repo_branch }}"
 
   _81490203-4a3f-4fd4-8944-310e1f4e8cd1:
     name: "Common_PythonDevelopment"
-    uses: davidbrownell/v4-Common_PythonDevelopment/.github/workflows/validate.yaml@CI-ExperimentalCache # TODO: CI-latest
+    uses: davidbrownell/v4-Common_PythonDevelopment/.github/workflows/validate.yaml@CI-latest
     with:
       repo_branch: main_stable
       bootstrap_branch_overrides: "Common_Foundation:${{ inputs.repo_branch }}"

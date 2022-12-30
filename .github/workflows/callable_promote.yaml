@@ -51,6 +51,6 @@ jobs:
       - name: Create Tag
         uses: davidbrownell/v4-Common_Foundation/.github/actions/create_tag@CI-v1
         with:
-          tag_name:                         "${{ github.ref_name }}_stable"
-          tag_message:                      "🤖 Stability Verified on ${{ github.ref_name }}"
-          commit:                           "${{ github.sha }}"
+          tag_name: "${{ github.ref_name }}_stable"
+          tag_message: "🤖 Stability Verified on ${{ github.ref_name }}"
+          commit: "${{ github.sha }}"

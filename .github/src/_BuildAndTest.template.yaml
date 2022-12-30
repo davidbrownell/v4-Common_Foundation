@@ -114,9 +114,9 @@ jobs:
     runs-on: ${{ inputs.os }}
 
     env:
-      COLUMNS:                                          "200"
-      SIMULATE_TERMINAL_CAPABILITIES_SUPPORTS_COLORS:   "1"
-      PYTHONIOENCODING:                                 "UTF-8"
+      COLUMNS: "200"
+      SIMULATE_TERMINAL_CAPABILITIES_SUPPORTS_COLORS: "1"
+      PYTHONIOENCODING: "UTF-8"
 
     steps:
       - name: "[Impl] Dump Contexts"
@@ -133,9 +133,9 @@ jobs:
       #
       - name: "[Impl] Initialize OS-Specific Variables"
         id: initialize
-        uses: davidbrownell/v4-Common_Foundation/.github/actions/initialize@CI-ExperimentalCache # CI-v1
+        uses: davidbrownell/v4-Common_Foundation/.github/actions/initialize@CI-v1
         with:
-          os:                               ${{ inputs.os }}
+          os: ${{ inputs.os }}
 
       # outputs:
       #   - archive_prefix
@@ -144,29 +144,29 @@ jobs:
       #
       - name: Checkout Source
         id: checkout_source
-        uses: davidbrownell/v4-Common_Foundation/.github/actions/checkout_source@CI-ExperimentalCache # CI-v1
+        uses: davidbrownell/v4-Common_Foundation/.github/actions/checkout_source@CI-v1
         with:
-          repo_name:                        ${{ inputs.repo_name }}
-          repo_branch:                      ${{ inputs.repo_branch }}
+          repo_name: ${{ inputs.repo_name }}
+          repo_branch: ${{ inputs.repo_branch }}
 
-          os:                               ${{ inputs.os }}
-          configuration:                    ${{ inputs.configuration }}
+          os: ${{ inputs.os }}
+          configuration: ${{ inputs.configuration }}
 
-          shell_name:                       ${{ steps.initialize.outputs.shell_name }}
+          shell_name: ${{ steps.initialize.outputs.shell_name }}
 
       # outputs:
       #   - cache_key
       - name: Create Cache Key
         id: cache_key
         if: ${{ !(inputs.no_cache == true || inputs.no_cache == 'true') }}
-        uses: davidbrownell/v4-Common_Foundation/.github/actions/create_cache_key@CI-ExperimentalCache # TODO: CI-v1
+        uses: davidbrownell/v4-Common_Foundation/.github/actions/create_cache_key@CI-v1
         with:
-          repo_name:                        ${{ inputs.repo_name }}
+          repo_name: ${{ inputs.repo_name }}
 
-          os:                               ${{ inputs.os }}
-          configuration:                    ${{ inputs.configuration }}
+          os: ${{ inputs.os }}
+          configuration: ${{ inputs.configuration }}
 
-          shell_name:                       ${{ steps.initialize.outputs.shell_name }}
+          shell_name: ${{ steps.initialize.outputs.shell_name }}
 
       # outputs:
       #   - cache-hit
@@ -183,38 +183,38 @@ jobs:
 <<% block cache_steps %>><<% endblock %>>
 
       - name: Setup
-        uses: davidbrownell/v4-Common_Foundation/.github/actions/setup@CI-ExperimentalCache # CI-v1
+        uses: davidbrownell/v4-Common_Foundation/.github/actions/setup@CI-v1
         with:
-          repo_name:                        ${{ inputs.repo_name }}
-          repo_dir:                         ${{ steps.checkout_source.outputs.repo_dir }}
-          repo_dependencies_dir:            ${{ steps.checkout_source.outputs.repo_dependencies_dir }}
-          branch_overrides:                 ${{ inputs.bootstrap_branch_overrides }}
+          repo_name: ${{ inputs.repo_name }}
+          repo_dir: ${{ steps.checkout_source.outputs.repo_dir }}
+          repo_dependencies_dir: ${{ steps.checkout_source.outputs.repo_dependencies_dir }}
+          branch_overrides: ${{ inputs.bootstrap_branch_overrides }}
 
-          configuration:                    ${{ inputs.configuration }}
+          configuration: ${{ inputs.configuration }}
 
-          local_script_prefix:              ${{ steps.initialize.outputs.local_script_prefix }}
-          script_extension:                 ${{ steps.initialize.outputs.script_extension }}
-          shell_name:                       ${{ steps.initialize.outputs.shell_name }}
-          sudo_command:                     ${{ steps.initialize.outputs.sudo_command }}
+          local_script_prefix: ${{ steps.initialize.outputs.local_script_prefix }}
+          script_extension: ${{ steps.initialize.outputs.script_extension }}
+          shell_name: ${{ steps.initialize.outputs.shell_name }}
+          sudo_command: ${{ steps.initialize.outputs.sudo_command }}
 
-          force:                            ${{ inputs.force_setup }}
+          force: ${{ inputs.force_setup }}
 
       # outputs:
       #   - activate_statement
       #
       - name: Activate
         id: activate
-        uses: davidbrownell/v4-Common_Foundation/.github/actions/activate@CI-ExperimentalCache # CI-v1
+        uses: davidbrownell/v4-Common_Foundation/.github/actions/activate@CI-v1
         with:
-          repo_dir:                         ${{ steps.checkout_source.outputs.repo_dir }}
-          repo_dependencies_dir:            ${{ steps.checkout_source.outputs.repo_dependencies_dir }}
+          repo_dir: ${{ steps.checkout_source.outputs.repo_dir }}
+          repo_dependencies_dir: ${{ steps.checkout_source.outputs.repo_dependencies_dir }}
 
-          os:                               ${{ inputs.os }}
-          configuration:                    ${{ inputs.configuration }}
+          os: ${{ inputs.os }}
+          configuration: ${{ inputs.configuration }}
 
-          is_mixin_repository:              ${{ inputs.is_mixin_repository }}
+          is_mixin_repository: ${{ inputs.is_mixin_repository }}
 
-          force:                            ${{ inputs.force_activate }}
+          force: ${{ inputs.force_activate }}
 
 <<% block prologue_steps %>><<% endblock %>>
 
@@ -222,16 +222,16 @@ jobs:
         if: ${{ inputs.run_Builder == true || inputs.run_Builder == 'true' }}
         uses: davidbrownell/v4-Common_Foundation/.github/actions/builder@CI-v1
         with:
-          archive_prefix:                   ${{ steps.checkout_source.outputs.archive_prefix }}
+          archive_prefix: ${{ steps.checkout_source.outputs.archive_prefix }}
 
-          os:                               ${{ inputs.os }}
-          configuration:                    ${{ inputs.configuration }}
+          os: ${{ inputs.os }}
+          configuration: ${{ inputs.configuration }}
 
-          script_extension:                 ${{ steps.initialize.outputs.script_extension }}
-          shell_name:                       ${{ steps.initialize.outputs.shell_name }}
-          working_dir:                      ${{ steps.initialize.outputs.github_workspace }}
+          script_extension: ${{ steps.initialize.outputs.script_extension }}
+          shell_name: ${{ steps.initialize.outputs.shell_name }}
+          working_dir: ${{ steps.initialize.outputs.github_workspace }}
 
-          activate_statement:               ${{ steps.activate.outputs.activate_statement }}
+          activate_statement: ${{ steps.activate.outputs.activate_statement }}
 
 <<%
   set match_test_types = [
@@ -243,12 +243,12 @@ jobs:
         if: ${{ inputs.run_MatchTests == true || inputs.run_MatchTests == 'true' }}
         uses: davidbrownell/v4-Common_Foundation/.github/actions/tester_match_tests@CI-v1
         with:
-          script_extension:                 ${{ steps.initialize.outputs.script_extension }}
-          shell_name:                       ${{ steps.initialize.outputs.shell_name }}
+          script_extension: ${{ steps.initialize.outputs.script_extension }}
+          shell_name: ${{ steps.initialize.outputs.shell_name }}
 
-          activate_statement:               ${{ steps.activate.outputs.activate_statement }}
+          activate_statement: ${{ steps.activate.outputs.activate_statement }}
 
-          test_type:                        <<< test_type >>>
+          test_type: <<< test_type >>>
 <<% endfor %>>
 
 <<%
@@ -282,19 +282,19 @@ jobs:
         if: <<< conditional_template.format(test_type=test_type) >>>
         uses: davidbrownell/v4-Common_Foundation/.github/actions/tester@CI-v1
         with:
-          archive_prefix:                   ${{ steps.checkout_source.outputs.archive_prefix }}
+          archive_prefix: ${{ steps.checkout_source.outputs.archive_prefix }}
 
-          os:                               ${{ inputs.os }}
-          configuration:                    ${{ inputs.configuration }}
+          os: ${{ inputs.os }}
+          configuration: ${{ inputs.configuration }}
 
-          script_extension:                 ${{ steps.initialize.outputs.script_extension }}
-          shell_name:                       ${{ steps.initialize.outputs.shell_name }}
-          working_dir:                      ${{ steps.initialize.outputs.github_workspace }}
+          script_extension: ${{ steps.initialize.outputs.script_extension }}
+          shell_name: ${{ steps.initialize.outputs.shell_name }}
+          working_dir: ${{ steps.initialize.outputs.github_workspace }}
 
-          activate_statement:               ${{ steps.activate.outputs.activate_statement }}
+          activate_statement: ${{ steps.activate.outputs.activate_statement }}
 
-          test_type:                        <<< test_type >>>
-          code_coverage:                    <<< use_code_coverage | string | lower >>>
+          test_type: <<< test_type >>>
+          code_coverage: <<< use_code_coverage | string | lower >>>
 
   <<% endfor %>>
 <<% endfor %>>
