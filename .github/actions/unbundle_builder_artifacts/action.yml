@@ -76,3 +76,8 @@ runs:
           var path = require("path");
 
           return path.join(String.raw`${{ inputs.working_dir }}`, String.raw`${{ inputs.artifacts_path }}`);
+
+    - name: Results
+      shell: ${{ inputs.shell_name }}
+      run: |
+        echo "Artifacts Dir: '${{ steps.artifacts_dir.outputs.result }}'"
