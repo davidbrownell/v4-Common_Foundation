@@ -10,11 +10,11 @@ on:
 
 jobs:
   _<<< guid() >>>:
-    name: "Validate"
+    name: "Validate (${{ github.ref_name }})"
     uses: <<< git_username >>>/<<< git_repo >>>/.github/workflows/validate.yaml@CI-latest
     with:
-      repo_branch:                          ${{ github.ref_name }}
+      repo_branch: ${{ github.ref_name }}
 
-      force_setup:                          ${{ inputs.force_setup }}
-      force_activate:                       ${{ inputs.force_activate }}
-      no_cache:                             ${{ inputs.no_cache }}
+      force_setup: ${{ inputs.force_setup }}
+      force_activate: ${{ inputs.force_activate }}
+      no_cache: ${{ inputs.no_cache }}

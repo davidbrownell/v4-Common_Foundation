@@ -60,9 +60,9 @@ runs:
     #
     - name: "[Impl] Initialize OS-Specific Variables"
       id: initialize
-      uses: davidbrownell/v4-Common_Foundation/.github/actions/initialize@CI-ExperimentalCache # CI-v1
+      uses: davidbrownell/v4-Common_Foundation/.github/actions/initialize@CI-v1
       with:
-        os:                               ${{ inputs.os }}
+        os: ${{ inputs.os }}
 
     - name: Activate Statement
       id: activate_statement
