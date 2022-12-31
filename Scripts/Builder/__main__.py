@@ -18,24 +18,18 @@
 import datetime
 import importlib
 import itertools
-import multiprocessing
 import shutil
 import sys
 import textwrap
-import threading
-import time
-import traceback
 
-from concurrent.futures import ThreadPoolExecutor
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from io import StringIO
 from pathlib import Path
-from typing import Dict, Generator, List, Optional, Set, Tuple, Union
+from typing import Callable, Dict, Generator, List, Optional, Set, Tuple
 
 try:
     import typer
 
-    from rich.progress import Progress, TaskID, TimeElapsedColumn
     from typer.core import TyperGroup
 
 except ModuleNotFoundError:
@@ -54,6 +48,7 @@ from Common_Foundation import TextwrapEx
 from Common_Foundation import Types
 
 from Common_FoundationEx.BuildImpl import BuildInfoBase, Mode
+from Common_FoundationEx import ExecuteTasks
 from Common_FoundationEx.InflectEx import inflect
 from Common_FoundationEx import TyperEx
 
@@ -240,19 +235,17 @@ def Build(
         class FinalInfo(object):
             # ----------------------------------------------------------------------
             output_dir: Path
-            log_file: Path
-
             build_file: Path
 
-            result: int                                 = field(init=False, default=0)
-            execution_time: datetime.timedelta          = field(init=False, default_factory=datetime.timedelta)
+            result: int
+            short_desc: Optional[str]
 
-            short_desc: Optional[str]                   = field(init=False, default=None)
+            execution_time: datetime.timedelta
+            log_file: Path
 
         # ----------------------------------------------------------------------
 
         final_infos: Dict[str, Dict[Mode, Dict[Optional[str], FinalInfo]]] = {}
-        final_infos_lock = threading.Lock()
 
         should_continue = True
 
@@ -277,8 +270,6 @@ def Build(
                 "{}ing ({} of {})...".format(mode.value, mode_index + 1, len(modes)),
                 suffix="\n",
             ) as mode_dm:
-                displayed_status = False
-
                 for priority_group_index, (priority, configuration_infos) in enumerate(configurations.items()):
                     if not should_continue:
                         break
@@ -289,333 +280,178 @@ def Build(
                             priority_group_index + 1,
                             len(configurations),
                         ),
-                        suffix=lambda: "\n" if displayed_status else None,
+                        suffix=lambda: "\n" if len(configurations) != 1 else None,
                     ) as priority_group_dm:
-                        errors: List[Union[None, str, int]] = [None for _ in range(len(configuration_infos))]
-                        warnings: List[Union[None, str, int]] = [None for _ in range(len(configuration_infos))]
+                        # ----------------------------------------------------------------------
+                        def Step1(
+                            context: ConfigurationInfo,
+                        ) -> Tuple[
+                            Path,           # Log filename
+                            ExecuteTasks.ExecuteTasksStep2FuncType,
+                        ]:
+                            configuration_info = context
+                            del context
 
-                        with priority_group_dm.YieldStdout() as stdout_context:
-                            stdout_context.persist_content = False
+                            this_output_dir = configuration_info.output_dir / mode.value
+                            this_output_dir.mkdir(parents=True, exist_ok=True)
 
-                            with Progress(
-                                *Progress.get_default_columns(),
-                                TimeElapsedColumn(),
-                                "{task.fields[status]}",
-                                transient=True,
-                            ) as progress:
-                                total_progress_id = progress.add_task(
-                                    "{}Total Progress".format(stdout_context.line_prefix),
-                                    total=len(configuration_infos),
-                                    status="",
+                            log_filename = this_output_dir / "output.log"
+
+                            # ----------------------------------------------------------------------
+                            def Step2(
+                                on_simple_status_func: Callable[[str], None],  # pylint: disable=unused-argument
+                            ) -> Tuple[
+                                Optional[int],          # Num Steps
+                                ExecuteTasks.ExecuteTasksStep3FuncType,
+                            ]:
+                                num_steps = getattr(configuration_info.build_info, get_num_steps_func_attribute)(
+                                    configuration_info.configuration,
                                 )
 
-                                with ThreadPoolExecutor(
-                                    1 if single_threaded else min(len(configuration_infos), multiprocessing.cpu_count()),
-                                ) as executor:
-                                    succeeded = 0
-                                    succeeded_lock = threading.Lock()
+                                if bundle_artifacts:
+                                    num_steps += 1
 
-                                    futures = []
+                                # ----------------------------------------------------------------------
+                                def Step3(
+                                    status: ExecuteTasks.Status,
+                                ) -> Tuple[
+                                    int,                # Return code
+                                    Optional[str],      # Final status message
+                                ]:
+                                    execute_func = getattr(configuration_info.build_info, execute_func_attribute)
+                                    get_custom_args_func = getattr(configuration_info.build_info, get_custom_args_func_attribute)
 
-                                    # ----------------------------------------------------------------------
-                                    def Impl(
-                                        index: int,
-                                        task_id: TaskID,
-                                        configuration_info: ConfigurationInfo,
-                                    ) -> None:
-                                        if not quiet:
-                                            progress.update(task_id, status="", visible=True)
+                                    short_desc: Optional[str] = None
 
-                                        this_output_dir = configuration_info.output_dir / mode.value
-                                        this_output_dir.mkdir(parents=True, exist_ok=True)
-
-                                        final_info = FinalInfo(
-                                            this_output_dir,
-                                            this_output_dir / "output.log",
-                                            common_path / configuration_info.display,
+                                    with log_filename.open("w") as f:
+                                        # Ensure that the logs never have color or are consisted to be
+                                        # interactive, regardless of environment variables.
+                                        Capabilities.Create(
+                                            f,
+                                            is_interactive=False,
+                                            supports_colors=False,
+                                            is_headless=True,
                                         )
 
-                                        start_time = time.perf_counter()
+                                        artifacts_dir = this_output_dir / "artifacts"
 
-                                        del this_output_dir
-
-                                        # ----------------------------------------------------------------------
-                                        def PersistFinalInfo():
-                                            current_time = time.perf_counter()
-                                            assert start_time <= current_time, (start_time, current_time)
-
-                                            final_info.execution_time = datetime.timedelta(seconds=current_time - start_time)
-
-                                            with final_infos_lock:
-                                                final_infos \
-                                                    .setdefault(configuration_info.display,{}) \
-                                                    .setdefault(mode, {}) \
-                                                        [configuration_info.configuration] = final_info
-
-                                        # ----------------------------------------------------------------------
-
-                                        with ExitStack(PersistFinalInfo):
-                                            try:
-                                                num_steps = getattr(configuration_info.build_info, get_num_steps_func_attribute)(
-                                                    configuration_info.configuration,
-                                                )
-                                                current_step = 0
-
-                                                if bundle_artifacts:
-                                                    num_steps += 1
-
-                                                progress.update(
-                                                    task_id,
-                                                    total=num_steps,
-                                                )
-
-                                                execute_func = getattr(configuration_info.build_info, execute_func_attribute)
-                                                get_custom_args_func = getattr(configuration_info.build_info, get_custom_args_func_attribute)
-
-                                                # ----------------------------------------------------------------------
-                                                def UpdateOutput():
-                                                    nonlocal succeeded
-
-                                                    progress.update(task_id, completed=True, visible=False)
-
-                                                    succeeded_value: Optional[int] = None
-
-                                                    if final_info.result == 0:
-                                                        with succeeded_lock:
-                                                            succeeded += 1
-
-                                                            succeeded_value = succeeded
-
-                                                    else:
-                                                        if final_info.result < 0:
-                                                            assert errors[index] is None
-                                                            errors[index] = final_info.result
-
-                                                            if not quiet:
-                                                                progress.print(
-                                                                    r"{prefix}[bold red]ERROR:[/] {name}{configuration}: {result}{short_desc} \[{suffix}]".format(
-                                                                        prefix=stdout_context.line_prefix,
-                                                                        name=configuration_info.display,
-                                                                        configuration=" ({})".format(configuration_info.configuration) if configuration_info.configuration else "",
-                                                                        result=final_info.result,
-                                                                        short_desc=" ({})".format(final_info.short_desc) if final_info.short_desc else "",
-                                                                        suffix=final_info.log_file if priority_group_dm.capabilities.is_headless else "[link=file:///{}]View Log[/]".format(
-                                                                            final_info.log_file.as_posix(),
-                                                                        ),
-                                                                    ),
-                                                                    highlight=False,
-                                                                )
-
-                                                                stdout_context.persist_content = True
-
-                                                        elif final_info.result > 0:
-                                                            assert warnings[index] is None
-                                                            warnings[index] = final_info.result
-
-                                                            if not quiet:
-                                                                progress.print(
-                                                                    r"{prefix}[bold yellow]WARNING:[/] {name}{configuration}: {result}{short_desc} \[{suffix}]".format(
-                                                                        prefix=stdout_context.line_prefix,
-                                                                        name=configuration_info.display,
-                                                                        configuration=" ({})".format(configuration_info.configuration) if configuration_info.configuration else "",
-                                                                        result=final_info.result,
-                                                                        short_desc=" ({})".format(final_info.short_desc) if final_info.short_desc else "",
-                                                                        suffix=final_info.log_file if priority_group_dm.capabilities.is_headless else "[link=file:///{}]View Log[/]".format(
-                                                                            final_info.log_file.as_posix(),
-                                                                        ),
-                                                                    ),
-                                                                    highlight=False,
-                                                                )
-
-                                                                stdout_context.persist_content = True
-
-                                                        with succeeded_lock:
-                                                            succeeded_value = succeeded
-
-                                                    assert succeeded_value is not None
-
-                                                    progress.update(
-                                                        total_progress_id,
-                                                        advance=1,
-                                                        status=TextwrapEx.CreateStatusText(
-                                                            succeeded_value,
-                                                            sum(1 if error else 0 for error in errors),
-                                                            sum(1 if warning else 0 for warning in warnings),
-                                                        ),
-                                                    )
-
-                                                # ----------------------------------------------------------------------
-                                                def OnStepProgress(
-                                                    step: int,
-                                                    status: str,
-                                                ) -> bool:
-                                                    nonlocal current_step
-
-                                                    advance = step - current_step
-                                                    current_step = step
-
-                                                    progress.update(
-                                                        task_id,
-                                                        advance=advance,
-                                                        status="({} of {}) {}".format(
-                                                            current_step + 1,
-                                                            num_steps,
-                                                            status,
-                                                        ),
-                                                    )
-
-                                                    return True
-
-                                                # ----------------------------------------------------------------------
-
-                                                with ExitStack(UpdateOutput):
-                                                    with open(final_info.log_file, "w") as f:
-                                                        # Ensure that the logs never have color or are considered to be
-                                                        # interactive, regardless of environment variables.
-                                                        Capabilities.Create(
-                                                            f,
-                                                            is_interactive=False,
-                                                            supports_colors=False,
-                                                            is_headless=True,
-                                                        )
-
-                                                        artifacts_dir = final_info.output_dir / "artifacts"
-
-                                                        result = execute_func(
-                                                            configuration_info.configuration,
-                                                            artifacts_dir,
-                                                            f,
-                                                            OnStepProgress,
-                                                            **TyperEx.ProcessDynamicArgs(
-                                                                ctx,
-                                                                get_custom_args_func(),
-                                                            ),
-                                                            is_verbose=priority_group_dm.is_verbose,
-                                                            is_debug=priority_group_dm.is_debug,
-                                                        )
-
-                                                        if isinstance(result, tuple):
-                                                            result, final_info.short_desc = result
-
-                                                        final_info.result = result or 0
-
-                                                        if (
-                                                            final_info.result == 0
-                                                            and bundle_artifacts
-                                                            and artifacts_dir.is_dir()
-                                                        ):
-                                                            OnStepProgress(current_step + 1, "Bundling artifacts...")
-
-                                                            with DoneManager.Create(
-                                                                f,
-                                                                "\nBundling artifacts...",
-                                                                output_flags=DoneManagerFlags.Create(
-                                                                    verbose=priority_group_dm.is_verbose,
-                                                                    debug=priority_group_dm.is_debug,
-                                                                ),
-                                                            ) as dm:
-                                                                with dm.Nested("Creating archive...") as archive_dm:
-                                                                    artifacts_file_name = "artifacts.7z"
-
-                                                                    if CurrentShell.family_name == "Linux":
-                                                                        zip_binary = "7zz"
-                                                                    else:
-                                                                        zip_binary = "7z"
-
-                                                                    command_line = "{} a {} *".format(zip_binary, artifacts_file_name)
-
-                                                                    result = SubprocessEx.Run(
-                                                                        command_line,
-                                                                        cwd=artifacts_dir,
-                                                                    )
-
-                                                                    archive_dm.result = result.returncode
-
-                                                                    if archive_dm.result != 0:
-                                                                        archive_dm.WriteError(result.output)
-                                                                    else:
-                                                                        with archive_dm.YieldVerboseStream() as stream:
-                                                                            stream.write(result.output)
-
-                                                                if dm.result == 0:
-                                                                    with dm.Nested("Moving archive..."):
-                                                                        PathEx.RemoveFile(final_info.output_dir / artifacts_file_name)
-
-                                                                        shutil.move(
-                                                                            artifacts_dir / artifacts_file_name,
-                                                                            final_info.output_dir,
-                                                                        )
-
-                                                                if dm.result == 0:
-                                                                    with dm.Nested("Removing artifacts directory..."):
-                                                                        PathEx.RemoveTree(artifacts_dir)
-
-                                                                final_info.result = dm.result
-
-                                            except KeyboardInterrupt:  # pylint: disable=try-except-raise
-                                                raise
-
-                                            except Exception as ex:
-                                                final_info.result = -1
-
-                                                if priority_group_dm.is_debug:
-                                                    error = traceback.format_exc()
-                                                else:
-                                                    error = str(ex)
-
-                                                errors[index] = textwrap.dedent(
-                                                    """\
-                                                    {}
-                                                    {}
-                                                    """,
-                                                ).format(
-                                                    configuration_info.display,
-                                                    TextwrapEx.Indent(error.rstrip(), 4),
-                                                )
-
-                                    # ----------------------------------------------------------------------
-
-                                    for index, configuration_info in enumerate(configuration_infos):
-                                        futures.append(
-                                            executor.submit(
-                                                Impl,
-                                                index,
-                                                progress.add_task(
-                                                    "{}  {}{}".format(
-                                                        stdout_context.line_prefix,
-                                                        configuration_info.display,
-                                                        "" if not configuration_info.configuration else " ({})".format(configuration_info.configuration),
-                                                    ),
-                                                    total=None,
-                                                    visible=False,
-                                                ),
-                                                configuration_info,
+                                        result = execute_func(
+                                            configuration_info.configuration,
+                                            artifacts_dir,
+                                            f,
+                                            status.OnProgress,
+                                            **TyperEx.ProcessDynamicArgs(
+                                                ctx,
+                                                get_custom_args_func(),
                                             ),
+                                            is_verbose=priority_group_dm.is_verbose,
+                                            is_debug=priority_group_dm.is_debug,
                                         )
 
-                                    for future in futures:
-                                        future.result()
+                                        if isinstance(result, tuple):
+                                            result, short_desc = result
+                                        else:
+                                            short_desc = None
 
-                        if any(error for error in errors):
-                            displayed_status = True
+                                        if (
+                                            result == 0
+                                            and bundle_artifacts
+                                            and artifacts_dir.is_dir()
+                                        ):
+                                            status.OnProgress(num_steps - 1, "Bundling artifacts...")
 
-                            error_strings = [error for error in errors if isinstance(error, str)]
+                                            with DoneManager.Create(
+                                                f,
+                                                "\nBundling artifacts...",
+                                                output_flags=DoneManagerFlags.Create(
+                                                    verbose=priority_group_dm.is_verbose,
+                                                    debug=priority_group_dm.is_debug,
+                                                ),
+                                            ) as bundle_dm:
+                                                with bundle_dm.Nested("Creating archive...") as archive_dm:
+                                                    artifacts_file_name = "artifacts.7z"
 
-                            if error_strings:
-                                priority_group_dm.WriteError("{}\n".format("\n".join(error_strings)))
+                                                    if CurrentShell.family_name == "Linux":
+                                                        zip_binary = "7zz"
+                                                    else:
+                                                        zip_binary = "7z"
 
-                            priority_group_dm.result = -1
+                                                    command_line = "{} a {} *".format(zip_binary, artifacts_file_name)
 
-                        if any(warning for warning in warnings):
-                            displayed_status = True
+                                                    result = SubprocessEx.Run(
+                                                        command_line,
+                                                        cwd=artifacts_dir,
+                                                    )
 
-                            warning_strings = [warning for warning in warnings if isinstance(warning, str)]
+                                                    archive_dm.result = result.returncode
 
-                            if warning_strings:
-                                priority_group_dm.WriteWarning("{}\n".format("\n".join(warning_strings)))
+                                                    if archive_dm.result != 0:
+                                                        archive_dm.WriteError(result.output)
 
-                            if priority_group_dm.result == 0:
-                                priority_group_dm.result = 1
+                                                        short_desc = "Archiving failed"
+                                                    else:
+                                                        with archive_dm.YieldVerboseStream() as stream:
+                                                            stream.write(result.output)
+
+                                                if bundle_dm.result == 0:
+                                                    with bundle_dm.Nested("Moving archive..."):
+                                                        PathEx.RemoveFile(this_output_dir / artifacts_file_name)
+
+                                                        shutil.move(
+                                                            artifacts_dir / artifacts_file_name,
+                                                            this_output_dir,
+                                                        )
+
+                                                if bundle_dm.result == 0:
+                                                    with bundle_dm.Nested("Removing artifacts directory..."):
+                                                        PathEx.RemoveTree(artifacts_dir)
+
+                                                result = bundle_dm.result
+
+                                    return result, short_desc
+
+                                # ----------------------------------------------------------------------
+
+                                return num_steps, Step3
+
+                            # ----------------------------------------------------------------------
+
+                            return log_filename, Step2
+
+                        # ----------------------------------------------------------------------
+
+                        tasks = [
+                            ExecuteTasks.TaskData(
+                                "{}{}".format(
+                                    configuration_info.display,
+                                    "" if not configuration_info.configuration else " ({})".format(configuration_info.configuration),
+                                ),
+                                configuration_info,
+                            )
+                            for configuration_info in configuration_infos
+                        ]
+
+                        ExecuteTasks.ExecuteTasks(
+                            priority_group_dm,
+                            "Processing",
+                            tasks,
+                            Step1,
+                            quiet=quiet,
+                            max_num_threads=1 if single_threaded else None,
+                        )
+
+                        for task in tasks:
+                            final_infos \
+                                .setdefault(task.context.display, {}) \
+                                .setdefault(mode, {}) \
+                                    [task.context.configuration] = FinalInfo(
+                                        task.log_filename.parent,
+                                        common_path / task.context.display,
+                                        task.result,
+                                        task.short_desc,
+                                        task.execution_time,
+                                        task.log_filename,
+                                    )
 
                         if not continue_on_error and priority_group_dm.result < 0:
                             should_continue = False
@@ -798,6 +634,7 @@ def Build(
             ),
         )
 
+
 # ----------------------------------------------------------------------
 @app.command("List", no_args_is_help=True)
 def ListFunc(
@@ -850,7 +687,6 @@ def ListFunc(
                         headers = list(table_info.keys())
                         headers.append("Path")
 
-                    # TODO: Add link to path output
                     all_values.append(list(table_info.values()) + [str(build_path), ])
 
                 assert headers is not None
@@ -943,85 +779,66 @@ def _GetBuildInfos(
     with dm.Nested(
         "Extracting build information for {}...".format(inflect.no("build file", len(build_files))),
     ) as extract_dm:
-        errors: List[str] = []
+        # ----------------------------------------------------------------------
+        def Execute(
+            context: Path,
+            on_simple_status_func: Callable[[str], None],  # pylint: disable=unused-argument
+        ) -> Tuple[
+            Optional[int],                  # Num steps
+            ExecuteTasks.TransformStep2FuncType[Optional[Tuple[Path, BuildInfoBase]]],
+        ]:
+            build_file = context
+            del context
 
-        with extract_dm.YieldStdout() as context:
-            context.persist_content = False
+            # ----------------------------------------------------------------------
+            def Impl(
+                status: ExecuteTasks.Status,
+            ) -> Tuple[
+                Optional[Tuple[Path, BuildInfoBase]],
+                Optional[str],
+            ]:
+                sys.path.insert(0, str(build_file.parent))
+                with ExitStack(lambda: sys.path.pop(0)):
+                    mod = importlib.import_module(build_file.stem)
+                    with ExitStack(lambda: sys.modules.pop(build_file.stem)):
+                        build_info_class = getattr(mod, "BuildInfo", None)
+                        if build_info_class is None:
+                            raise Exception("'BuildInfo' was not found in '{}'.".format(build_file))
 
-            with Progress(
-                *Progress.get_default_columns(),
-                TimeElapsedColumn(),
-                "{task.fields[status]}",
-                transient=True,
-            ) as progress:
-                progress_task_id = progress.add_task(context.line_prefix, total=len(build_files), status="")
+                        build_info_instance = build_info_class()
 
-                for build_file in build_files:
-                    with ExitStack(
-                        lambda: progress.update(
-                            progress_task_id,
-                            advance=1,
-                            status=TextwrapEx.CreateStatusText(len(build_infos), len(errors), None),
-                        ),
-                    ):
-                        try:
-                            sys.path.insert(0, str(build_file.parent))
-                            with ExitStack(lambda: sys.path.pop(0)):
-                                mod = importlib.import_module(build_file.stem)
-                                with ExitStack(lambda: sys.modules.pop(build_file.stem)):
-                                    build_info_class = getattr(mod, "BuildInfo", None)
-                                    if build_info_class is None:
-                                        raise Exception("'BuildInfo' was not found in '{}'.".format(build_file))
+                        sink = StringIO()
 
-                                    build_info_instance = build_info_class()
+                        with DoneManager.Create(sink, "") as validate_dm:
+                            if not build_info_instance.ValidateEnvironment(validate_dm):
+                                status.OnInfo(
+                                    "'{}' is not supported in the current environment.".format(build_file),
+                                )
 
-                                    sink = StringIO()
+                                return None, None
 
-                                    with DoneManager.Create(sink, "") as validate_dm:
-                                        if not build_info_instance.ValidateEnvironment(validate_dm):
-                                            progress.print(
-                                                "{}'{}' is not supported in this environment.".format(
-                                                    context.line_prefix,
-                                                    build_file,
-                                                ),
-                                                highlight=False,
-                                            )
-                                            context.persist_content = True
+                        return (build_file, build_info_instance), None
 
-                                            continue
+            # ----------------------------------------------------------------------
 
-                                    build_infos.append((build_file, build_info_instance))
+            return None, Impl
 
-                        except Exception as ex:
-                            # Add progress status
-                            progress.print(
-                                "{}[red]ERROR:[/] '{}'".format(context.line_prefix, build_file),
-                                context.line_prefix,
-                                highlight=False,
-                            )
-                            context.persist_content = True
+        # ----------------------------------------------------------------------
 
-                            # Add the error information
-                            if extract_dm.is_debug:
-                                error = traceback.format_exc()
-                            else:
-                                error = str(ex)
+        for result in ExecuteTasks.Transform(
+            extract_dm,
+            "Processing",
+            [
+                ExecuteTasks.TaskData(str(build_file), build_file)
+                for build_file in build_files
+            ],
+            Execute,
+            max_num_threads=1,
+        ):
+            if result is None:
+                continue
 
-                            error = textwrap.dedent(
-                                """\
-                                {}
-                                {}
-                                """,
-                            ).format(
-                                build_file,
-                                TextwrapEx.Indent(error.rstrip(), 4),
-                            )
-
-                            errors.append(error)
-
-        if errors:
-            extract_dm.WriteError("{}\n".format("\n".join(errors)))
-            extract_dm.ExitOnError()
+            build_infos.append(result)
 
     results: Dict[int, Dict[Path, BuildInfoBase]] = {}
 

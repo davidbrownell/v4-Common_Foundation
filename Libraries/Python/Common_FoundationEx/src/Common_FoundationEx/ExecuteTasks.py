@@ -27,7 +27,7 @@ from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Callable, Iterator, List, Optional, Protocol, Tuple, TypeVar
+from typing import Any, Callable, cast, Iterator, List, Optional, Protocol, Tuple, TypeVar
 from unittest.mock import MagicMock
 
 from rich.progress import Progress, TaskID, TimeElapsedColumn
@@ -37,8 +37,8 @@ from Common_Foundation import PathEx
 from Common_Foundation.Shell.All import CurrentShell
 from Common_Foundation.Streams.Capabilities import Capabilities
 from Common_Foundation.Streams.DoneManager import DoneManager
-from Common_Foundation.Streams.StreamDecorator import StreamDecorator
 from Common_Foundation import TextwrapEx
+from Common_Foundation.Types import overridemethod
 
 from Common_FoundationEx.InflectEx import inflect
 
@@ -49,6 +49,9 @@ from Common_FoundationEx.InflectEx import inflect
 # |
 # ----------------------------------------------------------------------
 CATASTROPHIC_TASK_FAILURE_RESULT            = -123
+
+DISPLAY_COLUMN_WIDTH                        = 110
+STATUS_COLUMN_WIDTH                         = 40
 
 
 # ----------------------------------------------------------------------
@@ -405,142 +408,31 @@ def YieldQueueExecutor(
 # |  Private Types
 # |
 # ----------------------------------------------------------------------
-class _StatusFactory(object):
+class _InternalStatus(Status):
     # ----------------------------------------------------------------------
-    # |  Public Types
-    class StatusImpl(Status):
-        # ----------------------------------------------------------------------
-        def __init__(
-            self,
-            factory_self: "_StatusFactory",
-        ):
-            self._factory_self              = factory_self
-
-            self._num_steps: Optional[int]              = None
-            self._current_step: Optional[int]           = None
-
-        # ----------------------------------------------------------------------
-        def SetNumSteps(
-            self,
-            num_steps: int,
-        ) -> None:
-            assert self._num_steps is None
-            assert self._current_step is None
-
-            self._num_steps = num_steps
-            self._current_step = 0
-
-            # pylint: disable=protected-access
-            self._factory_self._progress_bar.update(
-                self._factory_self._task_id,
-                completed=self._current_step,
-                refresh=False,
-                total=self._num_steps,
-            )
-
-        # ----------------------------------------------------------------------
-        def OnProgress(
-            self,
-            zero_based_step: Optional[int],
-            status: Optional[str],
-        ) -> bool:
-            # pylint: disable=protected-access
-
-            if zero_based_step is not None:
-                assert self._num_steps is not None
-                self._current_step = zero_based_step
-
-            status = status or ""
-
-            if self._num_steps is not None:
-                status = "({} of {}) {}".format(
-                    self._current_step + 1,
-                    self._num_steps,
-                    status or "",
-                )
-
-            self._factory_self._progress_bar.update(
-                self._factory_self._task_id,
-                completed=self._current_step,
-                refresh=False,
-                status=status,
-            )
-
-            return True
-
-        # ----------------------------------------------------------------------
-        def OnInfo(
-            self,
-            value: str,
-            *,
-            verbose: bool=False,
-        ) -> None:
-            # pylint: disable=protected-access
-            if verbose:
-                if not self._factory_self._is_verbose:
-                    return
-
-                assert TextwrapEx.VERBOSE_COLOR_ON == "\033[;7m", "Ensure that the colors stay in sync"
-                prefix = "[black on white]VERBOSE:[/] "
-            else:
-                assert TextwrapEx.INFO_COLOR_ON == "\033[;7m", "Ensure that the colors stay in sync"
-                prefix = "[black on white]INFO:[/] "
-
-            self._factory_self._progress_bar.print(
-                "{line_prefix}{prefix}{value}".format(
-                    line_prefix=self._factory_self._stdout_context.line_prefix,
-                    prefix=prefix,
-                    value=value,
-                ),
-                highlight=False,
-            )
-
-            self._factory_self._stdout_context.persist_content = True
-
-    # ----------------------------------------------------------------------
-    # |  Public Methods
-    def __init__(
+    @abstractmethod
+    def SetNumSteps(
         self,
-        stdout_context: StreamDecorator.YieldStdoutContext,
-        progress_bar: Progress,
-        task_id: TaskID,
-        *,
-        is_verbose: bool,
-        is_quiet: bool,
-    ):
-        self._stdout_context                = stdout_context
-        self._progress_bar                  = progress_bar
-        self._task_id                       = task_id
-        self._is_verbose                    = is_verbose
-        self._is_quiet                      = is_quiet
+        num_steps: int,
+    ) -> None:
+        raise Exception("Abstract method")
 
+
+# ----------------------------------------------------------------------
+class _StatusFactory(ABC):
     # ----------------------------------------------------------------------
+    @abstractmethod
     @contextmanager
     def CreateStatus(
         self,
         display: str,
-    ) -> Iterator["_StatusFactory.StatusImpl"]:
-        self._progress_bar.update(
-            self._task_id,
-            completed=0,
-            description="{}  {}".format(self._stdout_context.line_prefix, display),
-            refresh=False,
-            status="",
-            total=None,
-            visible=not self._is_quiet,
-        )
-
-        self._progress_bar.start_task(self._task_id)
-        with ExitStack(lambda: self._progress_bar.stop_task(self._task_id)):
-            yield _StatusFactory.StatusImpl(self)
+    ) -> Iterator[_InternalStatus]:
+        raise Exception("Abstract method")
 
     # ----------------------------------------------------------------------
-    def Stop(self):
-        self._progress_bar.update(
-            self._task_id,
-            refresh=False,
-            visible=False,
-        )
+    @abstractmethod
+    def Stop(self) -> None:
+        raise Exception("Abstract method")
 
 
 # ----------------------------------------------------------------------
@@ -563,13 +455,11 @@ def _GenerateStatusInfo(
         Callable[[TaskData], None],         # on_task_complete_func
     ],
 ]:
+    success_count = 0
     error_count = 0
     warning_count = 0
-    success_count = 0
 
     count_lock = threading.Lock()
-
-    wrote_info = False
 
     with dm.Nested(
         "{}{}...".format(
@@ -581,148 +471,355 @@ def _GenerateStatusInfo(
             lambda: "{} with errors".format(inflect.no("item", error_count)),
             lambda: "{} with warnings".format(inflect.no("item", warning_count)),
         ],
-        suffix="\n" if wrote_info else "",
     ) as execute_dm:
-        with execute_dm.YieldStdout() as stdout_context:
-            stdout_context.persist_content = False
+        # ----------------------------------------------------------------------
+        def OnTaskDataComplete(
+            task_data: TaskData,
+        ) -> Tuple[int, int, int]:
+            nonlocal success_count
+            nonlocal error_count
+            nonlocal warning_count
 
-            # Technically speaking, it would be more correct to use `stdout_context.stream` here
-            # rather than referencing `sys.stdout` directly, but it is really hard to get work with
-            # this object when using a mock. So, use sys.stdout directly to avoid that particular
-            # problem.
-            assert stdout_context.stream is sys.stdout or isinstance(stdout_context.stream, MagicMock), stdout_context.stream
+            with count_lock:
+                if task_data.result < 0:
+                    error_count += 1
+                elif task_data.result > 0:
+                    warning_count += 1
+                else:
+                    success_count += 1
 
-            # Create the progress bar
-            progress_bar = Progress(
-                *Progress.get_default_columns(),
-                TimeElapsedColumn(),
-                "{task.fields[status]}",
-                console=Capabilities.Get(sys.stdout).CreateRichConsole(sys.stdout),
-                transient=True,
-                refresh_per_second=refresh_per_second or 10,
-            )
+                return success_count, error_count, warning_count
 
-            total_progress_id = progress_bar.add_task(
+        # ----------------------------------------------------------------------
+
+        with (_GenerateProgressStatusInfo if dm.capabilities.is_interactive else _GenerateNoopStatusInfo)(
+            display_num_tasks,
+            execute_dm,
+            tasks,
+            OnTaskDataComplete,
+            quiet=quiet,
+            refresh_per_second=refresh_per_second,
+        ) as value:
+            yield value
+
+
+# ----------------------------------------------------------------------
+@contextmanager
+def _GenerateProgressStatusInfo(
+    display_num_tasks: Optional[int],
+    dm: DoneManager,
+    tasks: List[TaskData],
+    on_task_data_complete_func: Callable[[TaskData], Tuple[int, int, int]],
+    *,
+    quiet: bool,
+    refresh_per_second: Optional[float],
+) -> Iterator[Tuple[List[_StatusFactory], Callable[[TaskData], None]]]:
+    with dm.YieldStdout() as stdout_context:
+        stdout_context.persist_content = False
+
+        # Technically speaking, it would be more correct to use `stdout_context.stream` here
+        # rather than referencing `sys.stdout` directly, but it is really hard to get work with
+        # this object when using a mock. So, use sys.stdout directly to avoid that particular
+        # problem.
+        assert stdout_context.stream is sys.stdout or isinstance(stdout_context.stream, MagicMock), stdout_context.stream
+
+        progress_bar = Progress(
+            *Progress.get_default_columns(),
+            TimeElapsedColumn(),
+            "{task.fields[status]}",
+            console=Capabilities.Get(sys.stdout).CreateRichConsole(sys.stdout),
+            transient=True,
+            refresh_per_second=refresh_per_second or 10,
+        )
+
+        # ----------------------------------------------------------------------
+        class StatusFactory(_StatusFactory):
+            # ----------------------------------------------------------------------
+            def __init__(
+                self,
+                task_id: TaskID,
+            ):
+                self._task_id               = task_id
+
+            # ----------------------------------------------------------------------
+            @contextmanager
+            @overridemethod
+            def CreateStatus(
+                self,
+                display: str,
+            ) -> Iterator[Status]:
+                progress_bar.update(
+                    self._task_id,
+                    completed=0,
+                    description=TextwrapEx.BoundedLJust(
+                        "{}  {}".format(stdout_context.line_prefix, display),
+                        DISPLAY_COLUMN_WIDTH,
+                    ),
+                    refresh=False,
+                    status="",
+                    total=None,
+                    visible=not quiet,
+                )
+
+                progress_bar.start_task(self._task_id)
+                with ExitStack(lambda: progress_bar.stop_task(self._task_id)):
+                    yield StatusImpl(self._task_id)
+
+            # ----------------------------------------------------------------------
+            @overridemethod
+            def Stop(self) -> None:
+                progress_bar.update(
+                    self._task_id,
+                    refresh=False,
+                    visible=False,
+                )
+
+        # ----------------------------------------------------------------------
+        class StatusImpl(_InternalStatus):
+            # ----------------------------------------------------------------------
+            def __init__(
+                self,
+                task_id: TaskID,
+            ):
+                self._task_id                           = task_id
+
+                self._num_steps: Optional[int]          = None
+                self._current_step: Optional[int]       = None
+
+            # ----------------------------------------------------------------------
+            @overridemethod
+            def SetNumSteps(
+                self,
+                num_steps: int,
+            ) -> None:
+                assert self._num_steps is None
+                assert self._current_step is None
+
+                self._num_steps = num_steps
+                self._current_step = 0
+
+                progress_bar.update(
+                    self._task_id,
+                    completed=self._current_step,
+                    refresh=False,
+                    total=self._num_steps,
+                )
+
+            # ----------------------------------------------------------------------
+            @overridemethod
+            def OnProgress(
+                self,
+                zero_based_step: Optional[int],
+                status: Optional[str],
+            ) -> bool:
+                if zero_based_step is not None:
+                    assert self._num_steps is not None
+                    self._current_step = zero_based_step
+
+                status = status or ""
+
+                if self._num_steps is not None:
+                    assert self._current_step is not None
+
+                    status = "({} of {}) {}".format(
+                        self._current_step + 1,
+                        self._num_steps,
+                        status or "",
+                    )
+
+                progress_bar.update(
+                    self._task_id,
+                    completed=self._current_step,
+                    refresh=False,
+                    status=status,
+                )
+
+                return True
+
+            # ----------------------------------------------------------------------
+            @overridemethod
+            def OnInfo(
+                self,
+                value: str,
+                *,
+                verbose: bool=False,
+            ) -> None:
+                if verbose:
+                    if not dm.is_verbose:
+                        return
+
+                    assert TextwrapEx.VERBOSE_COLOR_ON == "\033[;7m", "Ensure that the colors stay in sync"
+                    prefix = "[black on white]VERBOSE:[/] "
+                else:
+                    assert TextwrapEx.INFO_COLOR_ON == "\033[;7m", "Ensure that the colors stay in sync"
+                    prefix = "[black on white]INFO:[/] "
+
+                progress_bar.print(
+                    "{line_prefix}{prefix}{value}".format(
+                        line_prefix=stdout_context.line_prefix,
+                        prefix=prefix,
+                        value=value,
+                    ),
+                    highlight=False,
+                )
+
+                stdout_context.persist_content = True
+
+        # ----------------------------------------------------------------------
+
+        total_progress_id = progress_bar.add_task(
+            TextwrapEx.BoundedLJust(
                 "{}{}".format(
                     stdout_context.line_prefix,
                     "Working" if display_num_tasks is None else "Total Progress",
                 ),
-                total=display_num_tasks,
-                status="",
+                DISPLAY_COLUMN_WIDTH,
+            ),
+            total=display_num_tasks,
+            status="",
+        )
+
+        # ----------------------------------------------------------------------
+        def OnTaskDataComplete(
+            task_data: TaskData,
+        ) -> None:
+            if task_data.result < 0:
+                if dm.result >= 0:
+                    dm.result = task_data.result
+
+                if not quiet:
+                    assert TextwrapEx.ERROR_COLOR_ON == "\033[31;1m", "Ensure that the colors stay in sync"
+
+                    progress_bar.print(
+                        r"{prefix}[bold red]ERROR:[/] {name}: {result}{short_desc} \[{suffix}]".format(
+                            prefix=stdout_context.line_prefix,
+                            name=task_data.display,
+                            result=task_data.result,
+                            short_desc=" ({})".format(task_data.short_desc) if task_data.short_desc else "",
+                            suffix=str(task_data.log_filename) if dm.capabilities.is_headless else "[link=file:///{}]View Log[/]".format(
+                                task_data.log_filename.as_posix(),
+                            ),
+                        ),
+                        highlight=False,
+                    )
+
+                    stdout_context.persist_content = True
+
+            if task_data.result > 0:
+                if dm.result == 0:
+                    dm.result = task_data.result
+
+                if not quiet:
+                    assert TextwrapEx.WARNING_COLOR_ON == "\033[33;1m", "Ensure that the colors stay in sync"
+
+                    progress_bar.print(
+                        r"{prefix}[bold yellow]WARNING:[/] {name}: {result}{short_desc} \[{suffix}]".format(
+                            prefix=stdout_context.line_prefix,
+                            name=task_data.display,
+                            result=task_data.result,
+                            short_desc=" ({})".format(task_data.short_desc) if task_data.short_desc else "",
+                            suffix=str(task_data.log_filename) if dm.capabilities.is_headless else "[link=file:///{}]View Log[/]".format(
+                                task_data.log_filename.as_posix(),
+                            ),
+                        ),
+                        highlight=False,
+                    )
+
+                    stdout_context.persist_content = True
+
+            success_value, error_value, warning_value = on_task_data_complete_func(task_data)
+
+            progress_bar.update(
+                total_progress_id,
+                advance=1,
+                refresh=False,
+                status=TextwrapEx.CreateStatusText(
+                    success_value,
+                    error_value,
+                    warning_value,
+                ),
             )
 
-            # ----------------------------------------------------------------------
-            def OnTaskDataComplete(
-                task_data: TaskData,
-            ) -> None:
-                nonlocal error_count
-                nonlocal warning_count
-                nonlocal success_count
+        # ----------------------------------------------------------------------
 
-                if task_data.result < 0:
-                    if execute_dm.result >= 0:
-                        execute_dm.result = task_data.result
+        enqueueing_status = "{}Enqueueing tasks...".format(stdout_context.line_prefix)
 
-                    if not quiet:
-                        assert TextwrapEx.ERROR_COLOR_ON == "\033[31;1m", "Ensure that the colors stay in sync"
+        stdout_context.stream.write(enqueueing_status)
+        stdout_context.stream.flush()
 
-                        progress_bar.print(
-                            r"{prefix}[bold red]ERROR:[/] {name}: {result}{short_desc} \[{suffix}]".format(
-                                prefix=stdout_context.line_prefix,
-                                name=task_data.display,
-                                result=task_data.result,
-                                short_desc=" ({})".format(task_data.short_desc) if task_data.short_desc else "",
-                                suffix=str(task_data.log_filename) if execute_dm.capabilities.is_headless else "[link=file:///{}]View Log[/]".format(
-                                    task_data.log_filename.as_posix(),
-                                ),
-                            ),
-                            highlight=False,
-                        )
+        status_factories: List[_StatusFactory] = []
 
-                        stdout_context.persist_content = True
-
-                if task_data.result > 0:
-                    if execute_dm.result == 0:
-                        execute_dm.result = task_data.result
-
-                    if not quiet:
-                        assert TextwrapEx.WARNING_COLOR_ON == "\033[33;1m", "Ensure that the colors stay in sync"
-
-                        progress_bar.print(
-                            r"{prefix}[bold yellow]WARNING:[/] {name}: {result}{short_desc} \[{suffix}]".format(
-                                prefix=stdout_context.line_prefix,
-                                name=task_data.display,
-                                result=task_data.result,
-                                short_desc=" ({})".format(task_data.short_desc) if task_data.short_desc else "",
-                                suffix=str(task_data.log_filename) if execute_dm.capabilities.is_headless else "[link=file:///{}]View Log[/]".format(
-                                    task_data.log_filename.as_posix(),
-                                ),
-                            ),
-                            highlight=False,
-                        )
-
-                        stdout_context.persist_content = True
-
-                with count_lock:
-                    if task_data.result < 0:
-                        error_count += 1
-                    elif task_data.result > 0:
-                        warning_count += 1
-                    else:
-                        success_count += 1
-
-                    error_display = error_count
-                    warning_display = warning_count
-                    success_display = success_count
-
-                progress_bar.update(
-                    total_progress_id,
-                    advance=1,
-                    refresh=False,
-                    status=TextwrapEx.CreateStatusText(
-                        success_display,
-                        error_display,
-                        warning_display,
-                    ),
-                )
-
-            # ----------------------------------------------------------------------
-
-            # Add the tasks to the progress bar
-            status_factories: List[_StatusFactory] = []
-
-            enqueueing_status = "{}Enqueueing tasks...".format(stdout_context.line_prefix)
-            is_interactive = execute_dm.capabilities.is_interactive
-
-            if is_interactive:
-                stdout_context.stream.write(enqueueing_status)
-                stdout_context.stream.flush()
-
-            for task in tasks:
-                status_factories.append(
-                    _StatusFactory(
-                        stdout_context,
-                        progress_bar,
-                        progress_bar.add_task(
+        for task in tasks:
+            status_factories.append(
+                StatusFactory(
+                    progress_bar.add_task(
+                        TextwrapEx.BoundedLJust(
                             "{}  {}".format(stdout_context.line_prefix, task.display),
-                            start=False,
-                            status="",
-                            total=None,
-                            visible=False,
+                            DISPLAY_COLUMN_WIDTH,
                         ),
-                        is_verbose=dm.is_verbose,
-                        is_quiet=quiet,
+                        start=False,
+                        status="",
+                        total=None,
+                        visible=False,
                     ),
-                )
+                ),
+            )
 
-            if is_interactive:
-                stdout_context.stream.write("\r{}\r".format(" " * len(enqueueing_status)))
-                stdout_context.stream.flush()
+        stdout_context.stream.write("\r{}\r".format(" " * len(enqueueing_status)))
+        stdout_context.stream.flush()
 
-            # Start the progress bar
-            progress_bar.start()
-            with ExitStack(progress_bar.stop):
-                yield status_factories, OnTaskDataComplete
+        progress_bar.start()
+        with ExitStack(progress_bar.stop):
+            yield status_factories, OnTaskDataComplete
+
+
+# ----------------------------------------------------------------------
+@contextmanager
+def _GenerateNoopStatusInfo(
+    display_num_tasks: Optional[int],                                       # pylint: disable=unused-argument
+    dm: DoneManager,                                                        # pylint: disable=unused-argument
+    tasks: List[TaskData],
+    on_task_complete_func: Callable[[TaskData], Tuple[int, int, int]],
+    *,
+    quiet: bool,                                                            # pylint: disable=unused-argument
+    refresh_per_second: Optional[float],                                    # pylint: disable=unused-argument
+) -> Iterator[Tuple[List[_StatusFactory], Callable[[TaskData], None]]]:
+    # ----------------------------------------------------------------------
+    class StatusFactory(_StatusFactory):
+        # ----------------------------------------------------------------------
+        @contextmanager
+        @overridemethod
+        def CreateStatus(self, *args, **kwargs) -> Iterator[Status]:  # pylint: disable=unused-argument
+            yield StatusImpl()
+
+        # ----------------------------------------------------------------------
+        @overridemethod
+        def Stop(self) -> None:
+            pass
+
+    # ----------------------------------------------------------------------
+    class StatusImpl(_InternalStatus):
+        # ----------------------------------------------------------------------
+        @overridemethod
+        def SetNumSteps(self, *args, **kwargs) -> None:  # pylint: disable=unused-argument
+            pass
+
+        # ----------------------------------------------------------------------
+        @overridemethod
+        def OnProgress(self, *args, **kwargs) -> bool:  # pylint: disable=unused-argument
+            return True
+
+        # ----------------------------------------------------------------------
+        @overridemethod
+        def OnInfo(self, *args, **kwargs) -> None:  # pylint: disable=unused-argument
+            pass
+
+    # ----------------------------------------------------------------------
+
+    yield (
+        cast(List[_StatusFactory], [StatusFactory() for task in tasks]),
+        lambda task_data: cast(None, on_task_complete_func(task_data)),
+    )
 
 
 # ----------------------------------------------------------------------
