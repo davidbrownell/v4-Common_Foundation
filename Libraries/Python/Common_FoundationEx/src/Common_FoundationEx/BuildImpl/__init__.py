@@ -28,10 +28,11 @@ import sys
 import textwrap
 
 from abc import abstractmethod, ABC
+from contextlib import contextmanager
 from enum import Enum
 from io import StringIO
 from pathlib import Path
-from typing import Callable, Dict, List, Optional, Pattern, Protocol, TextIO, Tuple, Union
+from typing import Callable, Dict, Iterator, List, Optional, Pattern, Protocol, TextIO, Tuple, Union
 
 try:
     import typer
@@ -46,6 +47,7 @@ except ModuleNotFoundError:
     sys.exit(-1)
 
 from Common_Foundation.Shell.All import CurrentShell
+from Common_Foundation.Streams.Capabilities import Capabilities
 from Common_Foundation.Streams.DoneManager import DoneManager, DoneManagerFlags
 from Common_Foundation import TextwrapEx
 from Common_Foundation import Types
@@ -90,6 +92,23 @@ class BuildInfoBase(ABC):
 
     COMPLETE_CONFIGURATION_NAME             = "Complete"
     STANDARD_CONFIGURATION_NAMES            = ["Debug", "Release"]
+
+    # ----------------------------------------------------------------------
+    @contextmanager
+    @staticmethod
+    def YieldDoneManager(
+        output_stream: TextIO,
+        heading: str,
+        *,
+        is_verbose: bool,
+        is_debug: bool,
+    ) -> Iterator[DoneManager]:
+        with DoneManager.Create(
+            output_stream,
+            heading,
+            output_flags=DoneManagerFlags.Create(verbose=is_verbose, debug=is_debug),
+        ) as dm:
+            yield dm
 
     # ----------------------------------------------------------------------
     def __init__(
@@ -688,7 +707,6 @@ class BuildInfoBase(ABC):
         with dm.Nested("{}...".format(desc)) as execute_dm:
             output: Optional[str] = None
 
-            # TODO: Covert this to use ExecuteTasks
             with execute_dm.YieldStdout() as stdout_context:
                 stdout_context.persist_content = False
 
@@ -733,6 +751,15 @@ class BuildInfoBase(ABC):
                     # ----------------------------------------------------------------------
 
                     sink = StringIO()
+
+                    Capabilities.Create(
+                        sink,
+                        columns=execute_dm.capabilities.columns,
+                        is_interactive=False,
+                        supports_colors=execute_dm.capabilities.supports_colors,
+                        is_headless=True,
+                    )
+
                     result = execute_func(
                         configuration,
                         output_dir,
@@ -740,7 +767,8 @@ class BuildInfoBase(ABC):
                         OnProgress,
                         is_verbose=dm.is_verbose,
                         is_debug=dm.is_debug,
-                        )
+                    )
+
                     output = sink.getvalue()
 
                     if isinstance(result, tuple):

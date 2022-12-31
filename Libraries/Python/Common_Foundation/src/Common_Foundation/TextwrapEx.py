@@ -448,6 +448,7 @@ def CreateStatusText(
     warnings: Optional[int],
     *,
     capabilities: Optional[Capabilities]=None,
+    ljust_value: Optional[int]=None,
 ) -> str:
     if (capabilities or Capabilities.Get(sys.stdout)).supports_colors:
         success_on = SUCCESS_COLOR_ON
@@ -486,7 +487,12 @@ def CreateStatusText(
 
         parts.append("{} warnings".format(prefix))
 
-    return ", ".join(parts)
+    value = ", ".join(parts)
+
+    if ljust_value is not None:
+        value = value.ljust(ljust_value)
+
+    return value
 
 
 # ----------------------------------------------------------------------

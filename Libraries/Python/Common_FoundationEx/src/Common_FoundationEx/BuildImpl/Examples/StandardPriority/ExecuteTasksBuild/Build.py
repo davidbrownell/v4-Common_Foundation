@@ -1,3 +1,18 @@
+# ----------------------------------------------------------------------
+# |
+# |  Build.py
+# |
+# |  David Brownell <db@DavidBrownell.com>
+# |      2022-12-30 10:50:03
+# |
+# ----------------------------------------------------------------------
+# |
+# |  Copyright David Brownell 2022
+# |  Distributed under the Boost Software License, Version 1.0. See
+# |  accompanying file LICENSE_1_0.txt or copy at
+# |  http://www.boost.org/LICENSE_1_0.txt.
+# |
+# ----------------------------------------------------------------------
 # pylint: disable=invalid-name
 # pylint: disable=missing-module-docstring
 # pylint: disable=missing-class-docstring
@@ -5,17 +20,10 @@
 from pathlib import Path
 from typing import Callable, Optional, TextIO, Tuple, Union
 
-import typer
-
-from Common_Foundation.Streams.DoneManager import DoneManager, DoneManagerFlags
 from Common_Foundation.Types import overridemethod
 
 from Common_FoundationEx.BuildImpl import BuildInfoBase
-
-
-# ----------------------------------------------------------------------
-raise Exception("This is a template file. Customize the values and remove this exception.")
-# pylint: disable=unreachable
+from Common_FoundationEx import ExecuteTasks
 
 
 # ----------------------------------------------------------------------
@@ -23,32 +31,12 @@ class BuildInfo(BuildInfoBase):
     # ----------------------------------------------------------------------
     def __init__(self):
         super(BuildInfo, self).__init__(
-            name="<your build name here>",
-
-            # Like golf scores, lower priority values indicate higher priority. Adjust this value
-            # to ensure that it is invoked before other Build.py files in case there are
-            # dependencies between the builds.
-            #
-            # priority=BuildInfoBase.STANDARD_PRIORITY,
-
-            # Configurations to build; can be None if configurations are not required.
-            configurations=["Debug", "Release"],
-            configuration_is_required_on_clean=True,
+            name="ExecuteTasks-based Build",
+            configurations=None,
 
             requires_output_dir=True,
             suggested_output_dir_location=None,         # Optional[Path]
-
-            # required_development_environment="Linux",
-            # required_development_configurations=[re.compile(r".*Debug"), ],
-            # disable_if_dependency_environment=False,
         )
-
-    # ----------------------------------------------------------------------
-    # Additional extension methods:
-    #   - GetNumCleanSteps
-    #   - GetCustomCleanArgs
-    #   - GetNumBuildSteps
-    #   - GetCustomBuildArgs
 
     # ----------------------------------------------------------------------
     @overridemethod
@@ -74,7 +62,7 @@ class BuildInfo(BuildInfoBase):
             str,                            # Short status desc
         ],
     ]:
-        raise Exception("Implement me!")
+        return 0
 
     # ----------------------------------------------------------------------
     @overridemethod
@@ -100,29 +88,46 @@ class BuildInfo(BuildInfoBase):
             str,                            # Short status desc
         ],
     ]:
-        raise Exception("Implement me!")
+        with self.__class__.YieldDoneManager(
+            output_stream,
+            "The Heading",
+            is_verbose=is_verbose,
+            is_debug=is_debug,
+        ) as dm:
+            # ----------------------------------------------------------------------
+            def Execute(
+                context: int,
+                on_simple_status_func: Callable[[str], None],  # pylint: disable=unused-argument
+            ) -> Tuple[
+                Optional[int],
+                ExecuteTasks.TransformStep2FuncType[int],
+            ]:
+                # ----------------------------------------------------------------------
+                def Impl(
+                    status: ExecuteTasks.Status,  # pylint: disable=unused-argument
+                ) -> Tuple[
+                    int,
+                    Optional[str],
+                ]:
+                    return context * 2, "{} * 2 = {}".format(context, context * 2)
 
+                # ----------------------------------------------------------------------
 
-# ----------------------------------------------------------------------
-# Custom functions are exposed via Typer on the command line
+                return None, Impl
 
-def Publish(
-    output_dir: Path=typer.Argument(..., exists=True, file_okay=False, resolve_path=True, help="Output directory associated with a prior build."),
-    verbose: bool=typer.Argument(False, help="Display additional information."),
-    debug: bool=typer.Argument(False, help="Display debug information."),
-) -> None:
-    """Publishes content previously built."""
+            # ----------------------------------------------------------------------
 
-    with DoneManager.CreateCommandLine(
-        output_flags=DoneManagerFlags.Create(
-            verbose=verbose,
-            debug=debug,
-        ),
-    ) as dm:
-        with dm.Nested(
-            "Publishing content at '{}'...".format(output_dir),
-        ) as publish_dm:
-            raise Exception("Implement me!")
+            results = ExecuteTasks.Transform(
+                dm,
+                "Processing",
+                [ExecuteTasks.TaskData(str(x), x) for x in range(10)],
+                Execute,
+            )
+
+            for result in results:
+                dm.WriteInfo("Result: {}\n".format(result))
+
+            return dm.result
 
 
 # ----------------------------------------------------------------------
