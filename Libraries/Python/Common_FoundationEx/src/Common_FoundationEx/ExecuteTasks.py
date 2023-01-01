@@ -483,8 +483,16 @@ def _GenerateStatusInfo(
             with count_lock:
                 if task_data.result < 0:
                     error_count += 1
+
+                    if execute_dm.result >= 0:
+                        execute_dm.result = task_data.result
+
                 elif task_data.result > 0:
                     warning_count += 1
+
+                    if execute_dm.result == 0:
+                        execute_dm.result = task_data.result
+
                 else:
                     success_count += 1
 
@@ -683,11 +691,8 @@ def _GenerateProgressStatusInfo(
         def OnTaskDataComplete(
             task_data: TaskData,
         ) -> None:
-            if task_data.result < 0:
-                if dm.result >= 0:
-                    dm.result = task_data.result
-
-                if not quiet:
+            if not quiet:
+                if task_data.result < 0:
                     assert TextwrapEx.ERROR_COLOR_ON == "\033[31;1m", "Ensure that the colors stay in sync"
 
                     progress_bar.print(
@@ -705,11 +710,7 @@ def _GenerateProgressStatusInfo(
 
                     stdout_context.persist_content = True
 
-            if task_data.result > 0:
-                if dm.result == 0:
-                    dm.result = task_data.result
-
-                if not quiet:
+                elif task_data.result > 0:
                     assert TextwrapEx.WARNING_COLOR_ON == "\033[33;1m", "Ensure that the colors stay in sync"
 
                     progress_bar.print(
