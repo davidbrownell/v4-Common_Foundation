@@ -56,9 +56,10 @@ jobs:
       repo_branch: main_stable
       bootstrap_branch_overrides: "Common_Foundation:${{ inputs.repo_branch }}"
 
-  _ad93907a-f916-4560-8624-c415efbb51b9:
-    name: "DavidBrownell_Backup"
-    uses: davidbrownell/v4-DavidBrownell_Backup/.github/workflows/validate.yaml@CI-latest
-    with:
-      repo_branch: main_stable
-      bootstrap_branch_overrides: "Common_Foundation:${{ inputs.repo_branch }}"
+  # TODO: Restore this once Backup changes have been made
+  # _ad93907a-f916-4560-8624-c415efbb51b9:
+  #   name: "DavidBrownell_Backup"
+  #   uses: davidbrownell/v4-DavidBrownell_Backup/.github/workflows/validate.yaml@CI-latest
+  #   with:
+  #     repo_branch: main_stable
+  #     bootstrap_branch_overrides: "Common_Foundation:${{ inputs.repo_branch }}"
