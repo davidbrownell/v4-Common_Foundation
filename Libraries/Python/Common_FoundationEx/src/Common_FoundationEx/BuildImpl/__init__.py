@@ -46,6 +46,7 @@ except ModuleNotFoundError:
     sys.stdout.write("\nERROR: This script is not available in a 'nolibs' environment.\n")
     sys.exit(-1)
 
+from Common_Foundation import PathEx
 from Common_Foundation.Shell.All import CurrentShell
 from Common_Foundation.Streams.Capabilities import Capabilities
 from Common_Foundation.Streams.DoneManager import DoneManager, DoneManagerFlags
@@ -208,10 +209,10 @@ class BuildInfoBase(ABC):
                 return False
 
         if self.disable_if_dependency_environment:
-            filename = inspect.getsourcefile(type(self))
+            filename = PathEx.EnsureFile(Path(Types.EnsureValid(inspect.getsourcefile(type(self)))))
             assert filename is not None
 
-            if not filename.startswith(Types.EnsureValid(os.getenv("DEVELOPMENT_ENVIRONMENT_REPOSITORY"))):
+            if not PathEx.IsDescendant(filename, PathEx.EnsureDir(Path(Types.EnsureValid(os.getenv("DEVELOPMENT_ENVIRONMENT_REPOSITORY"))))):
                 dm.WriteInfo("This build can not be used when its repository is activated as a dependency repository.")
                 return False
 
