@@ -943,7 +943,7 @@ class Repository(DistributedRepositoryBase):
         else:
             commands += [
                 "git fetch --all",
-                "git fetch --all --tags",
+                "git fetch --all --tags --force",
             ]
 
         return self._GetCommandLine(" && ".join(commands))
