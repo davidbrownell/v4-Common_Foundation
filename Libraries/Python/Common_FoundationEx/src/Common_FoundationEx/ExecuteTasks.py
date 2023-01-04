@@ -782,7 +782,7 @@ def _GenerateNoopStatusInfo(
     tasks: List[TaskData],
     on_task_complete_func: Callable[[TaskData], Tuple[int, int, int]],
     *,
-    quiet: bool,                                                            # pylint: disable=unused-argument
+    quiet: bool,
     refresh_per_second: Optional[float],                                    # pylint: disable=unused-argument
 ) -> Iterator[Tuple[List[_StatusFactory], Callable[[TaskData], None]]]:
     # ----------------------------------------------------------------------
@@ -816,10 +816,43 @@ def _GenerateNoopStatusInfo(
             pass
 
     # ----------------------------------------------------------------------
+    def OnTaskDataComplete(
+        task_data: TaskData,
+    ) -> None:
+        on_task_complete_func(task_data)
+
+        if not quiet:
+            if task_data.result < 0:
+                dm.WriteError(
+                    "{name}: {result}{short_desc} [{suffix}]\n".format(
+                        name=task_data.display,
+                        result=task_data.result,
+                        short_desc=" ({})".format(task_data.short_desc) if task_data.short_desc else "",
+                        suffix=str(task_data.log_filename) if dm.capabilities.is_headless else TextwrapEx.CreateAnsiHyperLink(
+                            "file:///{}".format(task_data.log_filename.as_posix()),
+                            "View Log",
+                        ),
+                    ),
+                )
+
+            elif task_data.result < 0:
+                dm.WriteWarning(
+                    "{name}: {result}{short_desc} [{suffix}]\n".format(
+                        name=task_data.display,
+                        result=task_data.result,
+                        short_desc=" ({})".format(task_data.short_desc) if task_data.short_desc else "",
+                        suffix=str(task_data.log_filename) if dm.capabilities.is_headless else TextwrapEx.CreateAnsiHyperLink(
+                            "file:///{}".format(task_data.log_filename.as_posix()),
+                            "View Log",
+                        ),
+                    ),
+                )
+
+    # ----------------------------------------------------------------------
 
     yield (
         cast(List[_StatusFactory], [StatusFactory() for task in tasks]),
-        lambda task_data: cast(None, on_task_complete_func(task_data)),
+        OnTaskDataComplete,
     )
 
 
