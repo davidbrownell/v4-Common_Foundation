@@ -15,6 +15,9 @@
 # ----------------------------------------------------------------------
 """Contains the IntrinsicsBase object"""
 
+import inspect
+
+from pathlib import Path
 from typing import Any, Dict, Generator, List, Tuple
 
 from Common_Foundation.Streams.DoneManager import DoneManager
@@ -47,7 +50,17 @@ class IntrinsicsBase(ICompilerIntrinsics):
     @overridemethod
     def _CreateContext(
         self,
-        dm: DoneManager,
+        dm: DoneManager,  # pylint: disable=unused-argument
         metadata: Dict[str, Any],
     ) -> Dict[str, Any]:
         return metadata
+
+    # ----------------------------------------------------------------------
+    @overridemethod
+    def _EnumerateGeneratorFiles(
+        self,
+        context: Dict[str, Any],  # pylint: disable=unused-argument
+    ) -> Generator[Path, None, None]:
+        for base_class in inspect.getmro(type(self)):
+            if base_class.__name__ != "object":
+                yield Path(inspect.getfile(base_class))
