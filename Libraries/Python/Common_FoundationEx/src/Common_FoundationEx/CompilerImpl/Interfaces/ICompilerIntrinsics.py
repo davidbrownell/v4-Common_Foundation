@@ -16,6 +16,7 @@
 """Contains the ICompilerIntrinsics interface"""
 
 from abc import ABC, abstractmethod
+from pathlib import Path
 from typing import Any, Dict, Generator, List, Tuple
 
 from Common_Foundation.Streams.DoneManager import DoneManager
@@ -57,4 +58,15 @@ class ICompilerIntrinsics(ABC):
         metadata: Dict[str, Any],
     ) -> Dict[str, Any]:
         """Returns a context object tuned specifically for the metadata provided."""
+        raise Exception("Abstract method")
+
+    # ----------------------------------------------------------------------
+    @abstractmethod
+    def _EnumerateGeneratorFiles(
+        self,
+        context: Dict[str, Any],
+    ) -> Generator[Path, None, None]:
+        """\
+        Enumerates files used in the implementation of the compiler.
+        """
         raise Exception("Abstract method")

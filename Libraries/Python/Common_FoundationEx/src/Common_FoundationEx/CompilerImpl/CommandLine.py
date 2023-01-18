@@ -31,7 +31,7 @@ from typer.models import OptionInfo
 from Common_Foundation.ContextlibEx import ExitStack
 from Common_Foundation import PathEx
 from Common_Foundation.Shell.All import CurrentShell
-from Common_Foundation.Streams.DoneManager import DoneManager
+from Common_Foundation.Streams.DoneManager import DoneManager, DoneManagerException
 from Common_Foundation.Streams.StreamDecorator import StreamDecorator
 from Common_Foundation import TextwrapEx
 
@@ -337,6 +337,8 @@ class _ContextInfo(object):
         ) as generate_dm:
             try:
                 contexts += compiler.GenerateContextItems(generate_dm, inputs, custom_params)
+            except DoneManagerException:
+                generate_dm.result = -1
             except Exception as ex:
                 if generate_dm.is_debug:
                     error = traceback.format_exc()
@@ -478,6 +480,7 @@ def _InvokeImpl(
                     f,
                     status.OnProgress,
                     verbose=dm.is_verbose,
+                    debug=dm.is_debug,
                 )
 
                 if not isinstance(result, tuple):

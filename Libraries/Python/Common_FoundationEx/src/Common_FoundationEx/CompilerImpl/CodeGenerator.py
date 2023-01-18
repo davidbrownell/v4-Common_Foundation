@@ -93,6 +93,7 @@ class CodeGenerator(
         ],
         *,
         verbose: bool,
+        debug: bool,
     ) -> Union[
         int,                                # Return code
         Tuple[
@@ -100,7 +101,13 @@ class CodeGenerator(
             str,                            # Short description that provides contextual information about the return code
         ],
     ]:
-        return self._Invoke(context, output_stream, on_progress_func, verbose=verbose)
+        return self._Invoke(
+            context,
+            output_stream,
+            on_progress_func,
+            verbose=verbose,
+            debug=debug,
+        )
 
 
 # ----------------------------------------------------------------------
