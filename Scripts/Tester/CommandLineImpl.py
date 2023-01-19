@@ -642,7 +642,7 @@ def Find(
     ) as search_dm:
         for root, directories, filenames in EnumSource.EnumSource(input_dir):
             if (root / DO_NOT_PARSE_FILENAME).exists():
-                search_dm.WriteInfo("Skipping '{}' due to '{}'.\n".format(root, DO_NOT_PARSE_FILENAME))
+                search_dm.WriteInfo("Skipping '{}' and its descendants due to '{}'.\n".format(root, DO_NOT_PARSE_FILENAME))
 
                 directories[:] = []
                 continue

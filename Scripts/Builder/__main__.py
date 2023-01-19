@@ -69,6 +69,10 @@ app                                         = typer.Typer(
 
 
 # ----------------------------------------------------------------------
+DO_NOT_PARSE_FILENAME                       = "Builder-DoNotParse"
+
+
+# ----------------------------------------------------------------------
 _root_dir_argument                          = typer.Argument(..., exists=True, file_okay=False, resolve_path=True, help="Root directory to search for build files.")
 
 _build_filename_option                      = typer.Option("Build.py", "--build-filename", help="Name of build files.")
@@ -728,7 +732,13 @@ def _GetBuildInfos(
         ],
         preserve_status=False,
     ) as search_dm:
-        for root, _, filenames in EnumSource(root_dir):
+        for root, directories, filenames in EnumSource(root_dir):
+            if (root / DO_NOT_PARSE_FILENAME).exists():
+                search_dm.WriteInfo("Skipping '{}' and its descendants due to '{}'.\n".format(root, DO_NOT_PARSE_FILENAME))
+
+                directories[:] = []
+                continue
+
             search_dm.WriteStatus(str(root))
 
             for filename in filenames:
