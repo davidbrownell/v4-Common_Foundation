@@ -481,6 +481,7 @@ class CompilerImpl(
         ],
         *,
         verbose: bool,
+        debug: bool,
     ) -> Union[
         int,                                # Return code
         Tuple[
@@ -496,6 +497,7 @@ class CompilerImpl(
             "{}...".format(self._invocation_description),
             output_flags=DoneManagerFlags.Create(
                 verbose=verbose,
+                debug=debug,
             ),
         ) as dm:
             num_internal_steps = self._GetNumStepsImpl(context)

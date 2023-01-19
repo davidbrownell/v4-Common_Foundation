@@ -586,6 +586,7 @@ class ExecuteTests(object):
                                         stream,
                                         lambda step, value: status.OnProgress(step + 1, value),
                                         verbose=True,
+                                        debug=True,
                                     )
 
                                     if isinstance(result, tuple):

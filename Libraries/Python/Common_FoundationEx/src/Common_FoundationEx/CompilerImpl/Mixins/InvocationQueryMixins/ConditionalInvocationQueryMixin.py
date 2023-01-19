@@ -116,12 +116,9 @@ class ConditionalInvocationQueryMixin(
 
         # ----------------------------------------------------------------------
         def HaveGeneratorFilesBeenModified() -> Optional[Path]:
-            for base_class in inspect.getmro(type(self)):
-                if base_class.__name__ != "object":
-                    base_filename = Path(inspect.getfile(base_class))
-
-                    if base_filename.stat().st_mtime > prev_modified_time:
-                        return base_filename
+            for filename in self._EnumerateGeneratorFiles(context):
+                if filename.stat().st_mtime > prev_modified_time:
+                    return filename
 
             return None
 

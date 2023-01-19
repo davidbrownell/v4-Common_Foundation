@@ -238,6 +238,7 @@ def Transform(
     max_num_threads: Optional[int]=None,
     refresh_per_second: Optional[float]=None,
     no_compress_tasks: bool=False,
+    return_exceptions: bool=False,
 ) -> List[Optional[TransformedType]]:
     """Executes functions that return values"""
 
@@ -266,6 +267,7 @@ def Transform(
             quiet=quiet,
             num_threads=num_threads,
             refresh_per_second=refresh_per_second,
+            return_exceptions=return_exceptions,
         )
 
 
@@ -344,45 +346,44 @@ def YieldQueueExecutor(
 
                 with ExitStack(status_factory.Stop):
                     while True:
-                        queue_semaphore.acquire()
+                        with queue_semaphore:
+                            with queue_lock:
+                                if not queue:
+                                    assert quit_event.is_set()
+                                    break
 
-                        with queue_lock:
-                            if not queue:
-                                assert quit_event.is_set()
-                                break
-
-                            task_desc, step1_func = queue.pop(0)
-
-                        # ----------------------------------------------------------------------
-                        def ExecuteTasksStep1(*args, **kargs) -> Tuple[Path, ExecuteTasksStep2FuncType]:  # pylint: disable=unused-argument
-                            return log_filename, ExecuteTasksStep2
-
-                        # ----------------------------------------------------------------------
-                        def ExecuteTasksStep2(
-                            on_simple_status_func: Callable[[str], None],
-                        ) -> Tuple[Optional[int], ExecuteTasksStep3FuncType]:
-                            num_steps, step2_func = step1_func(on_simple_status_func)
+                                task_desc, step1_func = queue.pop(0)
 
                             # ----------------------------------------------------------------------
-                            def ExecuteTasksStep3(
-                                status: Status,
-                            ) -> Tuple[int, Optional[str]]:
-                                return 0, step2_func(status)
+                            def ExecuteTasksStep1(*args, **kargs) -> Tuple[Path, ExecuteTasksStep2FuncType]:  # pylint: disable=unused-argument
+                                return log_filename, ExecuteTasksStep2
+
+                            # ----------------------------------------------------------------------
+                            def ExecuteTasksStep2(
+                                on_simple_status_func: Callable[[str], None],
+                            ) -> Tuple[Optional[int], ExecuteTasksStep3FuncType]:
+                                num_steps, step2_func = step1_func(on_simple_status_func)
+
+                                # ----------------------------------------------------------------------
+                                def ExecuteTasksStep3(
+                                    status: Status,
+                                ) -> Tuple[int, Optional[str]]:
+                                    return 0, step2_func(status)
+
+                                # ----------------------------------------------------------------------
+
+                                return num_steps, ExecuteTasksStep3
 
                             # ----------------------------------------------------------------------
 
-                            return num_steps, ExecuteTasksStep3
-
-                        # ----------------------------------------------------------------------
-
-                        _ExecuteTask(
-                            desc,
-                            TaskData(task_desc, None),
-                            ExecuteTasksStep1,
-                            status_factory,
-                            on_task_complete_func,
-                            is_debug=dm.is_debug,
-                        )
+                            _ExecuteTask(
+                                desc,
+                                TaskData(task_desc, None),
+                                ExecuteTasksStep1,
+                                status_factory,
+                                on_task_complete_func,
+                                is_debug=dm.is_debug,
+                            )
 
             # ----------------------------------------------------------------------
 
@@ -461,11 +462,24 @@ def _GenerateStatusInfo(
 
     count_lock = threading.Lock()
 
+    # Create the heading
+    if desc.endswith("..."):
+        desc = desc[:-len("...")]
+
+    heading = desc
+
+    if display_num_tasks is not None:
+        items_text = inflect.no("item", display_num_tasks)
+
+        if heading:
+            heading += " ({})".format(items_text)
+        else:
+            heading = items_text
+
+    heading += "..."
+
     with dm.Nested(
-        "{}{}...".format(
-            desc,
-            "" if display_num_tasks is None else " " + inflect.no("item", display_num_tasks),
-        ),
+        heading,
         [
             lambda: "{} succeeded".format(inflect.no("item", success_count)),
             lambda: "{} with errors".format(inflect.no("item", error_count)),
@@ -957,6 +971,7 @@ def _TransformStandard(
     quiet: bool,
     num_threads: int,
     refresh_per_second: Optional[float],
+    return_exceptions: bool,
 ) -> List[Optional[TransformedType]]:
     all_results: List[Optional[TransformedType]] = [None for _ in range(len(tasks))]
 
@@ -990,10 +1005,17 @@ def _TransformStandard(
                 def ExecuteTasksStep3(
                     status: Status,
                 ) -> Tuple[int, Optional[str]]:
-                    result, short_desc = step3_func(status)
+                    try:
+                        result, short_desc = step3_func(status)
 
-                    all_results[task_index] = result
-                    return 0, short_desc
+                        all_results[task_index] = result
+                        return 0, short_desc
+
+                    except Exception as ex:  # pylint: disable=broad-except
+                        if return_exceptions:
+                            all_results[task_index] = ex
+
+                        raise
 
                 # ----------------------------------------------------------------------
 
@@ -1029,6 +1051,7 @@ def _TransformCompressed(
     quiet: bool,
     num_threads: int,
     refresh_per_second: Optional[float],
+    return_exceptions: bool,
 ) -> List[Optional[TransformedType]]:
     assert num_threads != 1
 
@@ -1085,11 +1108,17 @@ def _TransformCompressed(
                         def ExecuteTasksStep3(
                             status: Status,
                         ) -> Tuple[int, Optional[str]]:
-                            result, short_desc = step2_func(status)
+                            try:
+                                result, short_desc = step2_func(status)
 
-                            all_results[this_task_index] = result
+                                all_results[this_task_index] = result
+                                return 0, short_desc
 
-                            return 0, short_desc
+                            except Exception as ex:  # pylint: disable=broad-except
+                                if return_exceptions:
+                                    all_results[this_task_index] = ex
+
+                                raise
 
                         # ----------------------------------------------------------------------
 
