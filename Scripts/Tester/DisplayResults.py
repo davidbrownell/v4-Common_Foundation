@@ -109,7 +109,7 @@ def Display(
 
         return "\n".join(
             "{} {}".format(
-                "{}:".format(k).ljust(col_width),
+                "{}:".format(k.replace("[", "\\[")).ljust(col_width),
                 v,
             )
             for k, v in values.items()
