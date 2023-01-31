@@ -25,7 +25,7 @@ from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
 import typer
 
-from Common_Foundation.ContextlibEx import ExitStack
+from Common_Foundation import DynamicPluginArchitecture
 from Common_Foundation import EnumSource
 from Common_Foundation.Shell.All import CurrentShell
 from Common_Foundation.Streams.DoneManager import DoneManager, DoneManagerFlags
@@ -43,14 +43,6 @@ import DisplayResults
 from ExecuteTests import ExecuteTests
 from Results import FindResult
 from TestTypes import TYPES as TEST_TYPE_INFOS
-
-
-# ----------------------------------------------------------------------
-sys.path.insert(0, Types.EnsureValid(os.getenv("DEVELOPMENT_ENVIRONMENT_FOUNDATION")))
-with ExitStack(lambda: sys.path.pop(0)):
-    assert os.path.isdir(sys.path[0]), sys.path[0]
-
-    from RepositoryBootstrap.SetupAndActivate import DynamicPluginArchitecture  # pylint: disable=import-error
 
 
 # ----------------------------------------------------------------------

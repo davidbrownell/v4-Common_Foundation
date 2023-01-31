@@ -41,3 +41,5 @@ Tools/Python/v3.10.6/Windows/x64/*/**
 
 Libraries/Python/Common_Foundation/src/Common_Foundation.egg-info/*
 Libraries/Python/Common_FoundationEx/src/Common_FoundationEx.egg-info/*
+
+RepositoryBootstrap/SetupAndActivate/DynamicPluginArchitecture.py

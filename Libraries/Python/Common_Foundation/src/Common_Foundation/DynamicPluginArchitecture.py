@@ -48,8 +48,6 @@ from Common_Foundation.Shell.All import CurrentShell
 from Common_Foundation.Streams.DoneManager import DoneManager
 from Common_Foundation.Streams.StreamDecorator import StreamDecorator
 
-from .. import Constants as RepositoryBootstrapConstants
-
 
 # ----------------------------------------------------------------------
 def EnumeratePlugins(
@@ -152,7 +150,7 @@ def CreateRegistrationCommands(
         source_filename = os.getenv(environment_var_name)
         if force or not source_filename:
             source_filename = CurrentShell.CreateTempFilename(
-                ".DynamicPluginArchitecture{}".format(RepositoryBootstrapConstants.TEMPORARY_FILE_EXTENSION),
+                ".DynamicPluginArchitecture.SourceRepositoryTools",
             )
 
             source_filename_str = str(source_filename)

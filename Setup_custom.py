@@ -15,10 +15,12 @@
 # ----------------------------------------------------------------------
 # pylint: disable=missing-module-docstring
 
+from pathlib import Path
 from typing import Dict, List, Optional, Union
 
 from semantic_version import Version as SemVer
 
+from Common_Foundation import PathEx
 from Common_Foundation.Shell.All import CurrentShell  # type: ignore
 from Common_Foundation.Shell import Commands  # type: ignore
 
@@ -93,4 +95,22 @@ def GetConfigurations() -> Union[Configuration.Configuration, Dict[str, Configur
 def GetCustomActions(
     explicit_configurations: Optional[List[str]],  # pylint: disable=unused-argument
 ) -> List[Commands.Command]:
-    return []
+    commands: list[Commands.Command] = []
+
+    root_dir = Path(__file__).parent
+
+    # At one point, DynamicPluginArchitecture lived in './RepositoryBootstrap/SetupAndActivate' but
+    # it now lives in './Libraries/Python/Common_Foundation/src/Common_Foundation'. Create a link to
+    # the new file at the previous location to maintain backwards compatibility.
+    current_filename = PathEx.EnsureFile(root_dir / "Libraries" / "Python" / "Common_Foundation" / "src" / "Common_Foundation" / "DynamicPluginArchitecture.py")
+
+    commands.append(
+        Commands.SymbolicLink(
+            PathEx.EnsureDir(root_dir / "RepositoryBootstrap" / "SetupAndActivate") / current_filename.name,
+            current_filename,
+            remove_existing=True,
+            relative_path=True,
+        ),
+    )
+
+    return commands

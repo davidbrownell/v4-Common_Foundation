@@ -20,16 +20,16 @@ from pathlib import Path
 from typing import List, Optional
 
 from Common_Foundation.ContextlibEx import ExitStack
-from Common_Foundation.Shell import Commands  # type: ignore
-from Common_Foundation.Shell.All import CurrentShell  # type: ignore
+from Common_Foundation import DynamicPluginArchitecture                     # type: ignore
+from Common_Foundation.Shell import Commands                                # type: ignore
+from Common_Foundation.Shell.All import CurrentShell                        # type: ignore
 from Common_Foundation.SourceControlManagers.GitSourceControlManager import GitSourceControlManager
-from Common_Foundation.Streams.DoneManager import DoneManager  # type: ignore
-from Common_Foundation import SubprocessEx  # type: ignore
-from Common_Foundation import TextwrapEx  # type: ignore
+from Common_Foundation.Streams.DoneManager import DoneManager               # type: ignore
+from Common_Foundation import SubprocessEx                                  # type: ignore
+from Common_Foundation import TextwrapEx                                    # type: ignore
 
 from RepositoryBootstrap import Constants
 from RepositoryBootstrap.Impl.ActivateActivities.ScriptsActivateActivity import Extractor, ExtractorMap
-from RepositoryBootstrap.SetupAndActivate import DynamicPluginArchitecture
 
 
 # ----------------------------------------------------------------------
