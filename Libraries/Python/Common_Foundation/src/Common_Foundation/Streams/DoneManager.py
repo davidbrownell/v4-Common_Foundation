@@ -15,6 +15,7 @@
 # ----------------------------------------------------------------------
 import datetime
 import itertools
+import os
 import sys
 import time
 import traceback
@@ -22,7 +23,8 @@ import traceback
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from enum import auto, Flag
-from typing import Any, Callable, Iterator, List, Optional, TextIO, Union
+from types import TracebackType
+from typing import Any, Callable, Iterator, List, Optional, TextIO, Type as PythonType, Union
 
 from .Capabilities import Capabilities
 from .StreamDecorator import StreamDecorator
@@ -32,9 +34,35 @@ from ..ContextlibEx import ExitStack
 from .. import TextwrapEx
 
 
+DISPLAYED_EXCEPTION_ATTRIBUTE_NAME          = "_displayed_exception___"
+
 # ----------------------------------------------------------------------
 # Optional functionality to use if Typer is installed
 try:
+    # Note that the following code must be defined BEFORE typer is imported.
+
+    # Intercept exceptions so that they are only displayed if they haven't been
+    # displayed before.
+    _original_exception_hook = sys.excepthook
+
+    # ----------------------------------------------------------------------
+    def _ExceptionHook(
+        exc_type: PythonType[BaseException],
+        exc_value: BaseException,
+        tb: TracebackType,
+    ) -> None:
+        if getattr(exc_value, DISPLAYED_EXCEPTION_ATTRIBUTE_NAME, False):
+            return
+
+        _original_exception_hook(exc_type, exc_value, tb)
+
+    # ----------------------------------------------------------------------
+    sys.excepthook = _ExceptionHook
+
+    os.environ["_TYPER_STANDARD_TRACEBACK"] = "1"
+
+
+    # ----------------------------------------------------------------------
     import typer
 
     from click.exceptions import ClickException
@@ -166,7 +194,7 @@ class _CommonArgs(object):
     display_time: bool                                  = field(kw_only=True, default=True)     # Display the time delta
 
     display_exceptions: bool                            = field(kw_only=True, default=True)     # Display exceptions
-    display_exception_details: bool                     = field(kw_only=True, default=True)     # Display exception details
+    display_exception_details: bool                     = field(kw_only=True, default=False)    # Display exception details
     suppress_exceptions: bool                           = field(kw_only=True, default=False)    # Do not let exceptions propagate
 
     preserve_status: bool                               = field(kw_only=True, default=True)
@@ -268,6 +296,7 @@ class DoneManager(object):
         stream: Union[StreamDecorator, TextIO, TextWriter]=sys.stdout,
         *,
         output_flags: DoneManagerFlags=DoneManagerFlags.Standard,
+        **kwargs,
     ) -> Iterator["DoneManager"]:
         """Creates a DoneManager suitable for use with a command-line application"""
 
@@ -278,6 +307,7 @@ class DoneManager(object):
             prefix="\nResults: ",
             suffix="\n",
             output_flags=output_flags,
+            **kwargs,
         ) as dm:
             is_exceptional = False
 
@@ -755,10 +785,16 @@ class DoneManager(object):
 
                 if args.display_exceptions:
                     # Do not display exceptions if they have already been displayed
-                    if not getattr(ex, "_displayed_exception___", False):
-                        object.__setattr__(ex, "_displayed_exception___", True)
+                    if not getattr(ex, DISPLAYED_EXCEPTION_ATTRIBUTE_NAME, False):
+                        object.__setattr__(ex, DISPLAYED_EXCEPTION_ATTRIBUTE_NAME, True)
 
-                        if args.display_exception_details and not isinstance(ex, DoneManagerException):
+                        if (
+                            not isinstance(ex, DoneManagerException)
+                            and (
+                                output_flags & DoneManagerFlags.Debug
+                                or args.display_exception_details
+                            )
+                        ):
                             exception_content = traceback.format_exc()
                         else:
                             exception_content = str(ex)

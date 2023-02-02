@@ -22,32 +22,15 @@ import types
 
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, Callable, Dict, Iterator, List, Generator, Optional, Tuple, Type, Union
+from typing import Any, Dict, Iterator, List, Generator, Optional, Tuple, Type, Union
 
-from Common_Foundation.ContextlibEx import ExitStack
-from Common_Foundation import PathEx
-from Common_Foundation.Streams.DoneManager import DoneManager, DoneManagerException, DoneManagerFlags
+from Common_Foundation import DynamicPluginArchitecture
+from Common_Foundation.Streams.DoneManager import DoneManager, DoneManagerFlags
 from Common_Foundation.Types import overridemethod
 
 from .IntrinsicsBase import IntrinsicsBase
-from ..Interfaces.IInvoker import IInvoker, InvokeReason
+from ..Interfaces.IInvoker import IInvoker
 from ..PluginBase import PluginBase
-
-
-# ----------------------------------------------------------------------
-foundation_repo_root = os.getenv("DEVELOPMENT_ENVIRONMENT_FOUNDATION")
-if foundation_repo_root:
-    foundation_repo_root = Path(foundation_repo_root)
-else:
-    foundation_repo_root = Path(__file__).parent / "Common_Foundation"
-
-PathEx.EnsureDir(foundation_repo_root)
-
-sys.path.insert(0, str(foundation_repo_root))
-with ExitStack(lambda: sys.path.pop(0)):
-    from RepositoryBootstrap.SetupAndActivate import DynamicPluginArchitecture  # pylint: disable=import-error
-
-del foundation_repo_root
 
 
 # ----------------------------------------------------------------------
@@ -66,166 +49,55 @@ class CodeGeneratorPluginHostMixin(
         self,
         dynamic_plugin_architecture_environment_key_or_plugin_dir: Union[str, Path],
     ):
-        self._dynamic_plugin_architecture_environment_key_or_plugin_dir     = dynamic_plugin_architecture_environment_key_or_plugin_dir
+        all_plugins = self.__class__._LoadAllPlugins(dynamic_plugin_architecture_environment_key_or_plugin_dir)  # pylint: disable=protected-access
 
-        self._plugin_cache: Dict[str, PluginBase]                           = {}
+        self._all_plugins: list[PluginBase]             = all_plugins
+        self._plugin_cache: dict[str, PluginBase]       = {}
 
     # ----------------------------------------------------------------------
-    def LoadPlugin(
+    def EnumPlugins(self) -> Generator[PluginBase, None, None]:
+        yield from self._all_plugins
+
+    # ----------------------------------------------------------------------
+    def GetPlugin(
         self,
-        metadata_or_context: Dict[str, Any],
-        dm: Optional[DoneManager],
+        metadata_or_context: dict[str, Any],
     ) -> PluginBase:
-        # Load the plugin modules
         plugin_name = metadata_or_context.get("plugin", None)
         if plugin_name is None:
-            raise DoneManagerException("No plugins were specified.")
+            raise Exception("No plugins were specified.")
 
-        cache_key = plugin_name
+        if plugin_name == "None":
+            raise Exception("A plugin name was not provided on the command line.")
 
-        cached_result = self._plugin_cache.get(cache_key, None)
-        if cached_result is not None:
-            return cached_result
+        cached_plugin = self._plugin_cache.get(plugin_name, None)
+        if cached_plugin is not None:
+            return cached_plugin
 
-        is_file_input = False
+        potential_path = Path(plugin_name)
+        if potential_path.is_file():
+            plugins = self.__class__._LoadAllPlugins(
+                potential_path,
+                heading="Loading explicit plugin...",
+            )
 
-        # ----------------------------------------------------------------------
-        def GetEnvironmentKeyOrPath():
-            nonlocal is_file_input
+            if not plugins:
+                raise Exception("The plugin could not be loaded.")
 
-            potential_path = Path(plugin_name)
-            if potential_path.is_file():
-                is_file_input = True
-                return potential_path
-
-            return self._dynamic_plugin_architecture_environment_key_or_plugin_dir
-
-        # ----------------------------------------------------------------------
-
-        environment_key_or_path = GetEnvironmentKeyOrPath()
-
-        plugin_modules: List[types.ModuleType] = []
-
-        if isinstance(environment_key_or_path, str):
-            plugin_modules += DynamicPluginArchitecture.EnumeratePlugins(environment_key_or_path)
-
-        elif isinstance(environment_key_or_path, Path):
-            plugin_filenames: List[Path] = []
-
-            if environment_key_or_path.is_file():
-                if environment_key_or_path.suffix != ".py":
-                    raise DoneManagerException("'{}' is not a valid python filename.\n".format(environment_key_or_path))
-
-                plugin_filenames.append(environment_key_or_path)
-                is_file_input = True
-
-            elif environment_key_or_path.is_dir():
-                for filename in environment_key_or_path.iterdir():
-                    if filename.suffix == ".py" and filename.stem.endswith("Plugin"):
-                        plugin_filenames.append(filename)
-
-            else:
-                raise DoneManagerException("'{}' is not a valid filename or directory.".format(environment_key_or_path))
-
-            plugin_modules += [DynamicPluginArchitecture.LoadPlugin(filename) for filename in plugin_filenames]
+            assert len(plugins) == 1
+            plugin = plugins[0]
 
         else:
-            assert False, environment_key_or_path  # pragma: no cover
+            plugin = next(
+                (plugin for plugin in self._all_plugins if plugin.name == plugin_name),
+                None,
+            )
 
-        # ----------------------------------------------------------------------
-        @contextmanager
-        def YieldDoneManager() -> Iterator[DoneManager]:
-            if dm is not None:
-                yield dm
-                return
+            if plugin is None:
+                raise Exception("The plugin name '{}' is not valid.".format(plugin_name))
 
-            # Create a diagnostics stream
-            is_debug = False
-
-            value = os.getenv(self.__class__.DEBUG_ENV_VAR_NAME)
-            if value and value != "0":
-                is_debug = True
-
-            is_verbose = False
-
-            value = os.getenv(self.__class__.VERBOSE_ENV_VAR_NAME)
-            if value and value != "0":
-                is_verbose = True
-
-            with DoneManager.Create(
-                sys.stdout,
-                "Loading plugins...",
-                output_flags=DoneManagerFlags.Create(
-                    verbose=is_verbose,
-                    debug=is_debug,
-                ),
-            ) as temp_dm:
-                yield temp_dm
-
-        # ----------------------------------------------------------------------
-
-        with YieldDoneManager() as dm:
-            # Load the plugin instances
-            plugin_infos: Dict[str, Tuple[types.ModuleType, PluginBase]] = {}
-
-            for plugin_module in plugin_modules:
-                plugin_class: Optional[Type[PluginBase]] = None
-
-                for potential_class_name in ["Plugin", "CodeGeneratorPlugin"]:
-                    plugin_class = getattr(plugin_module, potential_class_name, None)
-                    if plugin_class is not None:
-                        break
-
-                if plugin_class is None:
-                    dm.WriteWarning("The module at '{}' does not contains a 'Plugin' class.\n".format(plugin_module.__file__))
-                    continue
-
-                plugin_instance = plugin_class()
-
-                if plugin_instance.name == "None":
-                    dm.WriteError("The module  at '{}' contains a plugin with the name 'None'.\n".format(plugin_module.__file__))
-                    continue
-
-                validate_environment = plugin_instance.ValidateEnvironment()
-                if validate_environment is not None:
-                    dm.WriteInfo(
-                        "The plugin '{}' defined in '{}' is not valid within this environment: {}\n".format(
-                            plugin_instance.name,
-                            plugin_module.__file__,
-                            validate_environment,
-                        ),
-                    )
-                    continue
-
-                existing_plugin = plugin_infos.get(plugin_instance.name, None)
-                if existing_plugin is not None:
-                    dm.WriteWarning(
-                        "The plugin '{}' defined in '{}' conflicts the a plugin of the same name defined in '{}' and will not be used.\n".format(
-                            plugin_instance.name,
-                            plugin_module.__file__,
-                            existing_plugin[0].__file__,
-                        ),
-                    )
-                    continue
-
-                plugin_infos[plugin_instance.name] = plugin_module, plugin_instance
-
-        if not plugin_infos:
-            raise DoneManagerException("No plugins were found.\n")
-
-        if is_file_input:
-            assert len(plugin_infos) == 1, plugin_infos
-            result = next(iter(plugin_infos.values()))[1]
-        else:
-            result = plugin_infos.get(plugin_name, None)
-            if result is None:
-                raise DoneManagerException("The plugin name '{}' is not valid.".format(plugin_name))
-
-            result = result[1]
-
-        self._plugin_cache[cache_key] = result
-
-        return result
+        self._plugin_cache[plugin_name] = plugin
+        return plugin
 
     # ----------------------------------------------------------------------
     # ----------------------------------------------------------------------
@@ -257,7 +129,7 @@ class CodeGeneratorPluginHostMixin(
     ) -> Generator[Path, None, None]:
         yield from super(CodeGeneratorPluginHostMixin, self)._EnumerateGeneratorFiles(context)
 
-        for base_class in inspect.getmro(type(self.LoadPlugin(context, None))):
+        for base_class in inspect.getmro(type(self.GetPlugin(context))):
             if base_class.__name__ != "object":
                 yield Path(inspect.getfile(base_class))
 
@@ -268,4 +140,121 @@ class CodeGeneratorPluginHostMixin(
         context: Dict[str, Any],
     ) -> int:
         return super(CodeGeneratorPluginHostMixin, self)._GetNumStepsImpl(context) \
-            + self.LoadPlugin(context, None).GetNumSteps(context)
+            + self.GetPlugin(context).GetNumAdditionalSteps(context)
+
+    # ----------------------------------------------------------------------
+    @classmethod
+    def _LoadAllPlugins(
+        cls,
+        environment_key_plugin_dir_or_file: Union[str, Path],
+        *,
+        heading: str="Loading Plugins...",
+    ) -> list[PluginBase]:
+        with cls._YieldGlobalDoneManager(heading) as dm:
+            modules: list[types.ModuleType] = []
+
+            if isinstance(environment_key_plugin_dir_or_file, str):
+                modules += DynamicPluginArchitecture.EnumeratePlugins(environment_key_plugin_dir_or_file)
+
+            elif isinstance(environment_key_plugin_dir_or_file, Path):
+                plugin_filenames: list[Path] = []
+
+                if environment_key_plugin_dir_or_file.is_file():
+                    if environment_key_plugin_dir_or_file.suffix != ".py":
+                        raise Exception("'{}' is not a valid python filename.".format(environment_key_plugin_dir_or_file))
+
+                    plugin_filenames.append(environment_key_plugin_dir_or_file)
+
+                elif environment_key_plugin_dir_or_file.is_dir():
+                    for child in environment_key_plugin_dir_or_file.iterdir():
+                        if (
+                            child.is_file()
+                            and child.suffix == ".py"
+                            and child.stem.endswith("Plugin")
+                        ):
+                            plugin_filenames.append(child)
+
+                else:
+                    raise Exception("'{}' is not a valid filename or directory.".format(environment_key_plugin_dir_or_file))
+
+                modules += [DynamicPluginArchitecture.LoadPlugin(filename) for filename in plugin_filenames]
+
+            else:
+                assert False, environment_key_plugin_dir_or_file  # pragma: no cover
+
+            # Load the instances
+            plugin_infos: dict[str, Tuple[types.ModuleType, PluginBase]] = {}
+
+            for module in modules:
+                plugin_class: Optional[Type[PluginBase]] = None
+
+                for potential_class_name in ["Plugin", "CodeGeneratorPlugin"]:
+                    plugin_class = getattr(module, potential_class_name, None)
+                    if plugin_class is not None:
+                        break
+
+                if plugin_class is None:
+                    dm.WriteWarning("The module at '{}' does not contain a 'Plugin' class.\n".format(module.__file__))
+                    continue
+
+                plugin_instance = plugin_class()
+
+                if plugin_instance.name == "None":
+                    dm.WriteError("The module at '{}' contains a plugin with the reserved name 'None'.\n".format(module.__file__))
+                    continue
+
+                validate_environment = plugin_instance.ValidateEnvironment()
+                if validate_environment is not None:
+                    dm.WriteInfo(
+                        "The plugin '{}' (defined at '{}') is not valid within this environment: {}\n".format(
+                            plugin_instance.name,
+                            module.__file__,
+                            validate_environment,
+                        ),
+                    )
+                    continue
+
+                existing_plugin = plugin_infos.get(plugin_instance.name, None)
+                if existing_plugin is not None:
+                    dm.WriteWarning(
+                        "The plugin '{}' (defined at '{}') conflicts with the plugin of the same name defined at '{}' and will not be used.\n".format(
+                            plugin_instance.name,
+                            module.__file__,
+                            existing_plugin[0].__file__,
+                        ),
+                    )
+                    continue
+
+                plugin_infos[plugin_instance.name] = module, plugin_instance
+
+            return [value[1] for value in plugin_infos.values()]
+
+    # ----------------------------------------------------------------------
+    @classmethod
+    @contextmanager
+    def _YieldGlobalDoneManager(
+        cls,
+        heading: str,
+    ) -> Iterator[DoneManager]:
+        # Create a diagnostics stream
+        is_debug = False
+
+        value = os.getenv(cls.DEBUG_ENV_VAR_NAME)
+        if value and value != "0":
+            is_debug = True
+
+        is_verbose = False
+
+        value = os.getenv(cls.VERBOSE_ENV_VAR_NAME)
+        if value and value != "0":
+            is_verbose = True
+
+        with DoneManager.Create(
+            sys.stdout,
+            heading,
+            output_flags=DoneManagerFlags.Create(
+                verbose=is_verbose,
+                debug=is_debug,
+            ),
+        ) as temp_dm:
+            yield temp_dm

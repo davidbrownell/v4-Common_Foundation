@@ -26,17 +26,17 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import typer
 
-from typer.models import OptionInfo
-
 from Common_Foundation.ContextlibEx import ExitStack
 from Common_Foundation import PathEx
 from Common_Foundation.Shell.All import CurrentShell
+from Common_Foundation.Streams.Capabilities import Capabilities
 from Common_Foundation.Streams.DoneManager import DoneManager, DoneManagerException
 from Common_Foundation.Streams.StreamDecorator import StreamDecorator
 from Common_Foundation import TextwrapEx
 
 from Common_FoundationEx import ExecuteTasks
 from Common_FoundationEx.InflectEx import inflect
+from Common_FoundationEx import TyperEx
 
 from .CompilerImpl import CompilerImpl, InputType
 from .Mixins.OutputProcessorMixins.NoOutputProcessorMixin import NoOutputProcessorMixin
@@ -48,11 +48,36 @@ from Common_Foundation.Streams.DoneManager import DoneManagerFlags          # py
 
 
 # ----------------------------------------------------------------------
+_plugin_parameter                           = textwrap.dedent(
+    """\
+    raw_plugin_args: list[str]=TyperEx.TyperDictOption(None, {}, "--plugin-arg", allow_any__=True, help="Argument passed to the specified plugin."),
+    plugin_help: bool=typer.Option(False, "--plugin-help", help="Displays help information for arguments specific to the specified plugin."),
+    """,
+)
+
+_plugin_statement_true                      = textwrap.dedent(
+    """\
+    plugin_args=TyperEx.PostprocessDictArgument(raw_plugin_args),
+    plugin_help=plugin_help,
+    """,
+)
+
+_plugin_statement_false                     = textwrap.dedent(
+    """\
+    plugin_args={},
+    plugin_help=False,
+    """,
+)
+
+
+# ----------------------------------------------------------------------
 def CreateInvokeCommandLineFunc(
     app: typer.Typer,
     compiler: CompilerImpl,
+    *,
+    process_plugin_args: bool=False,
 ) -> Callable[..., None]:
-    custom_parameters = _CustomParameters.Create(compiler)
+    custom_info = TyperEx.DynamicPythonCode.Create(compiler.GetCustomCommandLineArgs())
 
     if compiler.requires_output_dir:
         output_dir_parameter = textwrap.dedent(
@@ -78,6 +103,14 @@ def CreateInvokeCommandLineFunc(
         single_threaded_parameter = ""
         single_threaded_argument = "single_threaded=False"
 
+    if process_plugin_args:
+        plugin_parameter = _plugin_parameter
+        plugin_statement = _plugin_statement_true
+
+    else:
+        plugin_parameter = ""
+        plugin_statement = _plugin_statement_false
+
     func = textwrap.dedent(
         """\
         # ----------------------------------------------------------------------
@@ -98,6 +131,7 @@ def CreateInvokeCommandLineFunc(
             quiet: bool=typer.Option(False, "--quiet", help="Write less output to the terminal."),
             verbose: bool=typer.Option(False, "--verbose", help="Write verbose information to the terminal."),
             debug: bool=typer.Option(False, "--debug", help="Write additional debug information to the terminal."),
+            {plugin_parameter}
         ) -> None:
             '''Invokes '{name}'.'''
 
@@ -109,29 +143,32 @@ def CreateInvokeCommandLineFunc(
                     dm,
                     inputs,
                     {output_dir_argument},
-                    {custom_args},
+                    {{ {custom_args} }},
                     {single_threaded_argument},
                     quiet=quiet,
                     single_task=single_task,
+                    {plugin_statement}
                 )
         """,
     ).format(
         name=compiler.name,
         invocation_method_name=compiler.invocation_method_name,
+        plugin_parameter=TextwrapEx.Indent(plugin_parameter.rstrip(), 4, skip_first_line=True),
         file_okay="True" if compiler.input_type == InputType.Files else "False",
         output_dir_parameter=TextwrapEx.Indent(
             output_dir_parameter,
             4,
             skip_first_line=True,
         ),
-        custom_parameters=custom_parameters.GetParametersCode(),
+        custom_parameters=custom_info.GenerateFuncParameters(),
         single_threaded_parameter=single_threaded_parameter,
         output_dir_argument=output_dir_argument,
         single_threaded_argument=single_threaded_argument,
-        custom_args=custom_parameters.GetArgumentsCode(),
+        custom_args=custom_info.GenerateFuncArguments(single_line=True, as_dict_args=True),
+        plugin_statement=TextwrapEx.Indent(plugin_statement.rstrip(), 12, skip_first_line=True),
     )
 
-    exec(func, _CreateGlobalVars(app, compiler, custom_parameters))  # pylint: disable=exec-used
+    exec(func, _CreateGlobalVars(app, compiler, custom_info.python_type_values))  # pylint: disable=exec-used
 
     return Impl  #  type: ignore  # pylint: disable=undefined-variable
 
@@ -140,10 +177,20 @@ def CreateInvokeCommandLineFunc(
 def CreateCleanCommandLineFunc(
     app: typer.Typer,
     compiler: CompilerImpl,
+    *,
+    process_plugin_args: bool=False,
 ) -> Callable[..., None]:
     assert compiler.requires_output_dir
 
-    custom_parameters = _CustomParameters.Create(compiler)
+    custom_info = TyperEx.DynamicPythonCode.Create(compiler.GetCustomCommandLineArgs())
+
+    if process_plugin_args:
+        plugin_parameter = _plugin_parameter
+        plugin_statement = _plugin_statement_true
+
+    else:
+        plugin_parameter = ""
+        plugin_statement = _plugin_statement_false
 
     func = textwrap.dedent(
         """\
@@ -161,6 +208,7 @@ def CreateCleanCommandLineFunc(
             {custom_parameters}
             verbose: bool=typer.Option(False, "--verbose", help="Write verbose information to the terminal."),
             debug: bool=typer.Option(False, "--debug", help="Write additional debug information to the terminal."),
+            {plugin_parameter}
         ) -> None:
             '''Cleans items generated by '{name}' during prior calls to '{invocation_method_name}'.'''
 
@@ -171,17 +219,20 @@ def CreateCleanCommandLineFunc(
                     compiler,
                     dm,
                     inputs,
-                    {custom_args},
+                    {{ {custom_args} }},
+                    {plugin_statement}
                 )
         """,
     ).format(
         name=compiler.name,
         invocation_method_name=compiler.invocation_method_name,
-        custom_parameters=custom_parameters.GetParametersCode(),
-        custom_args=custom_parameters.GetArgumentsCode(),
+        plugin_parameter=TextwrapEx.Indent(plugin_parameter.rstrip(), 4, skip_first_line=True),
+        custom_parameters=custom_info.GenerateFuncParameters(),
+        custom_args=custom_info.GenerateFuncArguments(single_line=True, as_dict_args=True),
+        plugin_statement=TextwrapEx.Indent(plugin_statement.rstrip(), 12, skip_first_line=True),
     )
 
-    exec(func, _CreateGlobalVars(app, compiler, custom_parameters))  # pylint: disable=exec-used
+    exec(func, _CreateGlobalVars(app, compiler, custom_info.python_type_values))  # pylint: disable=exec-used
 
     return Impl  #  type: ignore  # pylint: disable=undefined-variable
 
@@ -190,8 +241,18 @@ def CreateCleanCommandLineFunc(
 def CreateListCommandLineFunc(
     app: typer.Typer,
     compiler: CompilerImpl,
+    *,
+    process_plugin_args: bool=False,
 ) -> Callable[..., None]:
-    custom_parameters = _CustomParameters.Create(compiler)
+    custom_info = TyperEx.DynamicPythonCode.Create(compiler.GetCustomCommandLineArgs())
+
+    if process_plugin_args:
+        plugin_parameter = _plugin_parameter
+        plugin_statement = _plugin_statement_true
+
+    else:
+        plugin_parameter = ""
+        plugin_statement = _plugin_statement_false
 
     func = textwrap.dedent(
         """\
@@ -209,6 +270,7 @@ def CreateListCommandLineFunc(
             {custom_parameters}
             verbose: bool=typer.Option(False, "--verbose", help="Write verbose information to the terminal."),
             debug: bool=typer.Option(False, "--debug", help="Write additional debug information to the terminal."),
+            {plugin_parameter}
         ) -> None:
             '''Lists items that will be processed by '{name}' during calls to '{invocation_method_name}'.'''
 
@@ -219,17 +281,20 @@ def CreateListCommandLineFunc(
                     compiler,
                     dm,
                     inputs,
-                    {custom_args},
+                    {{ {custom_args} }},
+                    {plugin_statement}
                 )
         """,
     ).format(
         name=compiler.name,
         invocation_method_name=compiler.invocation_method_name,
-        custom_parameters=custom_parameters.GetParametersCode(),
-        custom_args=custom_parameters.GetArgumentsCode(),
+        plugin_parameter=TextwrapEx.Indent(plugin_parameter.rstrip(), 4, skip_first_line=True),
+        custom_parameters=custom_info.GenerateFuncParameters(),
+        custom_args=custom_info.GenerateFuncArguments(single_line=True, as_dict_args=True),
+        plugin_statement=TextwrapEx.Indent(plugin_statement.rstrip(), 12, skip_first_line=True),
     )
 
-    exec(func, _CreateGlobalVars(app, compiler, custom_parameters))  # pylint: disable=exec-used
+    exec(func, _CreateGlobalVars(app, compiler, custom_info.python_type_values))  # pylint: disable=exec-used
 
     return Impl  #  type: ignore  # pylint: disable=undefined-variable
 
@@ -238,71 +303,6 @@ def CreateListCommandLineFunc(
 # |
 # |  Private Types
 # |
-# ----------------------------------------------------------------------
-@dataclass(frozen=True)
-class _CustomParameters(object):
-    # ----------------------------------------------------------------------
-    parameters: Dict[str, str]
-    types: Dict[str, OptionInfo]
-
-    # ----------------------------------------------------------------------
-    @classmethod
-    def Create(
-        cls,
-        compiler: CompilerImpl,
-        result_var_name: str="custom_parameters",
-    ) -> "_CustomParameters":
-        parameters: Dict[str, str] = {}
-        types: Dict[str, OptionInfo] = {}
-
-        for k, v in compiler.GetCustomCommandLineArgs().items():
-            if isinstance(v, tuple):
-                annotation, v = v
-
-                if isinstance(v, dict):
-                    v = typer.Option(None, **v)
-
-                assert isinstance(v, OptionInfo), v
-                types[k] = v
-
-                default = '={}.types["{}"]'.format(result_var_name, k)
-            else:
-                annotation = v
-                default = ""
-
-            annotation_name = str(annotation)
-
-            if annotation_name.startswith("typing."):
-                annotation_name = annotation_name[len("typing."):]
-            elif isinstance(annotation, str):
-                annotation_name = annotation
-            else:
-                annotation_name = annotation.__name__
-
-            parameters[k] = '{name}: {annotation}{default}'.format(
-                name=k,
-                annotation=annotation_name,
-                default=default,
-            )
-
-        return cls(parameters, types)
-
-    # ----------------------------------------------------------------------
-    def GetParametersCode(self) -> str:
-        return TextwrapEx.Indent(
-            "\n".join("{},".format(parameter) for parameter in self.parameters.values()),
-            4,
-            skip_first_line=True,
-        )
-
-    # ----------------------------------------------------------------------
-    def GetArgumentsCode(self) -> str:
-        if not self.parameters:
-            return "{}"
-
-        return "{{{}}}".format(", ".join('"{k}": {k}'.format(k=k) for k in self.parameters))
-
-
 # ----------------------------------------------------------------------
 @dataclass(frozen=True)
 class _ContextInfo(object):
@@ -318,16 +318,31 @@ class _ContextInfo(object):
         dm: DoneManager,
         inputs: List[Path],
         output_dir: Path,
-        custom_params: Dict[str, Any],
+        metadata: Dict[str, Any],
+        *,
+        plugin_args: dict[str, Any],
+        plugin_help: bool,
+        single_task: bool,
     ) -> "_ContextInfo":
         result = compiler.ValidateEnvironment()
         if result is not None:
             dm.WriteError(result)
             return cls([], None)
 
+        # Augment the metadata
         if compiler.requires_output_dir:
-            custom_params["output_dir"] = output_dir
+            metadata["output_dir"] = output_dir
 
+        metadata["plugin_args"] = plugin_args
+        metadata["plugin_help"] = plugin_help
+
+        # Validate the metadata
+        compiler.ValidateMetadata(dm, metadata)
+
+        if dm.result != 0:
+            return cls([], None)
+
+        # Create contexts based on the metadata
         contexts: List[Dict[str, Any]] = []
 
         with dm.Nested(
@@ -336,7 +351,12 @@ class _ContextInfo(object):
             suffix="\n",
         ) as generate_dm:
             try:
-                contexts += compiler.GenerateContextItems(generate_dm, inputs, custom_params)
+                contexts += compiler.GenerateContextItems(
+                    generate_dm,
+                    inputs,
+                    metadata,
+                    do_not_decorate_output_dir_with_index=single_task,
+                )
             except DoneManagerException:
                 generate_dm.result = -1
             except Exception as ex:
@@ -396,14 +416,14 @@ class _ContextInfo(object):
 def _CreateGlobalVars(
     app,
     compiler: CompilerImpl,
-    custom_parameters: _CustomParameters,
+    default_parameter_types: dict[str, typer.models.OptionInfo],
 ):
     global_vars = globals()
 
     global_vars["app"] = app
     global_vars["compiler"] = compiler
     global_vars["compiler_type"] = type(compiler)
-    global_vars["custom_parameters"] = custom_parameters
+    global_vars[TyperEx.DynamicPythonCode.DEFAULT_OPTION_TYPES_VAR_NAME] = default_parameter_types
 
     if compiler.invocation_method_name == "Compile":
         global_vars["CompilerImpl"] = type(compiler)
@@ -425,15 +445,26 @@ def _InvokeImpl(
     dm: DoneManager,
     inputs: List[Path],
     output_dir: Path,
-    custom_params: Dict[str, Any],
+    metadata: Dict[str, Any],
     *,
     single_task: bool,
     single_threaded: bool,
     quiet: bool,
+    plugin_args: dict[str, Any],
+    plugin_help: bool,
 ) -> None:
     """Implements invoke functionality for the compiler"""
 
-    context_info = _ContextInfo.Create(compiler, dm, inputs, output_dir, custom_params)
+    context_info = _ContextInfo.Create(
+        compiler,
+        dm,
+        inputs,
+        output_dir,
+        metadata,
+        plugin_args=plugin_args,
+        plugin_help=plugin_help,
+        single_task=single_task,
+    )
 
     if not context_info.contexts:
         return
@@ -475,6 +506,20 @@ def _InvokeImpl(
             status: ExecuteTasks.Status,
         ) -> Tuple[int, Optional[str]]:
             with open(context.log_filename, "w") as f:
+                if single_task:
+                    supports_colors = dm.capabilities.supports_colors
+                    is_headless = dm.capabilities.is_headless
+                else:
+                    supports_colors = False
+                    is_headless = True
+
+                Capabilities.Create(
+                    f,
+                    is_interactive=False,
+                    supports_colors=supports_colors,
+                    is_headless=is_headless,
+                )
+
                 result = getattr(compiler, compiler.invocation_method_name)(
                     context.compiler_context,
                     f,
@@ -752,11 +797,23 @@ def _CleanImpl(
     dm: DoneManager,
     inputs: List[Path],
     output_dir: Path,
-    custom_params: Dict[str, Any],
+    metadata: Dict[str, Any],
+    *,
+    plugin_args: dict[str, Any],
+    plugin_help: bool,
 ) -> None:
     """Implements clean functionality for the compiler"""
 
-    context_info = _ContextInfo.Create(compiler, dm, inputs, output_dir, custom_params)
+    context_info = _ContextInfo.Create(
+        compiler,
+        dm,
+        inputs,
+        output_dir,
+        metadata,
+        plugin_args=plugin_args,
+        plugin_help=plugin_help,
+        single_task=False,
+    )
 
     if not context_info.contexts:
         return
@@ -787,15 +844,27 @@ def _ListImpl(
     compiler: CompilerImpl,
     dm: DoneManager,
     inputs: List[Path],
-    custom_params: Dict[str, Any],
+    metadata: Dict[str, Any],
+    *,
+    plugin_args: dict[str, Any],
+    plugin_help: bool,
 ) -> None:
     """Implements list functionality for the compiler"""
 
     temp_dir = CurrentShell.CreateTempDirectory()
     with ExitStack(lambda: PathEx.RemoveTree(temp_dir)):
-        with dm.YieldStream() as stream:
-            context_info = _ContextInfo.Create(compiler, dm, inputs, temp_dir, custom_params)
+        context_info = _ContextInfo.Create(
+            compiler,
+            dm,
+            inputs,
+            temp_dir,
+            metadata,
+            plugin_args=plugin_args,
+            plugin_help=plugin_help,
+            single_task=False,
+        )
 
+        with dm.YieldStream() as stream:
             for index, context in enumerate(context_info.contexts):
                 stream.write("\n")
 

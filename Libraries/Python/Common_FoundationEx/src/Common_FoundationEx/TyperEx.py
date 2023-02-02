@@ -17,29 +17,221 @@
 
 import re
 
-from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Type, TypeVar, Union
+from dataclasses import dataclass
+from types import NoneType
+from typing import Any, Callable, cast, ClassVar, Iterable, Optional, Tuple, Type, TypeVar, Union
 
 import typer
 
 from typer import models as typer_models
 from typer import main as typer_main
 
+from Common_Foundation import TextwrapEx
+
+
+# ----------------------------------------------------------------------
+# |
+# |  Public Types
+# |
+# ----------------------------------------------------------------------
+@dataclass(frozen=True)
+class TypeDefinitionItem(object):
+    """Information used to generate a dynamic command line argument"""
+
+    # ----------------------------------------------------------------------
+    python_type: Type
+    option_info: typer.models.OptionInfo
+
+    # ----------------------------------------------------------------------
+    @classmethod
+    def Create(
+        cls,
+        python_type: Type,
+        *,
+        assume_optional: bool=False,
+        **option_info_kwargs,
+    ) -> "TypeDefinitionItem":
+        is_optional = (
+            assume_optional or (
+                getattr(python_type, "__origin__", None) is Union
+                and any(value is NoneType for value in python_type.__args__)
+            )
+        )
+
+        typer_option = typer.Option(
+            None if is_optional else ...,
+            **option_info_kwargs,
+        )
+
+        return cls(python_type, typer_option)
+
 
 # ----------------------------------------------------------------------
 TypeDefinitionItemType                      = Union[
-    Any,                                    # Type annotation
+    TypeDefinitionItem,
+
+    # Note that the following values are converted into TyperDefinitionItem types
+    Type,                                   # Python type annotation
     Tuple[
-        Any,                                # Type annotation
+        Type,                               # Python type annotation
         Union[
-            Dict[str, Any],                 # Keyword arguments to pass to typer.models.OptionInfo
+            dict[str, Any],                 # Keyword arguments to pass to typer.models.OptionInfo
             typer.models.OptionInfo,        # The OptionInfo itself
         ],
     ],
 ]
 
-TypeDefinitionsType                         = Dict[str, TypeDefinitionItemType]
+
+TypeDefinitionsType                         = dict[str, TypeDefinitionItemType]
 
 
+# ----------------------------------------------------------------------
+@dataclass(frozen=True)
+class DynamicPythonCode(object):
+    """\
+    Code dynamically generated based on type definitions.
+
+    Example:
+        dynamic_python_code = DynamicPythonCode.Create(
+            {
+                "arg1": TypeDefinitionItem(int, typer.Option(10)),
+                "arg2": int,
+                "arg3": (int, {"help": "This is the help"}),
+                "arg4": (int, typer.Option(20)),
+            },
+            "custom_types_name",
+        )
+
+        # Note that the following var name MUST match the valid provided to
+        # TypeDefinitionToPythonFuncArguments.
+
+        custom_types_name = dynamic_python_code.types
+
+        func_code = textwrap.dedent(
+            '''\
+            @app.command()
+            def DynamicFunc(
+                {parameters}
+            ):
+                print({arguments})
+
+            ''',
+        ).format(
+            parameters=dynamic_python_code.GenerateFuncParameters(),
+            arguments=dynamic_python_code.GenerateFuncArguments(single_line=True),
+        )
+
+        exec(func_code, globals(), locals())
+
+        DynamicFunc()                       # 10, None, None, 20
+        DynamicFunc(arg2=300)               # 10, 300, None, 20
+        DynamicFunc(1, 2, 3, 4)             # 1, 2, 3, 4
+    """
+
+    DEFAULT_OPTION_TYPES_VAR_NAME: ClassVar[str]        = "default_parameter_types"
+
+    # ----------------------------------------------------------------------
+    python_parameters: dict[str, str]
+    python_type_values: dict[str, typer.models.OptionInfo]
+
+    # ----------------------------------------------------------------------
+    @classmethod
+    def Create(
+        cls,
+        type_definitions: TypeDefinitionsType,
+        option_types_var_name: str=DEFAULT_OPTION_TYPES_VAR_NAME,
+    ) -> "DynamicPythonCode":
+        parameters: dict[str, str] = {}
+        types: dict[str, typer.models.OptionInfo] = {}
+
+        for k, v in type_definitions.items():
+            option_info: Optional[typer.models.OptionInfo] = None
+
+            if isinstance(v, TypeDefinitionItem):
+                python_type = v.python_type
+                option_info = v.option_info
+
+            elif isinstance(v, tuple):
+                python_type, option_param = v
+
+                if isinstance(option_param, dict):
+                    option_info = typer.Option(None, **option_param)
+                else:
+                    option_info = option_param
+
+            else:
+                python_type = v
+                option_info = typer.Option(None)
+
+            python_type_name = str(python_type)
+
+            if python_type_name.startswith("typing."):
+                python_type_name = python_type_name[len("typing."):]
+            elif isinstance(python_type, str):
+                python_type_name = python_type
+            else:
+                python_type_name = python_type.__name__
+
+            assert isinstance(option_info, typer.models.OptionInfo), option_info
+
+            types[k] = option_info
+
+            parameters[k] = '{name}: {python_type_name}={var_name}["{name}"]'.format(
+                name=k,
+                python_type_name=python_type_name,
+                var_name=option_types_var_name,
+            )
+
+        return DynamicPythonCode(parameters, types)
+
+    # ----------------------------------------------------------------------
+    def GenerateFuncParameters(
+        self,
+        *,
+        single_line: bool=False,
+        indentation: int=4,
+        skip_first_line: bool=True,
+    ) -> str:
+        if single_line:
+            return ", ".join(parameter for parameter in self.python_parameters.values())
+
+        return TextwrapEx.Indent(
+            "\n".join("{},".format(parameter) for parameter in self.python_parameters.values()),
+            indentation,
+            skip_first_line=skip_first_line,
+        )
+
+    # ----------------------------------------------------------------------
+    def GenerateFuncArguments(
+        self,
+        *,
+        single_line: bool=False,
+        as_dict_args: bool=False,
+        as_kwargs: bool=False,
+        indentation: int=4,
+        skip_first_line: bool=True,
+    ) -> str:
+        if as_dict_args:
+            decorate_parameter_func = lambda value: '"{value}": {value}'.format(value=value)
+        elif as_kwargs:
+            decorate_parameter_func = lambda value: "{value}={value}".format(value=value)
+        else:
+            decorate_parameter_func = lambda value: value
+
+        if single_line:
+            return ", ".join(decorate_parameter_func(parameter) for parameter in self.python_parameters.keys())
+
+        return TextwrapEx.Indent(
+            "\n".join("{},".format(decorate_parameter_func(parameter)) for parameter in self.python_parameters.keys()),
+            indentation,
+            skip_first_line=skip_first_line,
+        )
+
+
+# ----------------------------------------------------------------------
+# |
+# |  Public Functions
+# |
 # ----------------------------------------------------------------------
 def TyperDictArgument(
     default: Optional[Any],                 # None or ...
@@ -101,6 +293,7 @@ def TyperDictArgument(
         allow_any__,
         None,
         argument_info_kwargs,
+        assume_optional=False,
     )
 
 
@@ -129,6 +322,7 @@ def TyperDictOption(
         allow_any__,
         option_info_args,
         option_info_kwargs,
+        assume_optional=True,
     )
 
 
@@ -145,10 +339,10 @@ def TypeDictOption(*args, **kwargs) -> Any:
 
 # ----------------------------------------------------------------------
 def PostprocessDictArgument(
-    args: Optional[List[Any]],
-) -> Dict[str, Any]:
+    args: Optional[list[Any]],
+) -> dict[str, Any]:
     """\
-    Converts data that is plumbed through `TypeDictArgument` or `TypeDictOption` into
+    Converts data that is plumbed through `TyperDictArgument` or `TyperDictOption` into
     a dictionary, as expected.
 
     This postprocessing step is necessary to ensure that the data (that doesn't look like
@@ -170,7 +364,7 @@ def PostprocessDictArgument(
 def ProcessDynamicArgs(
     ctx: typer.Context,
     type_definitions: TypeDefinitionsType,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """\
     Process arguments dynamically added. This functionality is used when the
     types of some arguments are dynamically dependent upon the value if arguments
@@ -200,7 +394,7 @@ def ProcessDynamicArgs(
     """
 
     # Group the arguments
-    arguments: List[Tuple[str, Optional[str]]] = []
+    arguments: list[Tuple[str, Optional[str]]] = []
 
     for arg in ctx.args:
         if arg.startswith("-"):
@@ -230,79 +424,67 @@ def ProcessArguments(
     *,
     assume_optional: bool=False,
     ctx: Optional[typer.Context]=None,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """\
     Processes arguments dynamically. Use this method when you don't know what the type definitions
     are going to be before the script is invoked.
     """
 
     return _ProcessArgumentsImpl(
-        _TypeDefinitionsToClickParams(type_definitions, assume_optional=assume_optional),
+        _TypeDefinitionItemsToClickParams(
+            ResolveTypeDefinitions(
+                type_definitions,
+                assume_optional=assume_optional,
+            ),
+        ),
         arguments,
         ctx=ctx,
     )
 
 
 # ----------------------------------------------------------------------
-# ----------------------------------------------------------------------
-# ----------------------------------------------------------------------
-def _TypeDefinitionsToClickParams(
+def ResolveTypeDefinitions(
     type_definitions: TypeDefinitionsType,
     *,
-    assume_optional: bool=False,
-) -> Dict[str, Tuple[Any, Callable[..., Any]]]:
-    # Dynamically create the click params
-    click_params: Dict[str, Tuple[Any, Callable[..., Any]]] = {}
+    assume_optional: bool,
+) -> dict[str, TypeDefinitionItem]:
+    results: dict[str, TypeDefinitionItem] = {}
 
-    for argument, annotation in type_definitions.items():
-        option_kwargs: Dict[str, Any] = {}
-        typer_option: Optional[typer.models.OptionInfo] = None
+    for k, v in type_definitions.items():
+        if isinstance(v, TypeDefinitionItem):
+            # No conversion is necessary
+            pass
 
-        if isinstance(annotation, tuple):
-            annotation, option_or_kwargs = annotation
-
-            if isinstance(option_or_kwargs, typer.models.OptionInfo):
-                typer_option = option_or_kwargs
-            elif isinstance(option_or_kwargs, dict):
-                option_kwargs = option_or_kwargs
+        else:
+            if isinstance(v, tuple):
+                python_type, option_info_kwargs = v
             else:
-                assert False, option_or_kwargs  # pragma: ignore
+                python_type = v
+                option_info_kwargs = {}
 
-        if typer_option is None:
-            is_optional = (
-                assume_optional
-                or (
-                    getattr(annotation, "__origin__", None) is Union
-                    and any(value is type(None) for value in annotation.__args__)
-                )
+            v = TypeDefinitionItem.Create(
+                python_type,
+                **cast(dict[str, Any], option_info_kwargs),
+                assume_optional=assume_optional,
             )
 
-            typer_option = typer.Option(
-                None if is_optional else ...,
-                **option_kwargs,
-            )
+        results[k] = v
 
-        param_meta = typer_models.ParamMeta(
-            name=argument,
-            default=typer_option,
-            annotation=annotation,
-        )
-
-        click_params[argument] = typer_main.get_click_param(param_meta)
-
-    return click_params
+    return results
 
 
 # ----------------------------------------------------------------------
+# ----------------------------------------------------------------------
+# ----------------------------------------------------------------------
 def _ProcessArgumentsImpl(
-    click_params: Dict[str, Tuple[Any, Callable[..., Any]]],
+    click_params: dict[str, Tuple[Any, Callable[..., Any]]],
     arguments: Iterable[Tuple[str, Optional[str]]],
     *,
     ctx: Optional[typer.Context],
     allow_unknown: bool=False,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     # Create information to map from the argument keyword to the result name
-    argument_to_result_names: Dict[str, str] = {}
+    argument_to_result_names: dict[str, str] = {}
 
     for result_name, (click_param, _) in click_params.items():
         for opt in click_param.opts:
@@ -312,7 +494,7 @@ def _ProcessArgumentsImpl(
             assert opt not in argument_to_result_names, opt
             argument_to_result_names[opt] = result_name
 
-    results: Dict[str, Any] = {}
+    results: dict[str, Any] = {}
 
     # Group the argument values
     for key, value in arguments:
@@ -387,6 +569,22 @@ def _ProcessArgumentsImpl(
 
 
 # ----------------------------------------------------------------------
+def _TypeDefinitionItemsToClickParams(
+    type_definitions: dict[str, TypeDefinitionItem],
+) -> dict[str, Tuple[Any, Callable[..., Any]]]:
+    return {
+        k: typer_main.get_click_param(
+            typer_models.ParamMeta(
+                name=k,
+                default=v.option_info,
+                annotation=v.python_type,
+            ),
+        )
+        for k, v in type_definitions.items()
+    }
+
+
+# ----------------------------------------------------------------------
 _TyperT                                     = TypeVar("_TyperT", typer_models.ArgumentInfo, typer_models.OptionInfo)
 
 def _TyperImpl(
@@ -395,11 +593,18 @@ def _TyperImpl(
     type_definitions: TypeDefinitionsType,
     allow_unknown: bool,
     args: Optional[Tuple[str, ...]],
-    kwargs: Dict[str, Any],
+    kwargs: dict[str, Any],
+    *,
+    assume_optional: bool,
 ) -> _TyperT:
     assert default is None or default is Ellipsis, default
 
-    click_params = _TypeDefinitionsToClickParams(type_definitions)
+    click_params = _TypeDefinitionItemsToClickParams(
+        ResolveTypeDefinitions(
+            type_definitions,
+            assume_optional=assume_optional,
+        ),
+    )
 
     # Prepare the result
     original_callback = kwargs.pop("callback", None)
@@ -408,8 +613,8 @@ def _TyperImpl(
     def Callback(
         ctx: typer.Context,
         param: typer.CallbackParam,
-        values: List[str],
-    ) -> List[Dict[str, Any]]:
+        values: list[str],
+    ) -> list[dict[str, Any]]:
         regex = re.compile(
             r"""(?#
             Start of Line                   )^(?#
@@ -422,7 +627,7 @@ def _TyperImpl(
             )""",
         )
 
-        arguments: List[Tuple[str, Optional[str]]] = []
+        arguments: list[Tuple[str, Optional[str]]] = []
 
         for value in values:
             match = regex.match(value)
@@ -434,7 +639,7 @@ def _TyperImpl(
                 )
 
             key = match.group("key").replace("\\:", ":").replace("\\=", "=")
-            value = match.group("value").replace("\\:", ":").replace("\\=", "=")
+            value = (match.group("value") or "").replace("\\:", ":").replace("\\=", "=")
 
             arguments.append((key, value))
 

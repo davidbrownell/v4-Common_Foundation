@@ -27,7 +27,7 @@ from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Callable, cast, Iterator, List, Optional, Protocol, Tuple, TypeVar
+from typing import Any, Callable, cast, Iterator, List, Optional, Protocol, Tuple, TypeVar, Union
 from unittest.mock import MagicMock
 
 from rich.progress import Progress, TaskID, TimeElapsedColumn
@@ -239,7 +239,13 @@ def Transform(
     refresh_per_second: Optional[float]=None,
     no_compress_tasks: bool=False,
     return_exceptions: bool=False,
-) -> List[Optional[TransformedType]]:
+) -> List[
+    Union[
+        None,
+        TransformedType,
+        Exception,                          # If 'return_exceptions' is True
+    ],
+]:
     """Executes functions that return values"""
 
     with _YieldTemporaryDirectory(dm) as temp_directory:
@@ -972,8 +978,14 @@ def _TransformStandard(
     num_threads: int,
     refresh_per_second: Optional[float],
     return_exceptions: bool,
-) -> List[Optional[TransformedType]]:
-    all_results: List[Optional[TransformedType]] = [None for _ in range(len(tasks))]
+) -> List[
+    Union[
+        None,
+        TransformedType,
+        Exception,                          # If 'return_exceptions' is True
+    ],
+]:
+    all_results: List[Union[None, TransformedType, Exception]] = [None for _ in range(len(tasks))]
 
     # Update the task context with task index
     for task_index, task in enumerate(tasks):
@@ -1052,10 +1064,16 @@ def _TransformCompressed(
     num_threads: int,
     refresh_per_second: Optional[float],
     return_exceptions: bool,
-) -> List[Optional[TransformedType]]:
+) -> List[
+    Union[
+        None,
+        TransformedType,
+        Exception,                          # If 'return_exceptions' is True
+    ],
+]:
     assert num_threads != 1
 
-    all_results: List[Optional[TransformedType]] = [None for _ in range(len(tasks))]
+    all_results: List[Union[None, TransformedType, Exception]] = [None for _ in range(len(tasks))]
 
     with _GenerateStatusInfo(
         len(tasks),

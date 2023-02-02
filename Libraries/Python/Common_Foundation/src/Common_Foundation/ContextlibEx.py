@@ -16,14 +16,14 @@
 """Enhancements to the contextlib package"""
 
 from contextlib import contextmanager, ExitStack as ExitStackImpl
-from typing import Any, Callable
+from typing import Any, Callable, Iterator
 
 
 # ----------------------------------------------------------------------
 @contextmanager
 def ExitStack(
     *args: Callable[[], Any],
-):
+) -> Iterator[Any]:
     with ExitStackImpl() as exit_stack:
         for arg in args:
             exit_stack.callback(arg)

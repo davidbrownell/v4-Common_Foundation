@@ -24,6 +24,8 @@ from typing import Any, Optional
 
 from Common_Foundation.Types import extensionmethod
 
+from Common_FoundationEx import TyperEx
+
 
 # ----------------------------------------------------------------------
 class PluginBase(ABC):
@@ -63,11 +65,18 @@ class PluginBase(ABC):
 
     # ----------------------------------------------------------------------
     @abstractmethod
+    def GetCommandLineArgs(self) -> TyperEx.TypeDefinitionsType:
+        """Return command line arguments required by the plugin"""
+
+        raise Exception("Abstract method")  # pragma: no cover
+
+    # ----------------------------------------------------------------------
+    @abstractmethod
     def GetNumAdditionalSteps(
         self,
         context: dict[str, Any],
     ) -> int:
-        raise Exception("Abstract method")
+        raise Exception("Abstract method")  # pragma: no cover
 
     # ----------------------------------------------------------------------
     # |
