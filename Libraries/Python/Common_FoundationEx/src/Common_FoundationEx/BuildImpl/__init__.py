@@ -40,7 +40,7 @@ try:
     from rich.progress import Progress, TimeElapsedColumn
 
     from typer.core import TyperGroup
-    from typer.models import CommandInfo, OptionInfo
+    from typer.models import CommandInfo
 
 except ModuleNotFoundError:
     sys.stdout.write("\nERROR: This script is not available in a 'nolibs' environment.\n")
@@ -67,7 +67,6 @@ class NaturalOrderGrouper(TyperGroup):
 # ----------------------------------------------------------------------
 app                                         = typer.Typer(
     cls=NaturalOrderGrouper,
-
     no_args_is_help=True,
     pretty_exceptions_show_locals=False,
 )
@@ -312,57 +311,9 @@ class BuildInfoBase(ABC):
 
     # ----------------------------------------------------------------------
     def Run(self) -> None:
-        verbose_option = typer.Option(False, "--verbose", help="Write verbose information to the terminal.")        # pylint: disable=possibly-unused-variable
-        debug_option = typer.Option(False, "--debug", help="Write additional debug information to the terminal.")   # pylint: disable=possibly-unused-variable
-
         # Dynamically create the Build, Clean, and Rebuild func
-        build_parameters: Dict[str, str] = {}
-        build_option_types: Dict[str, OptionInfo] = {}
-
-        for k, v in self.GetCustomBuildArgs().items():
-            if isinstance(v, tuple):
-                annotation, v = v
-
-                if isinstance(v, dict):
-                    v = typer.Option(None, **v)
-
-                assert isinstance(v, OptionInfo), v
-                build_option_types[k] = v
-
-                default = '=build_option_types["{}"]'.format(k)
-            else:
-                annotation = v
-                default = ""
-
-            build_parameters[k] = '{name}: {annotation}{default}'.format(
-                name=k,
-                annotation=annotation.__name__,
-                default=default,
-            )
-
-        clean_parameters: Dict[str, str] = {}
-        clean_option_types: Dict[str, OptionInfo] = {}
-
-        for k, v in self.GetCustomCleanArgs().items():
-            if isinstance(v, tuple):
-                annotation, v = v
-
-                if isinstance(v, dict):
-                    v = typer.Option(None, **v)
-
-                assert isinstance(v, OptionInfo), v
-                clean_option_types[k] = v
-
-                default= '=clean_option_types["{}"]'.format(k)
-            else:
-                annotation = v
-                default = ""
-
-            clean_parameters[k] = '{name}: {annotation}{default}'.format(
-                name=k,
-                annotation=annotation.__name__,
-                default=default,
-            )
+        build_info = TyperEx.DynamicPythonCode.Create(self.GetCustomBuildArgs(), "build_option_types")
+        clean_info = TyperEx.DynamicPythonCode.Create(self.GetCustomCleanArgs(), "clean_option_types")
 
         build_configuration_parameter = ""
         clean_configuration_parameter = ""
@@ -390,6 +341,13 @@ class BuildInfoBase(ABC):
             clean_output_dir_parameter = 'output_dir: Path=typer.Argument(..., exists=True, file_okay=False, resolve_path=True, help="Output directory used with Build."),'
 
             output_dir_argument = "output_dir"
+
+        # These values are used by the code that is dynamically generated
+        build_option_types = build_info.python_type_values                  # pylint: disable=possibly-unused-variable
+        clean_option_types = clean_info.python_type_values                  # pylint: disable=possibly-unused-variable
+
+        verbose_option = typer.Option(False, "--verbose", help="Write verbose information to the terminal.")        # pylint: disable=possibly-unused-variable
+        debug_option = typer.Option(False, "--debug", help="Write additional debug information to the terminal.")   # pylint: disable=possibly-unused-variable
 
         funcs = textwrap.dedent(
             """\
@@ -512,24 +470,18 @@ class BuildInfoBase(ABC):
             build_configuration_argument=build_configuration_argument,
             build_output_dir_parameter=build_output_dir_parameter,
             build_output_dir_argument=output_dir_argument,
-            build_parameters=TextwrapEx.Indent(
-                "\n".join("{},".format(parameter) for parameter in build_parameters.values()),
-                4,
-                skip_first_line=True,
-            ),
-            build_arguments=", ".join('"{k}": {k}'.format(k=k) for k in build_parameters),
+            build_parameters=build_info.GenerateFuncParameters(),
+            build_arguments=build_info.GenerateFuncArguments(single_line=True, as_dict_args=True),
+
             # Clean
             clean_no_args_is_help="True" if (clean_configuration_parameter or clean_output_dir_parameter) else "False",
             clean_configuration_parameter=clean_configuration_parameter,
             clean_configuration_argument=clean_configuration_argument,
             clean_output_dir_parameter=clean_output_dir_parameter,
             clean_output_dir_argument=output_dir_argument,
-            clean_parameters=TextwrapEx.Indent(
-                "\n".join("{},".format(parameter) for parameter in clean_parameters.values()),
-                4,
-                skip_first_line=True,
-            ),
-            clean_arguments=", ".join('"{k}": {k}'.format(k=k) for k in clean_parameters),
+            clean_parameters=clean_info.GenerateFuncParameters(),
+            clean_arguments=clean_info.GenerateFuncArguments(single_line=True, as_dict_args=True),
+
             # Rebuild
             rebuild_no_args_is_help="True" if (
                 build_configuration_parameter
@@ -539,15 +491,11 @@ class BuildInfoBase(ABC):
             ) else "False",
             rebuild_configuration_parameter=build_configuration_parameter or clean_configuration_parameter,
             rebuild_output_dir_parameter=build_output_dir_parameter or clean_output_dir_parameter,
-            rebuild_parameters=TextwrapEx.Indent(
-                "\n".join(
-                    "{},".format(parameter) for parameter in {
-                        **clean_parameters,
-                        **build_parameters,
-                    }.values()
-                ),
-                4,
-                skip_first_line=True,
+            rebuild_parameters="\n".join(
+                [
+                    clean_info.GenerateFuncParameters(skip_first_line=False),
+                    build_info.GenerateFuncParameters(skip_first_line=False),
+                ],
             ),
         )
 

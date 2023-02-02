@@ -70,7 +70,7 @@ class NaturalOrderGrouper(TyperGroup):
 app                                         = typer.Typer(
     cls=NaturalOrderGrouper,
     no_args_is_help=True,
-    pretty_exceptions_enable=False,
+    pretty_exceptions_show_locals=False,
 )
 
 

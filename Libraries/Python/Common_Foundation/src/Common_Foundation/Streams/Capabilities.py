@@ -76,7 +76,7 @@ class Capabilities(object):
 
         assert (
             getattr(stream, cls._EMBEDDED_CAPABILITIES_ATTRIBUTE_NAME, None) is None
-        ), "Capabilities are assigned to a stream when it is first created and cannot be changed. Consider using the method `Alter`."
+        ), "Capabilities are assigned to a stream when it is first created and cannot be changed. Consider using the method `Clone`."
 
         result = cls._CreateInstance(
             stream,
@@ -169,7 +169,25 @@ class Capabilities(object):
 
     # ----------------------------------------------------------------------
     @classmethod
-    def Alter(
+    def UseCapabilities(
+        cls,
+        stream: Union[TextIO, TextWriter],
+        capabilities: "Capabilities",
+    ) -> IO[str]:
+        from .StreamDecorator import StreamDecorator
+
+        stream_decorator = StreamDecorator(stream)
+
+        if hasattr(stream_decorator, cls._EMBEDDED_CAPABILITIES_ATTRIBUTE_NAME):
+            object.__delattr__(stream_decorator, cls._EMBEDDED_CAPABILITIES_ATTRIBUTE_NAME)
+
+        cls.Set(stream_decorator, capabilities)
+
+        return stream_decorator  # type: ignore
+
+    # ----------------------------------------------------------------------
+    @classmethod
+    def Clone(
         cls,
         stream: Union[TextIO, TextWriter],
         *,
@@ -177,23 +195,16 @@ class Capabilities(object):
         is_interactive: Optional[bool]=None,
         supports_colors: Optional[bool]=None,
         is_headless: Optional[bool]=None,
-    ) -> Tuple[IO[str], "Capabilities"]:
+    ) -> "Capabilities":
         current_capabilities = cls.Get(stream)
 
-        # Importing here to avoid circular dependencies
-        from .StreamDecorator import StreamDecorator
-
-        stream_decorator = StreamDecorator(stream)
-
-        capabilities = cls._CreateInstance(
-            stream_decorator,
+        return cls._CreateInstance(
+            stream,
             columns=columns if columns is not None else current_capabilities.columns,
             is_interactive=is_interactive if is_interactive is not None else current_capabilities.is_interactive,
             supports_colors=supports_colors if supports_colors is not None else current_capabilities.supports_colors,
             is_headless=is_headless if is_headless is not None else current_capabilities.is_headless,
         )
-
-        return stream_decorator, capabilities # type: ignore
 
     # ----------------------------------------------------------------------
     def __lt__(
@@ -278,7 +289,7 @@ class Capabilities(object):
         # is_interactive
         forced_is_interactive = False
 
-        if is_interactive:
+        if is_interactive is not None:
             forced_is_interactive = True
         else:
             value = os.getenv(cls.SIMULATE_TERMINAL_INTERACTIVE_ENV_VAR)

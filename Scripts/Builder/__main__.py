@@ -848,6 +848,8 @@ def _GetBuildInfos(
             if result is None:
                 continue
 
+            assert not isinstance(result, Exception), result
+
             build_infos.append(result)
 
     results: Dict[int, Dict[Path, BuildInfoBase]] = {}

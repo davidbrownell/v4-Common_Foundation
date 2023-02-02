@@ -430,10 +430,10 @@ def CreateText(
             # The indent is the length of the prefix without color decorations
             len(
                 create_prefix_func(
-                    Capabilities.Alter(
+                    Capabilities.Clone(
                         sys.stdout,
                         supports_colors=False,
-                    )[1],
+                    ),
                 ),
             ),
             skip_first_line=True,

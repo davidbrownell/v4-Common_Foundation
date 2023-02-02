@@ -927,7 +927,13 @@ class Repository(DistributedRepositoryBase):
         self,
         branch_or_branches: Union[None, str, List[str]]=None,
     ) -> str:
-        commands: List[str] = []
+        commands: List[str] = [
+            # Git cannot fetch content for tags that it doesn't know about, but we don't know if the
+            # branches provided (if any) are tags or branches. We erring on the side of correctness
+            # here and pull all of the tags before we attempt to fetch content based on what is
+            # potentially a tag name. Stupid git.
+            "git fetch --all --tags --force",
+        ]
 
         if branch_or_branches:
             if isinstance(branch_or_branches, list):
@@ -941,10 +947,7 @@ class Repository(DistributedRepositoryBase):
             ]
 
         else:
-            commands += [
-                "git fetch --all",
-                "git fetch --all --tags --force",
-            ]
+            commands.append("git fetch --all")
 
         return self._GetCommandLine(" && ".join(commands))
 

@@ -269,11 +269,25 @@ class CompilerImpl(
         assert False, self.input_type  # pragma: no cover
 
     # ----------------------------------------------------------------------
+    @extensionmethod
+    def ValidateMetadata(
+        self,
+        dm: DoneManager,                    # pylint: disable=unused-argument
+        metadata: dict[str, Any],           # pylint: disable=unused-argument
+    ) -> None:
+        """Validates metadata before it is converted into context items"""
+
+        # No validation by default
+        return
+
+    # ----------------------------------------------------------------------
     def GenerateContextItems(
         self,
         dm: DoneManager,
         input_or_inputs: Union[Path, List[Path]],
         metadata: Dict[str, Any],
+        *,
+        do_not_decorate_output_dir_with_index: bool=False,
     ) -> Generator[Dict[str, Any], None, None]:
         """\
         Generates one or more context items based on the provided metadata input.
@@ -376,8 +390,8 @@ class CompilerImpl(
 
                         metadata["output_dir"] /= Path(*input_dir.parts[len_item_root_parts:])
                     elif "inputs" in metadata:
-                        if len(all_input_items) != 1:
-                            metadata["output_dir"] /= str(index)
+                        if not do_not_decorate_output_dir_with_index:
+                            metadata["output_dir"] /= "{:06}".format(index)
                     else:
                         assert False, metadata  # pragma: no cover
 
