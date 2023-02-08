@@ -82,11 +82,33 @@ class CodeCoverageValidator(CodeCoverageValidatorImpl):
         for parent in filename.parents:
             potential_filename = parent / self.__class__.MIN_COVERAGE_PERCENTAGE_FILENAME
             if potential_filename.exists():
+                # Read the content
                 with potential_filename.open() as f:
                     content = f.read().strip()
 
+                # Parse the content
+                try:
+                    import yaml
+
+                    content = yaml.safe_load(content)
+                except ModuleNotFoundError:
+                    # Parse the contents manually
+                    lines = content.split("\n")
+
+                    for line_index, line in enumerate(lines):
+                        line = line.strip()
+
+                        if line.startswith("#"):
+                            line = ""
+
+                        lines[line_index] = line
+
+                    content = "\n".join(lines).strip()
+
+                # Convert the content
                 try:
                     content = float(content)
+
                 except ValueError:
                     dm.WriteWarning("The minimum code coverage percentage in '{}' is not a valid float value.".format(potential_filename))
                     continue
@@ -95,6 +117,7 @@ class CodeCoverageValidator(CodeCoverageValidatorImpl):
                     dm.WriteWarning("The minimum code coverage percentage in '{}' is not between 0.0 and 1.0.".format(potential_filename))
                     continue
 
+                # Commit the content
                 min_coverage = content
                 break
 
