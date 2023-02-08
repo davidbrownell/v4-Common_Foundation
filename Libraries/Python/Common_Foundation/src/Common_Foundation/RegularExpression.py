@@ -224,6 +224,22 @@ def Generate(
 
 
 # ----------------------------------------------------------------------
+def PythonToJavaScript(regex_string):
+    """Converts from a python to JavaScript regular expression."""
+
+    for expr, sub in [
+        # Remove comments
+        (re.compile(r"\(\?#.+?\)", re.MULTILINE | re.DOTALL), lambda match: ""),
+
+        # Remove named matches
+        (re.compile(r"\(\?P<.+?>", re.MULTILINE | re.DOTALL), lambda match: "("),
+    ]:
+        regex_string = expr.sub(sub, regex_string)
+
+    return regex_string
+
+
+# ----------------------------------------------------------------------
 # ----------------------------------------------------------------------
 # ----------------------------------------------------------------------
 _TemplateStringToRegexString_tag_regex      = re.compile(
