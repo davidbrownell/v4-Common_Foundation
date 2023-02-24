@@ -79,7 +79,6 @@ app                                         = typer.Typer(
     pretty_exceptions_enable=False,
 )
 
-
 # ----------------------------------------------------------------------
 @app.command("EntryPoint", no_args_is_help=False)
 def EntryPoint(
@@ -133,10 +132,10 @@ def EntryPoint(
 
         support_windows = _Prompt("Support development on Windows? ", "yes").lower() in ["yes", "y"]
         support_linux = _Prompt("Support development on Linux? ", "yes").lower() in ["yes", "y"]
+        include_bootstrap = _Prompt("Include bootstrap scripts for automated environment setup? ", "yes").lower() in ["yes", "y"]
         dm.WriteLine("")
 
         include_boost_license = _Prompt("Include the Boost Software License? ", "no").lower() in ["yes", "y"]
-        include_bootstrap = _Prompt("Include bootstrap scripts for automated environment setup? ", "yes").lower() in ["yes", "y"]
         include_scm_hook = _Prompt("Include source control commit hooks? ", "no").lower() in ["yes", "y"]
         include_pyright_config = _Prompt("Include 'pyrightconfig.json' to limit the scope of pylint scanning? ", "no").lower() in ["yes", "y"]
         dm.WriteLine("")
@@ -342,31 +341,65 @@ def Execute(
                 ),
             )
 
+    post_commit_messages: list[str] = [
+        textwrap.dedent(
+            """\
+            ...creating a tag (git) / branch (hg) named:
+
+            "main_stable"
+            """,
+        ),
+    ]
+
     if config.include_github_workflows:
-        actions += _InitGithubWorkflows(dm, config)
+        github_workflow_result = _InitGithubWorkflows(dm, config)
 
         if dm.result != 0:
             return
+
+        assert github_workflow_result is not None
+
+        actions += github_workflow_result.actions
+        post_commit_messages += github_workflow_result.post_commit_messages
 
     actions.append(
         textwrap.dedent(
             """\
             After making these changes, consider...
 
-                a) Adding execution permissions for all .sh files:
+            a) ...adding execution permissions for all .sh files:
 
-                    `chmod a+x *.sh`
+               `chmod a+x *.sh`
 
-                b) Apply copyright notices to generated files (as needed).
+            b) ...applying copyright notices to generated files (as needed).
 
-                c) Committing using the message:
+            c) ...committing using the message:
 
-                    "🎉 [started_project] Initial project scaffolding."
-
-                d) Creating a tag (git) / branch (hg) based on that commit named
-
-                    "main_stable"
+               "🎉 [started_project] Initial project scaffolding."
             """,
+        ),
+    )
+
+    actions.append(
+        textwrap.dedent(
+            """\
+            After that initial commit, consider...
+
+            {}
+
+            """,
+        ).format(
+            "".join(
+                "{}) {}\n\n".format(
+                    chr(ord("a") + message_index),
+                    TextwrapEx.Indent(
+                        message.rstrip(),
+                        len("{}) ".format(chr(ord("a") + message_index))),
+                        skip_first_line=True,
+                    ),
+                )
+                for message_index, message in enumerate(post_commit_messages)
+            ),
         ),
     )
 
@@ -397,7 +430,7 @@ def Execute(
                         ),
                     )
                     for action_index, action in enumerate(actions)
-                ),
+                ).rstrip(),
                 4,
             ),
         ),
@@ -430,14 +463,29 @@ def _Prompt(
 
 
 # ----------------------------------------------------------------------
+@dataclass(frozen=True)
+class _InitGithubWorkflowsResult(object):
+    actions: list[str]
+    post_commit_messages: list[str]
+
+
 def _InitGithubWorkflows(
     dm: DoneManager,
     config: Configuration,
-) -> List[str]:
+) -> Optional[_InitGithubWorkflowsResult]:
+
+    dm.WriteLine("")
 
     git_username = _Prompt("What is the github username or organization that will host this repository? ")
     repo_name = _Prompt("What is the repository name? ", config.friendly_name)
-    is_mixin_repository = _Prompt("Is this repository a mixin repository (specify that it isn't unless you are absolutely certain that it is)? ", "no").lower() in ["yes", "y"]
+    dm.WriteLine("")
+
+    is_mixin_repository = _Prompt("Is this repository a mixin repository (answer 'no' unless you are absolutely certain that it is)? ", "no").lower() in ["yes", "y"]
+
+    repo_url = "https://github.com/{git_username}/{repo_name}".format(
+        git_username=git_username,
+        repo_name=repo_name,
+    )
 
     dm.WriteLine("")
 
@@ -477,7 +525,7 @@ def _InitGithubWorkflows(
 
         if this_dm.result != 0:
             this_dm.WriteError(result.output)
-            return []
+            return None
 
         with this_dm.YieldVerboseStream() as stream:
             stream.write(result.output)
@@ -488,30 +536,73 @@ def _InitGithubWorkflows(
                 item.unlink()
                 break
 
-    return [
-        textwrap.dedent(
-            """\
-            "{validate}"
-            "{validate_with_dependencies}"
+    return _InitGithubWorkflowsResult(
+        [
+            textwrap.dedent(
+                """\
+                "{validate}"
+                "{validate_with_dependencies}"
 
-            Customize these files based on the instructions in each one.
-            """,
-        ).format(
-            validate_with_dependencies=PathEx.EnsureFile(config.root / ".github" / "workflows" / "validate_with_dependencies.yaml"),
-            validate=PathEx.EnsureFile(config.root / ".github" / "workflows" / "validate.yaml"),
+                Customize these files based on the instructions in each one.
+                """,
+            ).format(
+                validate_with_dependencies=PathEx.EnsureFile(config.root / ".github" / "workflows" / "validate_with_dependencies.yaml"),
+                validate=PathEx.EnsureFile(config.root / ".github" / "workflows" / "validate.yaml"),
 
-        ),
-        textwrap.dedent(
-            """\
-            'python {create_ci_tags}'
+            ),
+        ],
+        [
+            textwrap.dedent(
+                """\
+                ...updating the CI tags:
 
-            After committing these changes, run this script to create tags and push them to GitHub. The generated
-            GitHub workflows rely on these tags to function properly and will fail until they are created.
-            """,
-        ).format(
-            create_ci_tags=PathEx.EnsureFile(config.root / ".github" / "CreateCITags.py"),
-        ),
-    ]
+                'python {create_ci_tags}'
+
+                After committing these changes, run this script to create tags and push them to GitHub. The generated
+                GitHub workflows rely on these tags to function properly and will fail until they are created.
+                """,
+            ).format(
+                create_ci_tags=PathEx.EnsureFile(config.root / ".github" / "CreateCITags.py"),
+            ),
+            textwrap.dedent(
+                """\
+                ...adding a CodeQL.yaml configuration file:
+
+                1) Visit {repo_url}/settings/security_analysis
+                2) Navigate to the section "Code scanning -> CodeQL analysis"
+                3) Click "Set up"
+                4) Select "Advanced"
+                5) Copy the contents of the generated file by Github
+                6) Copy the contents to a local file named "{local_file}"
+                7) Edit "{local_file}" with these changes:
+
+                    * Change `name: "CodeQL"` to `name: "[static code analysis] CodeQL"`
+                    * [Optional] Remove the emojis on lines 63 and 64 (these can cause problems with Jinja2)
+
+                8) Save the file
+                """,
+            ).format(
+                repo_url=repo_url,
+                local_file=config.root / ".github" / "workflows" / "sca_CodeQL.yaml",
+            ),
+            textwrap.dedent(
+                """\
+                ...updating the GitHub repository settings:
+
+                - Enable "Secret scanning" at {repo_url}/settings/security_analysis
+
+                - Enable Github write permissions at {repo_url}/settings/actions
+
+                    1) Navigate to the section "Workflow permissions"
+                    2) Select "Read and write permissions"
+                    3) Click "Save"
+
+                  Write permissions are necessary so that the CI workflows are able to update
+                  the tag "main_stable" once a change has been validated.
+                """,
+            ).format(repo_url=repo_url),
+        ],
+    )
 
 
 # ----------------------------------------------------------------------
