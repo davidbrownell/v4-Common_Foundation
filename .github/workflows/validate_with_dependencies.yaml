@@ -37,6 +37,13 @@ on:
       repo_branch:                          {type: string, required: true}
 
 jobs:
+  _9e7edf15-1918-45a9-9b0d-56314e33413f:
+    name: "Common_AutoSemVer"
+    uses: davidbrownell/v4-Common_AutoSemVer/.github/workflows/validate.yaml@CI-latest
+    with:
+      repo_branch: main_stable
+      bootstrap_branch_overrides: "Common_Foundation:${{ inputs.repo_branch }}"
+
   _1757731e-3dcd-4df9-8a3b-b008dd7301c6:
     name: "Common_EmailMixin"
     uses: davidbrownell/v4-Common_EmailMixin/.github/workflows/validate.yaml@CI-latest

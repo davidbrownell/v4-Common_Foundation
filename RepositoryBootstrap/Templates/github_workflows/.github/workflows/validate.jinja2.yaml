@@ -13,7 +13,7 @@
 # It is safe to continue without modifying this file if all of the above conditions are true.
 # If not...
 #
-#   1) If you need to add/remove operation systems, see the notes in this file under "#operating-systems"
+#   1) If you need to add/remove operating systems, see the notes in this file under "#operating-systems"
 #   2) If you need to add configurations, see the notes in this file under "#configurations"
 #   3) If you need to customize the workflow, see the notes in this file under "#customized-workflow"
 #   4) If you need to customize the test types, see the notes in this file under "#test-types"
