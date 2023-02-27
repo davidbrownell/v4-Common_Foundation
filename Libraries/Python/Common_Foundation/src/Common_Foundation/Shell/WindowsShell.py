@@ -399,7 +399,7 @@ class WindowsCommandVisitor(CommandVisitor):
 
         for line in command.value.split("\n"):
             if not line.strip():
-                output.append("echo.")
+                output.append("echo. ")
                 continue
 
             line = line.replace("^", "__caret_placeholder__")
