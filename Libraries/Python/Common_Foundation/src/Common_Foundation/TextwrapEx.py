@@ -112,7 +112,11 @@ def Indent(
         should_indent = lambda _: True
 
     assert isinstance(indentation, str), indentation
-    return textwrap.indent(value, indentation, should_indent)
+    return textwrap.indent(
+        value,
+        indentation,
+        lambda content: not content.isspace() and should_indent(content),
+    )
 
 
 # ----------------------------------------------------------------------
