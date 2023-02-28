@@ -399,7 +399,8 @@ class WindowsCommandVisitor(CommandVisitor):
 
         for line in command.value.split("\n"):
             if not line.strip():
-                output.append("echo. ") # Note that the trailing space seems to be necessary on some terminals
+                # Note that the trailing space seems to be necessary on some terminals
+                output.append("echo. ")
                 continue
 
             line = line.replace("^", "__caret_placeholder__")
