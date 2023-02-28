@@ -18,6 +18,7 @@
 import re
 import textwrap
 
+from dataclasses import dataclass
 from datetime import datetime
 from enum import auto, Enum
 from pathlib import Path
@@ -751,6 +752,197 @@ class Repository(DistributedRepositoryBase):
             raise Exception("Git does not support applying a patch without committing.")
 
         return self._GetCommandLine('git apply "{}"'.format(str(patch_filename)))
+
+    # ----------------------------------------------------------------------
+    def EnumChanges(self) -> Generator[DistributedRepositoryBase.EnumChangesResult, None, None]:
+        # ----------------------------------------------------------------------
+        @dataclass(frozen=True)
+        class Datum(object):
+            name: str
+            git_format: str
+            regex: str
+
+        # ----------------------------------------------------------------------
+
+        datums: list[Datum] = [
+            Datum(
+                "commit_id",
+                "%H%n",
+                r"(?P<commit_id>\S+)\r?\n",
+            ),
+            Datum(
+                "description",
+                "%B%n",
+                r"(?P<description>.*?\n)?",
+            ),
+            Datum(
+                "tags",
+                "%D%n",
+                r"(?P<tags>.+?\n)?",
+            ),
+            Datum(
+                "author",
+                "%aN <%aE>%n",
+                r"(?P<author>[^\n]+)\n",
+            ),
+            Datum(
+                "date",
+                "%ai%n",
+                r"(?P<date>[^\n]+)\n",
+            ),
+        ]
+
+        commit_delimiter = "140c4c3011e84e018c296ef729c3f662"
+        section_delimiter = "e3882de41b4f430b8ca7740998dc104e"
+
+        file_regex = re.compile(r"^(?P<code>[RADCMTU])\s+(?P<filename>\S.*)$", re.MULTILINE)
+
+        commit_regex = re.compile(
+            r"""(?#
+            {sections}
+            Section Delimiter               ){section_delimiter}_files\r?\n(?#
+            File Content                    )(?P<files>.*)(?#
+            )""".format(
+                sections="".join(
+                    textwrap.dedent(
+                        r"""
+                        Section Delimiter   ){section_delimiter}_{name}\r?\n(?#
+                        {name}              ){regex}(?#
+                        """,
+                    ).format(
+                        section_delimiter=section_delimiter,
+                        name=datum.name,
+                        regex=datum.regex,
+                    ).rstrip()
+                    for datum in datums
+                ),
+                section_delimiter=section_delimiter,
+            ),
+            re.DOTALL | re.MULTILINE,
+        )
+
+        git_format = "{commit_delimiter}%n{datums}%n{section_delimiter}_files%n".format(
+            commit_delimiter=commit_delimiter,
+            datums="".join("{}_{}%n{}".format(section_delimiter, datum.name, datum.git_format) for datum in datums),
+            section_delimiter=section_delimiter,
+        )
+
+        command_line_template = self._GetCommandLine(
+            " ".join(
+                [
+                    "git",
+                    "--no-pager",
+                    "log",
+                    "HEAD",
+                    '"--format={}"'.format(git_format),
+                    "-n", "10",
+                    "--name-status",
+                    "--no-color",
+                    "--skip", "{}",
+                    "--tags",
+                ],
+            ),
+        )
+
+        # Execute
+        split_token = "{}\n".format(commit_delimiter)
+
+        offset = 0
+
+        # Merges will not include files, but tags are often applied to merges.
+        # If we detect a merge, don't send it but keep the tags around for the
+        # next commit (which will be the parent of the merge).
+        prev_tags: list[str] = []
+
+        while True:
+            result = self._Execute(
+                command_line_template.format(offset),
+                add_newline=True,
+            )
+
+            if not result.output or result.output.isspace():
+                break
+
+            if "does not have any commits yet" in result.output:
+                break
+
+            commits = result.output.split(split_token)
+
+            assert commits
+            assert not commits[0] or commits[0].isspace(), commits[0]
+
+            for commit in commits[1:]:
+                match = commit_regex.match(commit)
+                if match is None:
+                    raise Exception("Unexpected git output:\n\n**{}**\n".format(commit.rstrip()))
+
+                # Extract the commit data
+                tag_content = match.group("tags")
+                file_content = match.group("files")
+
+                tags: list[str] = []
+
+                if tag_content:
+                    for potential_tag in tag_content.split(","):
+                        potential_tag = potential_tag.strip()
+
+                        if potential_tag.startswith("tag: "):
+                            tags.append(potential_tag[len("tag: "):])
+
+                if not file_content:
+                    # We are looking at a merge commit
+                    assert not prev_tags
+                    prev_tags = tags
+
+                    continue
+
+                commit_id = match.group("commit_id")
+                description = match.group("description")
+                author = match.group("author")
+                date = datetime.strptime(match.group("date"), "%Y-%m-%d %H:%M:%S %z")
+
+                # Extract the file info
+                files_added: list[Path] = []
+                files_removed: list[Path] = []
+                files_modified: list[Path] = []
+
+                for match in file_regex.finditer(file_content):
+                    code = match.group("code")
+                    filename = match.group("filename")
+
+                    if code == "R":
+                        assert " -> " in filename, filename
+                        source, dest = filename.split(" -> ", maxsplit=1)
+
+                        files_removed.append(self.repo_root / source)
+                        files_added.append(self.repo_root / dest)
+                    elif code == "A":
+                        files_added.append(self.repo_root / filename)
+                    elif code == "D":
+                        files_removed.append(self.repo_root / filename)
+                    elif code in [
+                        "C", # Copied
+                        "M", # Modified
+                        "T", # Type changed
+                        "U", # Updated but unmerged
+                    ]:
+                        files_modified.append(self.repo_root / filename)
+                    else:
+                        assert False, (code, filename)
+
+                yield Repository.EnumChangesResult(
+                    commit_id,
+                    description,
+                    tags + prev_tags,
+                    author,
+                    date,
+                    files_added,
+                    files_removed,
+                    files_modified,
+                )
+
+                prev_tags = []
+                offset += 1
 
     # ----------------------------------------------------------------------
     def GetResetCommandLine(

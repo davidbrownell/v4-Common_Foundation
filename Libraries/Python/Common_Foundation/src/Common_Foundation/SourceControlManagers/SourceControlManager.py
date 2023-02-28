@@ -21,6 +21,7 @@ import textwrap
 
 from abc import abstractmethod, ABC
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Generator, Optional, Union
 
@@ -716,6 +717,25 @@ class Repository(ABC):
         """Applies a created patch."""
 
         return self._Execute(self.GetApplyPatchCommandLine(patch_filename, commit))
+
+    # ----------------------------------------------------------------------
+    @dataclass(frozen=True)
+    class EnumChangesResult(object):
+        commit: str
+        description: str
+        tags: list[str]
+
+        author: str
+        author_date: datetime
+
+        files_added: list[Path]
+        files_removed: list[Path]
+        files_modified: list[Path]
+
+    @abstractmethod
+    def EnumChanges(self) -> Generator[EnumChangesResult, None, None]:
+        """Enumerates changes on the local branch, starting with the most recent and working backwards in time."""
+        raise Exception("Abstract method")  # pragma: no cover
 
     # ----------------------------------------------------------------------
     # |

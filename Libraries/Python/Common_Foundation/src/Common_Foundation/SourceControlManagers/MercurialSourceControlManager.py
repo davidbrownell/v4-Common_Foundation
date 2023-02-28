@@ -785,6 +785,10 @@ class Repository(DistributedRepositoryBase):
         )
 
     # ----------------------------------------------------------------------
+    def EnumChanges(self) -> Generator[DistributedRepositoryBase.EnumChangesResult, None, None]:
+        raise Exception("This functionality is not yet implemented.")
+
+    # ----------------------------------------------------------------------
     def GetResetCommandLine(
         self,
         no_backup: bool=False,

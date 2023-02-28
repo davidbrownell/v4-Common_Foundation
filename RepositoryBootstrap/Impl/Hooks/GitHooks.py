@@ -190,13 +190,6 @@ def pre_receive(
 # |
 # ----------------------------------------------------------------------
 @dataclass(frozen=True)
-class _ExtractCommitMessageResult(object):
-    title: str
-    description: Optional[str]
-
-
-# ----------------------------------------------------------------------
-@dataclass(frozen=True)
 class _ParseGitOutputResultType(object):
     # ----------------------------------------------------------------------
     ignored_lines: Optional[List[str]]
