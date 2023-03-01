@@ -16,8 +16,10 @@
 """Creates Source Control Management Tags."""
 
 import datetime
+import re
 import textwrap
 
+from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 from typing import List, Optional
@@ -80,40 +82,102 @@ def EntryPoint(
     """Creates tags."""
 
     # ----------------------------------------------------------------------
-    def GetSemVer() -> SemVer:
-        error: Optional[str] = None
+    @dataclass(frozen=True)
+    class VersionInfo(object):
+        # ----------------------------------------------------------------------
+        prefix: Optional[str]
+        semantic_version: SemVer
+        suffix: Optional[str]  # Can be an empty string
 
-        try:
-            return SemVer.coerce(semantic_version)
-        except ValueError as ex:
-            error = str(ex)
+        # ----------------------------------------------------------------------
+        @classmethod
+        def Create(
+            cls,
+        ) -> "VersionInfo":
+            nonlocal semantic_version
 
-        path = Path(semantic_version)
-        if path.is_file():
-            with path.open() as f:
-                contents = f.read()
+            potential_file = Path(semantic_version)
+            if potential_file.is_file():
+                with potential_file.open() as f:
+                    semantic_version = f.read().strip()
 
-            try:
-                return SemVer.coerce(contents)
-            except ValueError as ex:
-                error = str(ex)
+            match = re.match(
+                r"""(?#
+                    Start of string         )^(?#
+                    Prefix                  )(?P<prefix>.*?)(?#
+                    Major                   )(?P<major>\d+)\.(?#
+                    Minor                   )(?P<minor>\d+)\.(?#
+                    Patch                   )(?P<patch>\d+)(?#
+                    Suffix                  )(?P<suffix>.*)(?#
+                    End of string           )$(?#
+                )""",
+                semantic_version,
+            )
 
-        assert error is not None
-        raise typer.BadParameter("'{}' is not a valid sematic version; {}.".format(semantic_version, error))
+            if not match:
+                raise Exception("'{}' is not an expected semantic version.".format(semantic_version))
+
+            prefix_value = match.group("prefix") or ""
+            suffix_value = match.group("suffix") or ""
+
+            if prefix:
+                if prefix_value is not None:
+                    raise typer.BadParameter(
+                        "'--prefix' cannot be provided when the semantic version '{}' has a prefix.".format(
+                            semantic_version,
+                        ),
+                    )
+
+                prefix_value = prefix
+
+            if suffix:
+                if suffix_value:
+                    raise typer.BadParameter(
+                        "'--suffix' cannot be provided when the semantic version '{}' has a prefix or suffix.".format(
+                            semantic_version,
+                        ),
+                    )
+
+                suffix_value = suffix
+
+            if release_type == ReleaseType.official:
+                if suffix:
+                    raise typer.BadParameter("Suffixes are not supported with official releases.")
+            else:
+                if include_latest:
+                    raise typer.BadParameter("'latest'-tags can only be created for official release types.")
+
+                if not suffix_value:
+                    if release_type == ReleaseType.prerelease:
+                        release_type_decorator = "prerelease"
+                    elif release_type == ReleaseType.ci_build:
+                        release_type_decorator = "machine"
+                    elif release_type == ReleaseType.local_build:
+                        release_type_decorator = "local"
+                    else:
+                        assert False, release_type  # pragma: no cover
+
+                    suffix_value = "-{}.{}".format(
+                        release_type_decorator,
+                        datetime.datetime.now().strftime("%Y.%M.%d.%H.%M.%S"),
+                    )
+
+            if suffix_value and not suffix_value.startswith("-"):
+                suffix_value = "-{}".format(suffix_value)
+
+            return VersionInfo(
+                prefix_value,
+                SemVer(
+                    major=int(match.group("major")),
+                    minor=int(match.group("minor")),
+                    patch=int(match.group("patch")),
+                ),
+                suffix_value,
+            )
 
     # ----------------------------------------------------------------------
 
-    semver = GetSemVer()
-
-    if release_type == ReleaseType.official:
-        if suffix:
-            raise typer.BadParameter("Suffixes are not supported with official releases.")
-    else:
-        if include_latest:
-            raise typer.BadParameter("'latest'-tags can only be created for official release types.")
-
-        if not suffix:
-            suffix = datetime.datetime.now().strftime("%Y.%M.%d.%H.%M.%S")
+    version_info = VersionInfo.Create()
 
     with DoneManager.CreateCommandLine(
         output_flags=DoneManagerFlags.Create(verbose=verbose, debug=debug),
@@ -131,35 +195,22 @@ def EntryPoint(
         if repo is None:
             raise typer.BadParameter("'{}' is not associated with a Source Control Manager.".format(working_dir))
 
-        if release_type == ReleaseType.official:
-            release_type_decorator = ""
-        elif release_type == ReleaseType.prerelease:
-            release_type_decorator = "-prerelease"
-        elif release_type == ReleaseType.ci_build:
-            release_type_decorator = "-machine"
-        elif release_type == ReleaseType.local_build:
-            release_type_decorator = "-local"
-        else:
-            assert False, release_type  # pragma: no cover
-
-        template = "{prefix}{{}}{release_type}{suffix}".format(
-            prefix="{}-".format(prefix) if prefix else "",
-            release_type=release_type_decorator,
-            suffix="" if not suffix else ".{}".format(suffix),
-        )
-
         versions: List[str] = [
-            template.format("v" + str(semver)),
+            "{}{}{}".format(version_info.prefix, version_info.semantic_version, version_info.suffix),
         ]
 
-        if not suffix:
+        if not version_info.suffix:
             versions += [
-                template.format("v{}.{}".format(semver.major, semver.minor)),
-                template.format("v" + str(semver.major)),
+                "{}{}.{}".format(
+                    version_info.prefix,
+                    version_info.semantic_version.major,
+                    version_info.semantic_version.minor,
+                ),
+                "{}{}".format(version_info.prefix, version_info.semantic_version.major),
             ]
 
         if include_latest:
-            versions.append(template.format("latest"))
+            versions.append("{}latest".format(version_info.prefix.rstrip("v")))
 
         if repo.scm.name != "Git":
             raise Exception("Git is the only SCM supported at this time.")

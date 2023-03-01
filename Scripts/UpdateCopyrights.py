@@ -22,7 +22,7 @@ import traceback
 
 from enum import auto, Enum
 from pathlib import Path
-from typing import Callable, Dict, List, Optional, Tuple
+from typing import Callable, cast, Dict, List, Optional, Tuple
 
 import typer
 
@@ -247,13 +247,16 @@ def EntryPoint(
 
         # ----------------------------------------------------------------------
 
-        results: List[Optional[UpdateResult]] = ExecuteTasks.Transform(
-            dm,
-            "Processing",
-            tasks,
-            UpdateCopyright,
-            quiet=quiet,
-            max_num_threads=1 if not ssd else None,
+        results: List[Optional[UpdateResult]] = cast(
+            List[Optional[UpdateResult]],
+            ExecuteTasks.Transform(
+                dm,
+                "Processing",
+                tasks,
+                UpdateCopyright,
+                quiet=quiet,
+                max_num_threads=1 if not ssd else None,
+            ),
         )
 
         grouped_results: Dict[UpdateResult, List[Path]] = {}

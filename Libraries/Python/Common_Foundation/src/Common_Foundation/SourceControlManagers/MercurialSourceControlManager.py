@@ -785,7 +785,11 @@ class Repository(DistributedRepositoryBase):
         )
 
     # ----------------------------------------------------------------------
-    def EnumChanges(self) -> Generator[DistributedRepositoryBase.EnumChangesResult, None, None]:
+    def EnumChanges(
+        self,
+        *,
+        include_working_changes: bool=False,
+    ) -> Generator[DistributedRepositoryBase.EnumChangesResult, None, None]:
         raise Exception("This functionality is not yet implemented.")
 
     # ----------------------------------------------------------------------

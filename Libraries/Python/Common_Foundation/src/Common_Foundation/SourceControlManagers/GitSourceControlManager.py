@@ -22,7 +22,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import auto, Enum
 from pathlib import Path
-from typing import Any, Dict, List, Generator, Optional, Tuple, Union
+from typing import Any, ClassVar, Dict, List, Generator, Optional, Pattern, Tuple, Union
 
 from Common_Foundation.ContextlibEx import ExitStack
 from Common_Foundation.Shell.All import CurrentShell
@@ -197,6 +197,154 @@ class GitSourceControlManager(SourceControlManager):
 
 # ----------------------------------------------------------------------
 class Repository(DistributedRepositoryBase):
+    # ----------------------------------------------------------------------
+    # |
+    # |  Public Types
+    # |
+    # ----------------------------------------------------------------------
+    @dataclass(frozen=True)
+    class FileInfo(object):
+        # ----------------------------------------------------------------------
+        added: list[Path]
+        removed: List[Path]
+        modified: List[Path]
+        working: List[Path]
+
+        ignored: List[str]
+
+        # See https://git-scm.com/docs/git-status for more information on the porcelain output format
+        _local_file_item_regex: ClassVar[Pattern]       = re.compile(r"^(?P<prefix_x>.)(?P<prefix_y>.)\s+(?P<filename>\S.*)$")
+        _file_info_regex: ClassVar[Pattern]             = re.compile(r"^(?P<code>[ADCMTU]|R\d*)\s+(?P<filename>\S.*)$")
+
+        # ----------------------------------------------------------------------
+        @classmethod
+        def DecodeGitFileItemOutput(
+            cls,
+            repo_root: Path,
+            git_file_item_output: str,
+        ) -> Optional[
+            tuple[
+                Optional[Path],             # Added
+                Optional[Path],             # Removed
+                Optional[Path],             # Modified
+                Optional[Path],             # Working Change
+            ]
+        ]:
+            # ----------------------------------------------------------------------
+            def MatchLine() -> Optional[tuple[Optional[str], str]]:
+                status_match = cls._local_file_item_regex.match(git_file_item_output)
+                if status_match:
+                    prefix_x = status_match.group("prefix_x")
+                    prefix_y = status_match.group("prefix_y")
+
+                    if prefix_x.isspace() and prefix_y.isspace():
+                        # The status match has to be pretty greedy, as there can be spaces in the place of codes.
+                        # Account for the scenario where we have unintentionally matched a line with leading
+                        # whitespace (as can happen with commit descriptions).
+                        return None
+
+                    if prefix_x.isspace():
+                        # This is an indication that the file has changed locally, but has not be added to this commit.
+                        # This is safe to ignore without added it to the ignored lines.
+                        prefix_x = None
+
+                    return prefix_x, status_match.group("filename")
+
+                file_match = cls._file_info_regex.match(git_file_item_output)
+                if file_match:
+                    return file_match.group("code"), file_match.group("filename")
+
+                return None
+
+            # ----------------------------------------------------------------------
+
+            match_result = MatchLine()
+            if match_result is None:
+                return None
+
+            code, filename = match_result
+
+            if code is None:
+                return (None, None, None, repo_root / filename)
+
+            if code == "R":
+                assert " -> " in filename, filename
+                source, dest = filename.split(" -> ", maxsplit=1)
+
+                return (
+                    repo_root / dest,
+                    repo_root / source,
+                    None,
+                    None,
+                )
+
+            elif code.startswith("R"):
+                assert "\t" in filename, filename
+                source, dest = filename.split("\t", maxsplit=1)
+
+                return (
+                    repo_root / dest,
+                    repo_root / source,
+                    None,
+                    None,
+                )
+
+            elif code == "A":
+                return (repo_root / filename, None, None, None)
+
+            elif code == "D":
+                return (None, repo_root / filename, None, None)
+
+            elif code in [
+                "C", # Copied
+                "M", # Modified
+                "T", # Type changed
+                "U", # Updated but unmerged
+            ]:
+                return (None, None, repo_root / filename, None)
+
+            else:
+                assert False, (code, filename)
+
+        # ----------------------------------------------------------------------
+        @classmethod
+        def Extract(
+            cls,
+            repo_root: Path,
+            git_output: str,
+        ) -> "Repository.FileInfo":
+            added: list[Path] = []
+            removed: list[Path] = []
+            modified: list[Path] = []
+            working: list[Path] = []
+            ignored: list[str] = []
+
+            for line in git_output.split("\n"):
+                if not line or line.isspace():
+                    continue
+
+                result = cls.DecodeGitFileItemOutput(repo_root, line)
+                if result is None:
+                    ignored.append(line)
+                    continue
+
+                added_result, removed_result, modified_result, working_result = result
+
+                if added_result is not None:
+                    added.append(added_result)
+                if removed_result is not None:
+                    removed.append(removed_result)
+                if modified_result is not None:
+                    modified.append(modified_result)
+                if working_result is not None:
+                    working.append(working_result)
+
+            return cls(added, removed, modified, working, ignored)
+
+    # ----------------------------------------------------------------------
+    # |
+    # |  Public Methods
+    # |
     # ----------------------------------------------------------------------
     def GetGetUniqueNameCommandLine(self) -> str:
         return self._GetCommandLine("git remote -v")
@@ -754,7 +902,36 @@ class Repository(DistributedRepositoryBase):
         return self._GetCommandLine('git apply "{}"'.format(str(patch_filename)))
 
     # ----------------------------------------------------------------------
-    def EnumChanges(self) -> Generator[DistributedRepositoryBase.EnumChangesResult, None, None]:
+    def EnumChanges(
+        self,
+        *,
+        include_working_changes: bool=False,
+    ) -> Generator[DistributedRepositoryBase.EnumChangesResult, None, None]:
+        if include_working_changes:
+            result = self._Execute(
+                self._GetCommandLine("git status --porcelain=1 --untracked-files=no"),
+            )
+
+            assert result.returncode == 0, result.output
+
+            file_info = Repository.FileInfo.Extract(
+                self.repo_root,
+                result.output,
+            )
+
+            if file_info.working:
+                yield Repository.EnumChangesResult(
+                    Repository.EnumChangesResult.WORKING_CHANGES_COMMIT_ID,
+                    "Working Changes",
+                    [],
+                    self.Who(),
+                    datetime.now(),
+                    file_info.added,
+                    file_info.removed,
+                    file_info.modified,
+                    file_info.working,
+                )
+
         # ----------------------------------------------------------------------
         @dataclass(frozen=True)
         class Datum(object):
@@ -794,8 +971,6 @@ class Repository(DistributedRepositoryBase):
 
         commit_delimiter = "140c4c3011e84e018c296ef729c3f662"
         section_delimiter = "e3882de41b4f430b8ca7740998dc104e"
-
-        file_regex = re.compile(r"^(?P<code>[RADCMTU])\s+(?P<filename>\S.*)$", re.MULTILINE)
 
         commit_regex = re.compile(
             r"""(?#
@@ -876,6 +1051,8 @@ class Repository(DistributedRepositoryBase):
                 if match is None:
                     raise Exception("Unexpected git output:\n\n**{}**\n".format(commit.rstrip()))
 
+                offset += 1
+
                 # Extract the commit data
                 tag_content = match.group("tags")
                 file_content = match.group("files")
@@ -902,33 +1079,8 @@ class Repository(DistributedRepositoryBase):
                 date = datetime.strptime(match.group("date"), "%Y-%m-%d %H:%M:%S %z")
 
                 # Extract the file info
-                files_added: list[Path] = []
-                files_removed: list[Path] = []
-                files_modified: list[Path] = []
-
-                for match in file_regex.finditer(file_content):
-                    code = match.group("code")
-                    filename = match.group("filename")
-
-                    if code == "R":
-                        assert " -> " in filename, filename
-                        source, dest = filename.split(" -> ", maxsplit=1)
-
-                        files_removed.append(self.repo_root / source)
-                        files_added.append(self.repo_root / dest)
-                    elif code == "A":
-                        files_added.append(self.repo_root / filename)
-                    elif code == "D":
-                        files_removed.append(self.repo_root / filename)
-                    elif code in [
-                        "C", # Copied
-                        "M", # Modified
-                        "T", # Type changed
-                        "U", # Updated but unmerged
-                    ]:
-                        files_modified.append(self.repo_root / filename)
-                    else:
-                        assert False, (code, filename)
+                file_info = self.__class__.FileInfo.Extract(self.repo_root, file_content)
+                assert not file_info.ignored
 
                 yield Repository.EnumChangesResult(
                     commit_id,
@@ -936,13 +1088,13 @@ class Repository(DistributedRepositoryBase):
                     tags + prev_tags,
                     author,
                     date,
-                    files_added,
-                    files_removed,
-                    files_modified,
+                    file_info.added,
+                    file_info.removed,
+                    file_info.modified,
+                    file_info.working,
                 )
 
                 prev_tags = []
-                offset += 1
 
     # ----------------------------------------------------------------------
     def GetResetCommandLine(

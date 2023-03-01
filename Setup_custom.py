@@ -50,6 +50,8 @@ def GetConfigurations() -> Union[Configuration.Configuration, Dict[str, Configur
 
         # Libraries not required for Setup activities
         Configuration.VersionInfo("jinja2", SemVer("3.1.2")),
+        Configuration.VersionInfo("jsonschema", SemVer.coerce("4.17.3")),
+        Configuration.VersionInfo("rtyaml", SemVer("1.0.0")),
     ]
 
     if CurrentShell.family_name == "Windows":

@@ -13,7 +13,7 @@
 /Setup[.-]*.sh
 
 # ----------------------------------------------------------------------
-Generated/**
+**/Generated/**
 
 .pytest_cache/**
 __pycache__/**
@@ -29,6 +29,13 @@ test_localsystem.txt
 # ----------------------------------------------------------------------
 .github/**/*Compiler.ConditionalInvocationQueryMixin.data
 
+Libraries/Python/Common_Foundation/src/Common_Foundation.egg-info/*
+Libraries/Python/Common_FoundationEx/src/Common_FoundationEx.egg-info/*
+
+RepositoryBootstrap/SetupAndActivate/DynamicPluginArchitecture.py
+
+Scripts/AutoSemVer/Configuration/GeneratedCode/Compiler.ConditionalInvocationQueryMixin.data
+
 Tools/7zip/v22.1/Linux/*/**
 Tools/7zip/v22.1/Windows/*/**
 
@@ -38,8 +45,3 @@ Tools/sqlite/v3.39.3/Linux/x64/*/**
 
 Tools/Python/v3.10.6/Linux/x64/*/**
 Tools/Python/v3.10.6/Windows/x64/*/**
-
-Libraries/Python/Common_Foundation/src/Common_Foundation.egg-info/*
-Libraries/Python/Common_FoundationEx/src/Common_FoundationEx.egg-info/*
-
-RepositoryBootstrap/SetupAndActivate/DynamicPluginArchitecture.py
