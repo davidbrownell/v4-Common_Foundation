@@ -214,7 +214,7 @@ class Repository(DistributedRepositoryBase):
 
         # See https://git-scm.com/docs/git-status for more information on the porcelain output format
         _local_file_item_regex: ClassVar[Pattern]       = re.compile(r"^(?P<prefix_x>.)(?P<prefix_y>.)\s+(?P<filename>\S.*)$")
-        _file_info_regex: ClassVar[Pattern]             = re.compile(r"^(?P<code>[ADCMTU]|R\d*)\s+(?P<filename>\S.*)$")
+        _file_info_regex: ClassVar[Pattern]             = re.compile(r"^(?P<code>[ADCMTU\?]|R\d*)\s+(?P<filename>\S.*)$")
 
         # ----------------------------------------------------------------------
         @classmethod
@@ -289,7 +289,7 @@ class Repository(DistributedRepositoryBase):
                     None,
                 )
 
-            elif code == "A":
+            elif code in ["A", "?"]:
                 return (repo_root / filename, None, None, None)
 
             elif code == "D":
@@ -909,7 +909,7 @@ class Repository(DistributedRepositoryBase):
     ) -> Generator[DistributedRepositoryBase.EnumChangesResult, None, None]:
         if include_working_changes:
             result = self._Execute(
-                self._GetCommandLine("git status --porcelain=1 --untracked-files=no"),
+                self._GetCommandLine("git status --porcelain=1"),
             )
 
             assert result.returncode == 0, result.output
