@@ -324,6 +324,14 @@ def GetSemanticVersion(
                 Types.EnsureValid(configuration.initial_version.patch),
             ]
 
+        # If we have seen changes to a significant version number, don't less-significant
+        # baseline values impact the resulting version..
+        if major_delta:
+            baseline_version[1] = 0
+            baseline_version[2] = 0
+        elif minor_delta:
+            baseline_version[2] = 0
+
         # A version in the form "0.0.x" is not valid, so make sure that there is at least
         # a minor version when the major version is 0.
         if baseline_version[0] == 0 and baseline_version[1] == 0:
