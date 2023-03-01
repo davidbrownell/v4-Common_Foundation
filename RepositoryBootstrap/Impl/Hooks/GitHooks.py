@@ -29,10 +29,9 @@ import typer
 
 from typer.core import TyperGroup
 
-from Common_Foundation.SourceControlManagers.GitSourceControlManager import GitSourceControlManager
+from Common_Foundation.SourceControlManagers.GitSourceControlManager import GitSourceControlManager, Repository
 from Common_Foundation.Streams.Capabilities import Capabilities
 from Common_Foundation.Streams.DoneManager import DoneManager, DoneManagerFlags
-from Common_Foundation import SubprocessEx
 from Common_Foundation import TextwrapEx
 
 from . import HookImpl
@@ -393,7 +392,7 @@ def _CreateWorkingCommitInfo(
         assert dm.result != 0
         return None
 
-    assert result.ignored_lines is None or all(not line for line in result.ignored_lines), result.ignored_lines
+    assert result.ignored_lines is None, result.ignored_lines
 
     return HookImpl.CommitInfo(
         HookImpl.CommitInfo.CommitType.Standard,
@@ -419,9 +418,10 @@ def _CreateChangeCommitInfo(
 ) -> Optional[HookImpl.CommitInfo]:
     # Ensure that the change id is a string
     if not isinstance(change_id, str):
-        result = SubprocessEx.Run(
+        result = GitSourceControlManager.Execute(
             "git log {} --format=%H".format(change_id),
             cwd=repository_root,
+            strip=True,
         )
 
         dm.result = result.returncode
@@ -430,7 +430,7 @@ def _CreateChangeCommitInfo(
             dm.WriteError(result.output)
             return None
 
-        change_id = result.output.strip()
+        change_id = result.output
 
     result = _ParseGitOutput(
         dm,
@@ -533,9 +533,10 @@ def _ParseGitOutput(
     repository_root: Path,
     command_line: str,
 ) -> Optional[_ParseGitOutputResultType]:
-    result = SubprocessEx.Run(
+    result = GitSourceControlManager.Execute(
         command_line,
         cwd=repository_root,
+        strip=True,
     )
 
     dm.result = result.returncode
@@ -556,8 +557,6 @@ def _ParseGitOutput(
 
         return None
 
-    output = result.output.rstrip()
-
     with dm.YieldVerboseStream() as stream:
         stream.write(
             textwrap.dedent(
@@ -570,7 +569,7 @@ def _ParseGitOutput(
                 """,
             ).format(
                 command_line,
-                TextwrapEx.Indent(output, 4),
+                TextwrapEx.Indent(result.output, 4),
             ),
         )
 
@@ -580,73 +579,22 @@ def _ParseGitOutput(
     modified: List[Path] = []
     removed: List[Path] = []
 
-    # See https://git-scm.com/docs/git-status for more information on the porcelain output format
-    status_regex = re.compile(r"^(?P<prefix_x>.)(?P<prefix_y>.)\s+(?P<filename>\S.*)$")
-    show_regex = re.compile(r"^(?P<code>[RADCMTU])\s+(?P<filename>\S.*)$")
+    for line in result.output.split("\n"):
+        result = Repository.FileInfo.DecodeGitFileItemOutput(repository_root, line)
 
-    # ----------------------------------------------------------------------
-    def MatchLine(
-        line: str,
-    ) -> Optional[Tuple[Optional[str], str]]:
-        status_match = status_regex.match(line)
-        if status_match:
-            prefix_x = status_match.group("prefix_x")
-            prefix_y = status_match.group("prefix_y")
-
-            if prefix_x.isspace() and prefix_y.isspace():
-                # The status match has to be pretty greedy, as there can be spaces in the place of codes.
-                # Account for the scenario where we have unintentionally matched a line with leading
-                # whitespace (as can happen with commit descriptions).
-                return None
-
-            if prefix_x == " ":
-                # This is an indication that the file has changed locally, but has not be added to this commit.
-                # This is safe to ignore without added it to the ignored lines.
-                prefix_x = None
-
-            return prefix_x, status_match.group("filename")
-
-        show_match = show_regex.match(line)
-        if show_match:
-            return show_match.group("code"), show_match.group("filename")
-
-        return None
-
-    # ----------------------------------------------------------------------
-
-    for line in output.split("\n"):
-        if "trace: " in line:
-            continue
-
-        match_result = MatchLine(line)
-        if match_result is None:
+        if result is None:
             ignored_lines.append(line)
             continue
 
-        code, filename = match_result
+        # We don't care about working results here
+        added_result, removed_result, modified_result, _ = result
 
-        if code is None:
-            continue
-
-        if code == "R":
-            assert " -> " in filename, filename
-            source, dest = filename.split(" -> ", maxsplit=1)
-
-            removed.append(repository_root / source)
-            added.append(repository_root / dest)
-        elif code == "A":
-            added.append(repository_root / filename)
-        elif code == "D":
-            removed.append(repository_root / filename)
-        elif code in [
-            "C", # Copied
-            "M", # Modified
-            "T", # Type changed
-            "U", # Updated but unmerged
-        ]:
-            modified.append(repository_root / filename)
-        else:
-            assert False, line
+        if added_result is not None:
+            added.append(added_result)
+        if removed_result is not None:
+            removed.append(removed_result)
+        if modified_result is not None:
+            modified.append(modified_result)
 
     return _ParseGitOutputResultType(
         ignored_lines or None,

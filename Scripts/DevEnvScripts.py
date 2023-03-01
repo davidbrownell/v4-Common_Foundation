@@ -96,6 +96,8 @@ def _OnDisplay() -> None:
             if dm.capabilities.is_headless:
                 table.add_column("Location")
 
+            rows: list[list[str]] = []
+
             for script_info in script_infos:
                 row_data: List[str] = [
                     "[bold green]{}[/]".format(
@@ -114,6 +116,11 @@ def _OnDisplay() -> None:
                 if dm.capabilities.is_headless:
                     row_data.append(str(Path(script_info["filename"])))
 
+                rows.append(row_data)
+
+            rows.sort(key=lambda row: row[0])
+
+            for row_data in rows:
                 table.add_row(*row_data)
 
             return Panel(

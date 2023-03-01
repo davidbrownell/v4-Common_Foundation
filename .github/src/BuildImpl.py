@@ -16,6 +16,7 @@
 """Builds github content"""
 
 import importlib
+import inspect
 import os
 import sys
 import textwrap
@@ -290,8 +291,38 @@ def CreateTagsImpl(
             dm.result = 1
             return
 
-        command_line = 'CreateTags{ext} CI_VERSION "🤖 Updated CI Version" --prefix CI --release-type official --push --force --include-latest{dry_run}'.format(
+        # Older repositories have a file named CI_VERSION whose contents are used as the semantic version
+        # while newer repositories used AutoSemVer. Check for a CI_VERSION file before invoking
+        # AutoSemVer in the name of backwards compatibility.
+        frame = inspect.stack()[1]
+        module = inspect.getmodule(frame[0])
+        working_dir = Path(module.__file__).parent  # type: ignore
+
+        potential_ci_version_filename = working_dir / "CI_VERSION"
+        if potential_ci_version_filename.is_file():
+            with potential_ci_version_filename.open() as f:
+                semantic_version = "CI-v{}".format(f.read().strip())
+        else:
+            command_line = 'AutoSemVer{ext} --no-metadata --quiet'.format(
+                ext=CurrentShell.script_extensions[0],
+            )
+
+            result = SubprocessEx.Run(
+                command_line,
+                cwd=working_dir,
+                supports_colors=dm.capabilities.supports_colors,
+            )
+
+            dm.result = result.returncode
+
+            if dm.result != 0:
+                return
+
+            semantic_version = result.output.strip()
+
+        command_line = 'CreateTags{ext} {semantic_version} "🤖 Updated CI Version" --release-type official --push --force --include-latest{dry_run}'.format(
             ext=CurrentShell.script_extensions[0],
+            semantic_version=semantic_version,
             dry_run=" --dry-run" if dry_run else "",
         )
 

@@ -23,7 +23,7 @@ from abc import abstractmethod, ABC
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Generator, Optional, Union
+from typing import Any, ClassVar, Dict, List, Generator, Optional, Union
 
 from . import UpdateMergeArgs
 
@@ -721,6 +721,8 @@ class Repository(ABC):
     # ----------------------------------------------------------------------
     @dataclass(frozen=True)
     class EnumChangesResult(object):
+        WORKING_CHANGES_COMMIT_ID: ClassVar[str]        = "<working>"
+
         commit: str
         description: str
         tags: list[str]
@@ -731,9 +733,14 @@ class Repository(ABC):
         files_added: list[Path]
         files_removed: list[Path]
         files_modified: list[Path]
+        working_files: list[Path]
 
     @abstractmethod
-    def EnumChanges(self) -> Generator[EnumChangesResult, None, None]:
+    def EnumChanges(
+        self,
+        *,
+        include_working_changes: bool=False,
+    ) -> Generator[EnumChangesResult, None, None]:
         """Enumerates changes on the local branch, starting with the most recent and working backwards in time."""
         raise Exception("Abstract method")  # pragma: no cover
 

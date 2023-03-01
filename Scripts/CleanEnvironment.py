@@ -13,7 +13,7 @@
 # |  http://www.boost.org/LICENSE_1_0.txt.
 # |
 # ----------------------------------------------------------------------
-"""Utilities to clean the local development environment."""
+"""Tools to clean the local development environment."""
 
 import datetime
 import itertools

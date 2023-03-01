@@ -13,7 +13,7 @@
 # |  http://www.boost.org/LICENSE_1_0.txt.
 # |
 # ----------------------------------------------------------------------
-"""Tools to create and display emojis useful when committing changes to a repository."""
+"""Tools to create and display emojis used when committing changes to a repository."""
 
 import json
 import re

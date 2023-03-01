@@ -423,7 +423,7 @@ class ScriptsActivateActivity(ActivateActivity):
 
                 # Wait until the verbose stream is done writing content before writing warnings
                 if rename_warnings:
-                    dm.WriteWarning.write(
+                    dm.WriteWarning(
                         TextwrapEx.Indent("\n\n{}".format("\n".join(rename_warnings)), 2),
                     )
 

@@ -13,7 +13,7 @@
 # |  http://www.boost.org/LICENSE_1_0.txt.
 # |
 # ----------------------------------------------------------------------
-"""Executes Source Code Manager commands."""
+"""Executes Source Control Management commands."""
 
 import io
 import multiprocessing
