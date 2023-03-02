@@ -1020,7 +1020,6 @@ class Repository(DistributedRepositoryBase):
                     "--name-status",
                     "--no-color",
                     "--skip", "{}",
-                    "--tags",
                 ],
             ),
         )
