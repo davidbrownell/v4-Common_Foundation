@@ -15,11 +15,6 @@
 # ----------------------------------------------------------------------
 """Automatically generates semantic versions based on changes in the active repository."""
 
-# TODO:
-# - Remove CI_VERSION in all repos
-# - Update Common_PythonDevelopment to include AutoSemVer with pyproject.toml
-# - How can python libs used AutoSemVer in pyproject.toml
-
 import sys
 
 from contextlib import contextmanager
@@ -38,7 +33,7 @@ except ModuleNotFoundError:
 from Common_Foundation.Streams.DoneManager import DoneManager, DoneManagerFlags
 from Common_Foundation.Streams.StreamDecorator import StreamDecorator
 
-from Impl import GetSemanticVersion
+from Impl import GenerateStyle, GetSemanticVersion
 
 
 # ----------------------------------------------------------------------
@@ -60,13 +55,10 @@ app                                         = typer.Typer(
 
 
 # ----------------------------------------------------------------------
-@app.command(
-    "EntryPoint",
-    help=__doc__,
-    no_args_is_help=False,
-)
-def EntryPoint(
+@app.command("Generate", no_args_is_help=False)
+def Generate(
     path: Path=typer.Argument(Path.cwd(), file_okay=False, exists=True, resolve_path=True, help="Generate a semantic version based on changes that impact the specified path."),
+    style: GenerateStyle=typer.Option(GenerateStyle.Standard, "--style", case_sensitive=False, help="Specifies the way in which the semantic version is generated; this is useful when targets using the generated semantic version do not fully support the semantic version specification."),
     prerelease_name: str=typer.Option(None, "--prerelease-name", help="Create a semantic version string with this prerelease name."),
     no_branch_name: bool=typer.Option(False, "--no-branch-name", help="Do not include the branch name in the prerelease section of the generated semantic version."),
     no_metadata: bool=typer.Option(False, "--no-metadata", help="Do not include the build metadata section of the generated semantic version."),
@@ -74,6 +66,8 @@ def EntryPoint(
     debug: bool=typer.Option(False, "--debug", help="Write debug information to the terminal."),
     quiet: bool=typer.Option(False, "--quiet", help="Do not display any information other than the generated semantic version."),
 ) -> None:
+    """Automatically generates a semantic version based on changes in the active repository."""
+
     # ----------------------------------------------------------------------
     @contextmanager
     def GenerateDoneManager() -> Iterator[tuple[DoneManager, Callable[[str], Any]]]:
@@ -103,9 +97,26 @@ def EntryPoint(
             prerelease_name=prerelease_name,
             include_branch_name_when_necessary=not no_branch_name,
             no_metadata=no_metadata,
+            style=style,
         )
 
         output(result.version)
+
+
+# ----------------------------------------------------------------------
+@app.command("Validate", no_args_is_help=False)
+def Validate(
+    path: Path=typer.Argument(Path.cwd(), file_okay=False, exists=True, resolve_path=True, help="Generate a semantic version based on changes that impact the specified path."),
+    verbose: bool=typer.Option(False, "--verbose", help="Write verbose information to the terminal."),
+    debug: bool=typer.Option(False, "--debug", help="Write debug information to the terminal."),
+) -> None:
+    """Validates that files within change(s) do not span multiple AutoSemVer domains."""
+
+    with DoneManager.CreateCommandLine(
+        output_flags=DoneManagerFlags.Create(verbose=verbose, debug=debug),
+    ) as dm:
+        # TODO
+        pass
 
 
 # ----------------------------------------------------------------------

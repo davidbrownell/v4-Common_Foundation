@@ -23,6 +23,7 @@ import platform
 import re
 
 from dataclasses import dataclass, field
+from enum import Enum
 from pathlib import Path
 from typing import Any, cast, Optional, Type as PythonType
 
@@ -75,6 +76,13 @@ class Configuration(object):
 
 
 # ----------------------------------------------------------------------
+class GenerateStyle(str, Enum):
+    Standard                                = "Standard"
+    AllPrerelease                           = "AllPrerelease"
+    AllMetadata                             = "AllMetadata"
+
+
+# ----------------------------------------------------------------------
 @dataclass(frozen=True)
 class GetSemanticVersionResult(object):
     """Result of GetSemanticVersion"""
@@ -99,6 +107,7 @@ def GetSemanticVersion(
     include_computer_name_when_necessary: bool=True,
     no_metadata: bool=False,
     configuration_filenames: Optional[list[str]]=None,
+    style: GenerateStyle=GenerateStyle.Standard,
 ) -> GetSemanticVersionResult:
     repository: Optional[Repository] = None
 
@@ -375,9 +384,6 @@ def GetSemanticVersion(
                 if current_branch not in configuration.main_branch_names:
                     prerelease_components.append(current_branch)
 
-        if prerelease_components:
-            version_parts.append("-{}".format(".".join(prerelease_components)))
-
         # Build metadata
         metadata_components: list[str] = []
 
@@ -401,6 +407,21 @@ def GetSemanticVersion(
 
         if has_working_changes:
             metadata_components.append("working_changes")
+
+        if style == GenerateStyle.Standard:
+            # No modifications necessary
+            pass
+        elif style == GenerateStyle.AllPrerelease:
+            prerelease_components += metadata_components
+            metadata_components = []
+        elif style == GenerateStyle.AllMetadata:
+            metadata_components = prerelease_components + metadata_components
+            prerelease_components = []
+        else:
+            assert False, style  # pragma: no cover
+
+        if prerelease_components:
+            version_parts.append("-{}".format(".".join(prerelease_components)))
 
         if metadata_components:
             version_parts.append("+{}".format(".".join(metadata_components)))
