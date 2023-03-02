@@ -417,6 +417,12 @@ class Repository(DistributedRepositoryBase):
         return self._GetCurrentBranchEx()[1]
 
     # ----------------------------------------------------------------------
+    def GetCurrentNormalizedBranch(self) -> str:
+        return self._GetCurrentBranchEx(
+            resolve_detached=True,
+        )[1]
+
+    # ----------------------------------------------------------------------
     def GetGetMostRecentBranchCommandLine(self) -> str:
         return self._GetCommandLine('git for-each-ref --sort=-committerdate --format="%(refname)"')
 
@@ -1329,8 +1335,9 @@ class Repository(DistributedRepositoryBase):
     def _GetCurrentBranchEx(
         self,
         *,
+        resolve_detached: bool=False,
         detached_is_error: bool=False,
-        detached_error_template: str="The requested operation is not valid on a branch in a 'DETACHED HEAD' state ({}).",
+        detached_error_template: str="The requested operation is not valid on a branch in the 'DETACHED HEAD' state ({}).",
     ) -> Tuple["Repository._BranchType", str]:
         # Get the branch name
         branch_name: Optional[str] = None
@@ -1377,6 +1384,33 @@ class Repository(DistributedRepositoryBase):
 
             if detached_is_error:
                 raise Exception(detached_error_template.format(branch_type))
+
+            if resolve_detached:
+                result = GitSourceControlManager.Execute(
+                    "git branch -v",
+                    cwd=self.repo_root,
+                )
+
+                assert result.returncode == 0, result
+
+                regex = re.compile(
+                    r"""(?#
+                    Start of line           )^(?#
+                    Header                  )(?P<header>\*)?\s+(?#
+                    Branch Name             )(?P<name>.+?)\s+(?#
+                    Commit id               )(?P<commit_id>[A-Za-z0-9]+)\s+(?#
+                    Description             )(?P<description>.*)(?#
+                    End of line             )$(?#
+                    )""",
+                )
+
+                for line in result.output.split("\n"):
+                    match = regex.match(line)
+                    assert match, line
+
+                    if match.group("commit_id") == branch_name and not match.group("header"):
+                        branch_name = match.group("name")
+                        break
 
         else:
             branch_type = Repository._BranchType.Standard
