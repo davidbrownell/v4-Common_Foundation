@@ -18,7 +18,7 @@
 import re
 import textwrap
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from enum import auto, Enum
 from pathlib import Path
@@ -1339,83 +1339,110 @@ class Repository(DistributedRepositoryBase):
         detached_error_template: str="The requested operation is not valid on a branch in the 'DETACHED HEAD' state ({}).",
     ) -> Tuple["Repository._BranchType", str]:
         # Get the branch name
-        branch_name: Optional[str] = None
-
-        result = GitSourceControlManager.Execute(self._GetCommandLine("git branch --no-color"))
+        result = GitSourceControlManager.Execute(self._GetCommandLine("git branch --all --no-color --verbose"))
         assert result.returncode == 0, result.output
 
-        if result.output:
-            regex = re.compile(r"\s*\*\s+(?P<name>.+)")
+        # ----------------------------------------------------------------------
+        @dataclass(frozen=True)
+        class BranchInfo(object):
+            # ----------------------------------------------------------------------
+            name: str
+            id: str
+            description: str
 
-            for line in result.output.split("\n"):
-                match = regex.match(line)
-                if match:
-                    branch_name = match.group("name")
-                    break
+            is_selected: bool               = field(kw_only=True)
 
-        if branch_name is None:
-            branch_name = self.scm.default_branch_name
+            is_detached: bool               = field(init=False)
 
-        # Get the branch type
-        detached_head_match = re.match(
-            r"^\(HEAD detached (?:at|from) (?P<value>.+?)\)$",
-            branch_name,
-        )
-
-        if detached_head_match:
-            branch_name = detached_head_match.group("value")
-
-            # If here, we are either looking at a branch based off of a specific commit
-            # or a branch based off of a tag. Note that we can't use the -C method to
-            # perform the command in a different directory, so we have to change the
-            # working directory instead.
-            result = GitSourceControlManager.Execute(
-                "git tag --points-at HEAD",
-                cwd=self.repo_root,
-            )
-
-            if result.returncode == 0 and result.output:
-                branch_type = Repository._BranchType.Tag
-            else:
-                branch_type = Repository._BranchType.Commit
-
-            # Note that I wouldn't be surprised if there are other types here that are missed
-
-            if detached_is_error:
-                raise Exception(detached_error_template.format(branch_type))
-
-            if resolve_detached:
-                result = GitSourceControlManager.Execute(
-                    "git branch -v",
-                    cwd=self.repo_root,
+            # ----------------------------------------------------------------------
+            def __post_init__(self):
+                object.__setattr__(
+                    self,
+                    "is_detached",
+                    (
+                        self.name.startswith("(HEAD detached")
+                        or self.name == "(no branch)"
+                    ),
                 )
 
-                assert result.returncode == 0, result
+        # ----------------------------------------------------------------------
 
-                regex = re.compile(
+        branch_infos: list[BranchInfo] = []
+
+        regex = re.compile(
                     r"""(?#
                     Start of line           )^(?#
                     Header                  )(?P<header>\*)?\s+(?#
                     Branch Name             )(?P<name>.+?)\s+(?#
-                    Commit id               )(?P<commit_id>[A-Za-z0-9]+)\s+(?#
-                    Description             )(?P<description>.*)(?#
+                    Commit id               )(?P<commit_id>[A-Fa-f0-9]+)\s+(?#
+                    Description             )(?P<description>.*?)(?#
                     End of line             )$(?#
                     )""",
                 )
 
-                for line in result.output.split("\n"):
-                    match = regex.match(line)
-                    assert match, line
+        for line in result.output.split("\n"):
+            if line.isspace():
+                continue
 
-                    if match.group("commit_id") == branch_name and not match.group("header"):
-                        branch_name = match.group("name")
-                        break
+            match = regex.match(line)
+            if not match:
+                continue
 
+            branch_infos.append(
+                BranchInfo(
+                    match.group("name").split("/")[-1],
+                    match.group("commit_id"),
+                    match.group("description"),
+                    is_selected=bool(match.group("header")),
+                ),
+            )
+
+        assert branch_infos
+
+        current_branch = next((branch_info for branch_info in branch_infos if branch_info.is_selected), None)
+        if current_branch is None:
+            raise Exception("No branch was decorated as selected.")
+
+        if not current_branch.is_detached:
+            return Repository._BranchType.Standard, current_branch.name
+
+        # If here, we are either looking at a branch based off of a specific commit
+        # or a branch based off of a tag. Note that we can't use the -C method to
+        # perform the command in a different directory, so we have to change the
+        # working directory instead.
+        result = GitSourceControlManager.Execute(
+            "git tag --points-at HEAD",
+            cwd=self.repo_root,
+        )
+
+        if result.returncode == 0 and result.output:
+            branch_type = Repository._BranchType.Tag
         else:
-            branch_type = Repository._BranchType.Standard
+            branch_type = Repository._BranchType.Commit
 
-        assert branch_name is not None
-        return branch_type, branch_name
+        # Note that I wouldn't be surprised if there are other types here that are missed
+
+        if detached_is_error:
+            raise Exception(detached_error_template.format(branch_type))
+
+        if not resolve_detached:
+            return branch_type, current_branch.name
+
+        resolved_branch = next(
+            (
+                branch_info for branch_info in branch_infos if (
+                    branch_info is not current_branch
+                    and branch_info.id == current_branch.id
+                    and not branch_info.is_detached
+                )
+            ),
+            None,
+        )
+
+        if resolved_branch is None:
+            raise Exception("The branch '{}' could not be resolved.".format(current_branch.name))
+
+        return branch_type, resolved_branch.name
 
     # ----------------------------------------------------------------------
     def _GetUpdateMergeArgCommandLine(
