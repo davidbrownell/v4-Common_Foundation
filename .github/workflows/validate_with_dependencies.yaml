@@ -63,7 +63,7 @@ jobs:
     uses: davidbrownell/v4-Common_SimpleSchema/.github/workflows/validate.yaml@CI-latest
     with:
       repo_branch: main_stable
-      bootstrap_branch_overrides: "Common_SimpleSchema:${{ inputs.repo_branch }}"
+      bootstrap_branch_overrides: "Common_Foundation:${{ inputs.repo_branch }}"
 
   _32e0298e-2734-41c6-ad77-c99c37c058f7:
     name: "Common_VSCodeMixin"
