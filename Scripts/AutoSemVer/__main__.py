@@ -57,7 +57,6 @@ app                                         = typer.Typer(
 # ----------------------------------------------------------------------
 @app.command("Generate", no_args_is_help=False)
 def Generate(
-    generate_placeholder: str=typer.Argument("Generate", help="This is a placeholder value necessary for backwards compatibility; it will be removed once the repositories that depend on this one are updated."),
     path: Path=typer.Argument(Path.cwd(), file_okay=False, exists=True, resolve_path=True, help="Generate a semantic version based on changes that impact the specified path."),
     style: GenerateStyle=typer.Option(GenerateStyle.Standard, "--style", case_sensitive=False, help="Specifies the way in which the semantic version is generated; this is useful when targets using the generated semantic version do not fully support the semantic version specification."),
     prerelease_name: str=typer.Option(None, "--prerelease-name", help="Create a semantic version string with this prerelease name."),
@@ -104,20 +103,20 @@ def Generate(
         output(result.version)
 
 
-# # ----------------------------------------------------------------------
-# @app.command("Validate", no_args_is_help=False)
-# def Validate(
-#     path: Path=typer.Argument(Path.cwd(), file_okay=False, exists=True, resolve_path=True, help="Generate a semantic version based on changes that impact the specified path."),
-#     verbose: bool=typer.Option(False, "--verbose", help="Write verbose information to the terminal."),
-#     debug: bool=typer.Option(False, "--debug", help="Write debug information to the terminal."),
-# ) -> None:
-#     """Validates that files within change(s) do not span multiple AutoSemVer domains."""
-#
-#     with DoneManager.CreateCommandLine(
-#         output_flags=DoneManagerFlags.Create(verbose=verbose, debug=debug),
-#     ) as dm:
-#         # TODO
-#         pass
+# ----------------------------------------------------------------------
+@app.command("Validate", no_args_is_help=False)
+def Validate(
+    path: Path=typer.Argument(Path.cwd(), file_okay=False, exists=True, resolve_path=True, help="Generate a semantic version based on changes that impact the specified path."),
+    verbose: bool=typer.Option(False, "--verbose", help="Write verbose information to the terminal."),
+    debug: bool=typer.Option(False, "--debug", help="Write debug information to the terminal."),
+) -> None:
+    """Validates that files within change(s) do not span multiple AutoSemVer domains."""
+
+    with DoneManager.CreateCommandLine(
+        output_flags=DoneManagerFlags.Create(verbose=verbose, debug=debug),
+    ) as dm:
+        # TODO
+        pass
 
 
 # ----------------------------------------------------------------------
