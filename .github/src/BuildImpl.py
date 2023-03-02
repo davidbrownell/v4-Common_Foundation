@@ -303,7 +303,7 @@ def CreateTagsImpl(
             with potential_ci_version_filename.open() as f:
                 semantic_version = "CI-v{}".format(f.read().strip())
         else:
-            command_line = 'AutoSemVer{ext} --no-metadata --quiet'.format(
+            command_line = 'AutoSemVer{ext} Generate --no-metadata --quiet'.format(
                 ext=CurrentShell.script_extensions[0],
             )
 
