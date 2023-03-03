@@ -40,6 +40,7 @@ inputs:
 
   shell_name:                               {type: string, required: true}
 
+  cache_prefix:                             {type: string, required: false}
   cache_suffix:                             {type: string, required: false}
 
 outputs:
@@ -75,6 +76,15 @@ runs:
 
           const repo_name = "${{ inputs.repo_name }}".split("/").pop();
 
+          const prefix = (
+            () => {
+              if("${{ inputs.cache_prefix}}" !== "")
+                return "${{ inputs.cache_prefix }}-";
+
+              return "build_and_test-";
+            }
+          )();
+
           const suffix = (
             () => {
               if("${{ inputs.cache_suffix}}" !== "")
@@ -84,7 +94,7 @@ runs:
             }
           )();
 
-          return `build_and_test-${repo_name}-${{ inputs.configuration }}-${year}.${month}.${day}-${{ inputs.os }}${suffix}`;
+          return `${prefix}${repo_name}-${{ inputs.configuration }}-${year}.${month}.${day}-${{ inputs.os }}${suffix}`;
 
     - name: Results
       shell: ${{ inputs.shell }}

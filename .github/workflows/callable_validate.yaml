@@ -30,6 +30,7 @@
 # |
 # ----------------------------------------------------------------------
 
+
 name: "[impl] Common_Foundation-based Repository Validation"
 on:
   workflow_call:
@@ -90,6 +91,7 @@ on:
         description: "Disables caching."
         default: false
 
+
       # ----------------------------------------------------------------------
       #  Builder
       run_Builder:                          {type: boolean, required: false, default: false}
@@ -112,7 +114,7 @@ on:
 
 
 jobs:
-  _8fb649ac-dac3-4de2-8bb5-a3eb6b7c5b70:
+  _0d103712-3387-4d1f-8e1c-295b8b862ef0:
     name: "${{ inputs.job_name_prefix }} (${{ inputs.os }}, ${{ inputs.configuration }})"
     runs-on: ${{ inputs.os }}
 
@@ -162,7 +164,7 @@ jobs:
       - name: Create Cache Key
         id: cache_key
         if: ${{ !(inputs.no_cache == true || inputs.no_cache == 'true') }}
-        uses: davidbrownell/v4-Common_Foundation/.github/actions/create_cache_key@CI-v1
+        uses: davidbrownell/v4-Common_Foundation/.github/actions/create_cache_key@CI-BugBug # CI-v1
         with:
           repo_name: ${{ inputs.repo_name }}
 
@@ -170,6 +172,9 @@ jobs:
           configuration: ${{ inputs.configuration }}
 
           shell_name: ${{ steps.initialize.outputs.shell_name }}
+
+          cache_prefix: ""
+          cache_suffix: ""
 
       # outputs:
       #   - cache-hit

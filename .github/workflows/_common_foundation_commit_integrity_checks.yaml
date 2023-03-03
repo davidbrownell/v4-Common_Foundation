@@ -1,0 +1,214 @@
+# ----------------------------------------------------------------------
+# ----------------------------------------------------------------------
+# ----------------------------------------------------------------------
+#
+# This file is the result of a code generation process; any changes made
+# to this file will be overwritten during the next code generation
+# invocation. Any changes MUST be made in the source file rather than in
+# this one.
+#
+#     Code Generator:         Jinja2
+#     Input Filename:         workflows/_common_foundation_commit_integrity_checks.jinja2.yaml
+#
+# ----------------------------------------------------------------------
+# ----------------------------------------------------------------------
+# ----------------------------------------------------------------------
+
+# ----------------------------------------------------------------------
+# |
+# |  _common_foundation_commit_integrity_checks.jinja2.yaml
+# |
+# |  David Brownell <db@DavidBrownell.com>
+# |      2023-03-03 10:11:14
+# |
+# ----------------------------------------------------------------------
+# |
+# |  Copyright David Brownell 2023
+# |  Distributed under the Boost Software License, Version 1.0. See
+# |  accompanying file LICENSE_1_0.txt or copy at
+# |  http://www.boost.org/LICENSE_1_0.txt.
+# |
+# ----------------------------------------------------------------------
+
+name: "[impl] Common_Foundation-specific Repository Commit Integrity Checks"
+on:
+  workflow_call:
+    inputs:
+      # ----------------------------------------------------------------------
+      # |  Misc
+      repo_name:
+        type: string
+        required: true
+        description: "Official GitHub repo name in the form: <username>/<repo_name> (e.g. 'davidbrownell/v4-Common_Foundation')."
+
+      repo_branch:
+        type: string
+        required: true
+        description: Repository branch under test.
+
+      job_name_prefix:
+        type: string
+        required: true
+        description: "Prefix for the job; should be the friendly name of the repository or something similarly identifiable (e.g. 'Common_Foundation')."
+
+      os:
+        type: string
+        required: true
+        description: Operating system.
+
+      configuration:
+        type: string
+        required: true
+        description: "Name of the configuration to use when setting up and activating the environment (specify the 'None' string value for repositories that aren't configurable)."
+
+      bootstrap_branch_overrides:
+        type: string
+        required: false
+        description: Forces Enlist.py to clone repositories according to specified branch.
+
+      is_mixin_repository:
+        type: boolean
+        required: false
+        description: True if the repository is a mixin repository.
+        default: false
+
+      force_setup:
+        type: boolean
+        required: false
+        description: "Appends the '--force' flag when setting up repositories."
+        default: false
+
+      force_activate:
+        type: boolean
+        required: false
+        description: "Appends the '--force' flag when activating repositories."
+        default: false
+
+      no_cache:
+        type: boolean
+        required: false
+        description: "Disables caching."
+        default: false
+
+
+jobs:
+  _0d103712-3387-4d1f-8e1c-295b8b862ef0:
+    name: "${{ inputs.job_name_prefix }} (${{ inputs.os }}, ${{ inputs.configuration }})"
+    runs-on: ${{ inputs.os }}
+
+    env:
+      COLUMNS: "200"
+      SIMULATE_TERMINAL_CAPABILITIES_SUPPORTS_COLORS: "1"
+      PYTHONIOENCODING: "UTF-8"
+
+    steps:
+      - name: "[Impl] Dump Contexts"
+        if: ${{ startsWith(inputs.os, 'ubuntu') }}
+        uses: davidbrownell/v4-Common_Foundation/.github/actions/dump_contexts@CI-v1
+
+      # outputs:
+      #   - github_workspace
+      #   - local_script_prefix
+      #   - script_extension
+      #   - shell_name
+      #   - source_command
+      #   - sudo_command
+      #
+      - name: "[Impl] Initialize OS-Specific Variables"
+        id: initialize
+        uses: davidbrownell/v4-Common_Foundation/.github/actions/initialize@CI-v1
+        with:
+          os: ${{ inputs.os }}
+
+      # outputs:
+      #   - archive_prefix
+      #   - repo_dir
+      #   - repo_dependencies_dir
+      #
+      - name: Checkout Source
+        id: checkout_source
+        uses: davidbrownell/v4-Common_Foundation/.github/actions/checkout_source@CI-v1
+        with:
+          repo_name: ${{ inputs.repo_name }}
+          repo_branch: ${{ inputs.repo_branch }}
+
+          os: ${{ inputs.os }}
+          configuration: ${{ inputs.configuration }}
+
+          shell_name: ${{ steps.initialize.outputs.shell_name }}
+
+      # outputs:
+      #   - cache_key
+      - name: Create Cache Key
+        id: cache_key
+        if: ${{ !(inputs.no_cache == true || inputs.no_cache == 'true') }}
+        uses: davidbrownell/v4-Common_Foundation/.github/actions/create_cache_key@CI-BugBug # CI-v1
+        with:
+          repo_name: ${{ inputs.repo_name }}
+
+          os: ${{ inputs.os }}
+          configuration: ${{ inputs.configuration }}
+
+          shell_name: ${{ steps.initialize.outputs.shell_name }}
+
+          cache_prefix: "integrity_checks"
+          cache_suffix: "common_foundation"
+
+      # outputs:
+      #   - cache-hit
+      - name: Cache
+        id: generated_cache
+        if: ${{ !(inputs.no_cache == true || inputs.no_cache == 'true') }}
+        uses: actions/cache@v3
+        with:
+          key: ${{ steps.cache_key.outputs.cache_key }}
+          path: |
+            ${{ steps.checkout_source.outputs.repo_dir }}/Generated
+            ${{ steps.checkout_source.outputs.repo_dependencies_dir }}
+
+
+      - name: Setup
+        uses: davidbrownell/v4-Common_Foundation/.github/actions/setup@CI-v1
+        with:
+          repo_name: ${{ inputs.repo_name }}
+          repo_dir: ${{ steps.checkout_source.outputs.repo_dir }}
+          repo_dependencies_dir: ${{ steps.checkout_source.outputs.repo_dependencies_dir }}
+          branch_overrides: ${{ inputs.bootstrap_branch_overrides }}
+
+          configuration: ${{ inputs.configuration }}
+
+          local_script_prefix: ${{ steps.initialize.outputs.local_script_prefix }}
+          script_extension: ${{ steps.initialize.outputs.script_extension }}
+          shell_name: ${{ steps.initialize.outputs.shell_name }}
+          sudo_command: ${{ steps.initialize.outputs.sudo_command }}
+
+          force: ${{ inputs.force_setup }}
+
+      # outputs:
+      #   - activate_statement
+      #
+      - name: Activate
+        id: activate
+        uses: davidbrownell/v4-Common_Foundation/.github/actions/activate@CI-v1
+        with:
+          repo_dir: ${{ steps.checkout_source.outputs.repo_dir }}
+          repo_dependencies_dir: ${{ steps.checkout_source.outputs.repo_dependencies_dir }}
+
+          os: ${{ inputs.os }}
+          configuration: ${{ inputs.configuration }}
+
+          is_mixin_repository: ${{ inputs.is_mixin_repository }}
+
+          force: ${{ inputs.force_activate }}
+
+
+      - name: Validate Library Versions
+        uses: davidbrownell/v4-Common_Foundation/.github/actions/_validate_library_versions@CI-BugBug
+        with:
+          shell_name: ${{ steps.initialize.outputs.shell_name }}
+          script_extension: ${{ steps.initialize.outputs.script_extensions }}
+
+          activate_statement: ${{ steps.activate.outputs.activate_statement }}
+
+          destination_branch: ${{ github.base_ref }}
+

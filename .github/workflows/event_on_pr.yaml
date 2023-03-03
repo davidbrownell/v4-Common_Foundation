@@ -38,8 +38,28 @@ on:
       - main
 
 jobs:
-  _5b21e650-3435-4467-961e-1f0cacd31dcb:
-    name: "Validate (target: ${{ github.base_ref }})"
-    uses: davidbrownell/v4-Common_Foundation/.github/workflows/validate.yaml@CI-latest
+  # BugBug _5b21e650-3435-4467-961e-1f0cacd31dcb:
+  # BugBug   name: "Validate (target: ${{ github.base_ref }})"
+  # BugBug   uses: davidbrownell/v4-Common_Foundation/.github/workflows/validate.yaml@CI-latest
+  # BugBug   with:
+  # BugBug     repo_branch: ${{ github.head_ref }}
+
+  _6009b681-9a5b-4952-8914-8bb7ce927b82:
+    name: "Commit Integrity Checks (target: ${{ github.base_ref }})"
+    uses: davidbrownell/v4-Common_Foundation/.github/workflows/callable_commit_integrity_checks.yaml@CI-BugBug
     with:
+      job_name_prefix: Common_Foundation
+      repo_name: davidbrownell/v4-Common_Foundation
       repo_branch: ${{ github.head_ref }}
+      os: ubuntu-latest
+      configuration: python310
+
+  _e9a77f26-073d-466e-b8a8-bb74baa04247:
+    name: "Commit Integrity Checks [Common_Foundation] (target: ${{ github.base_ref }})"
+    uses: davidbrownell/v4-Common_Foundation/.github/workflows/_common_foundation_commit_integrity_checks.yaml@CI-BugBug
+    with:
+      job_name_prefix: Common_Foundation
+      repo_name: davidbrownell/v4-Common_Foundation
+      repo_branch: ${{ github.head_ref }}
+      os: ubuntu-latest
+      configuration: python310

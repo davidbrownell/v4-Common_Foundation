@@ -1,18 +1,18 @@
 # ----------------------------------------------------------------------
 # |
-# |  callable_validate.yaml
+# |  callable_commit_integrity_checks.jinja2.yaml
 # |
 # |  David Brownell <db@DavidBrownell.com>
-# |      2022-11-17 08:08:27
+# |      2023-03-03 09:28:09
 # |
 # ----------------------------------------------------------------------
 # |
-# |  Copyright David Brownell 2022-23
+# |  Copyright David Brownell 2023
 # |  Distributed under the Boost Software License, Version 1.0. See
 # |  accompanying file LICENSE_1_0.txt or copy at
 # |  http://www.boost.org/LICENSE_1_0.txt.
 # |
 # ----------------------------------------------------------------------
-<<% extends "../_BuildAndTest.template.yaml" %>>
+<<% extends "../_CommitIntegrityChecks.template.yaml" %>>
 
-<<% block bat_name %>>"[impl] Common_Foundation-based Repository Validation"<<% endblock %>>
+<<% block cic_name %>>"[impl] Common_Foundation-based Repository Commit Integrity Checks"<<% endblock %>>

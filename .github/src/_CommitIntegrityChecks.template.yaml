@@ -1,0 +1,49 @@
+<<#
+# ----------------------------------------------------------------------
+# |
+# |  _CommitIntegrityChecks.template.yaml
+# |
+# |  David Brownell <db@DavidBrownell.com>
+# |      2023-03-02 11:21:57
+# |
+# ----------------------------------------------------------------------
+# |
+# |  Copyright David Brownell 2023
+# |  Distributed under the Boost Software License, Version 1.0. See
+# |  accompanying file LICENSE_1_0.txt or copy at
+# |  http://www.boost.org/LICENSE_1_0.txt.
+# |
+# ----------------------------------------------------------------------
+
+The following values may be customized by child templates:
+
+  - cic_name [required]:             Name of this workflow
+  - cic_inputs [optional]:           Additional inputs required by the child template
+  - cic_cache_steps [optional]:      Steps invoked after source is checked out and standard cache content has been restored.
+  - cic_prologue_steps [optional]:   Steps invoked after setup and activation but before integrity checks.
+  - cic_epilogue_steps [optional]:   Steps invoked after integrity checks.
+
+#>>
+
+<<% extends "_SetupAndActivate.template.yaml" %>>
+
+<<% block saa_name %>><<% block cic_name %>><<% endblock %>><<% endblock %>>
+<<% block saa_inputs %>><<% block cic_inputs %>><<% endblock %>><<% endblock %>>
+<<% block saa_cache_prefix %>>integrity_checks<<% endblock %>>
+<<% block saa_cache_steps %>><<% block cic_cache_steps %>><<% endblock %>><<% endblock %>>
+
+<<% block saa_steps %>>
+<<% block cic_prologue_steps %>><<% endblock %>>
+
+      - name: Validate Changes
+        uses: davidbrownell/v4-Common_Foundation/.github/actions/validate_auto_sem_ver_changes@CI-BugBug
+        with:
+          shell_name: ${{ steps.initialize.outputs.shell_name }}
+          script_extension: ${{ steps.initialize.outputs.script_extensions }}
+
+          activate_statement: ${{ steps.activate.outputs.activate_statement }}
+
+          destination_branch: ${{ github.base_ref }}
+
+<<% block cic_epilogue_steps %>><<% endblock %>>
+<<% endblock %>>

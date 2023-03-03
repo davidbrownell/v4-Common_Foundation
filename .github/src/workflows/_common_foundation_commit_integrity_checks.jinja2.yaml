@@ -1,0 +1,34 @@
+# ----------------------------------------------------------------------
+# |
+# |  _common_foundation_commit_integrity_checks.jinja2.yaml
+# |
+# |  David Brownell <db@DavidBrownell.com>
+# |      2023-03-03 10:11:14
+# |
+# ----------------------------------------------------------------------
+# |
+# |  Copyright David Brownell 2023
+# |  Distributed under the Boost Software License, Version 1.0. See
+# |  accompanying file LICENSE_1_0.txt or copy at
+# |  http://www.boost.org/LICENSE_1_0.txt.
+# |
+# ----------------------------------------------------------------------
+<<% extends "../_SetupAndActivate.template.yaml" %>>
+
+<<% block saa_name %>>"[impl] Common_Foundation-specific Repository Commit Integrity Checks"<<% endblock %>>
+<<% block saa_cache_prefix %>>integrity_checks<<% endblock %>>
+<<% block saa_cache_suffix %>>common_foundation<<% endblock %>>
+
+<<% block saa_steps %>>
+
+      - name: Validate Library Versions
+        uses: davidbrownell/v4-Common_Foundation/.github/actions/_validate_library_versions@CI-BugBug
+        with:
+          shell_name: ${{ steps.initialize.outputs.shell_name }}
+          script_extension: ${{ steps.initialize.outputs.script_extensions }}
+
+          activate_statement: ${{ steps.activate.outputs.activate_statement }}
+
+          destination_branch: ${{ github.base_ref }}
+
+<<% endblock %>>

@@ -1,0 +1,33 @@
+# ----------------------------------------------------------------------
+# |
+# |  action.jinja2.yml
+# |
+# |  David Brownell <db@DavidBrownell.com>
+# |      2023-03-03 14:41:28
+# |
+# ----------------------------------------------------------------------
+# |
+# |  Copyright David Brownell 2023
+# |  Distributed under the Boost Software License, Version 1.0. See
+# |  accompanying file LICENSE_1_0.txt or copy at
+# |  http://www.boost.org/LICENSE_1_0.txt.
+# |
+# ----------------------------------------------------------------------
+name: Validate Python Library Versions
+description: "Runs <repo_root>/Libraries/Python/ValidateLibraryVersions.py"
+
+inputs:
+  shell_name:                               {type: string, required: true}
+  script_extension:                         {type: string, required: true}
+
+  activate_statement:                       {type: string, required: true}
+
+  destination_branch:                       {type: string, required: true}
+
+runs:
+  using: composite
+  steps:
+    - name: "Validate Python Library Versions"
+      shell: "${{ inputs.shell_name }}"
+      run: |
+        ${{ inputs.activate_statement }} && python Libraries/Python/ValidateLibraryVersions.py --debug
