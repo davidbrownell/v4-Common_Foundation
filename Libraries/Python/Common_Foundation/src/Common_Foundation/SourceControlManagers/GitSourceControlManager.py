@@ -1356,42 +1356,42 @@ class Repository(DistributedRepositoryBase):
 
             # ----------------------------------------------------------------------
             def __post_init__(self):
-                object.__setattr__(
-                    self,
-                    "is_detached",
-                    (
-                        self.name.startswith("(HEAD detached")
-                        or self.name == "(no branch)"
-                    ),
+                is_detached = False
+
+                # Match the older representation of a detached head state
+                match = re.match(
+                    r"^\(HEAD detached (?:at|from) (?P<value>.+?)\)$",
+                    self.name,
                 )
 
-                if self.is_detached:
-                    match = re.match(
-                        r"^\(HEAD detached (?:at|from) (?P<value>.+?)\)$",
-                        self.name,
-                    )
+                if match:
+                    is_detached = True
+                    object.__setattr__(self, "name", match.group("value"))
+                elif self.name == "(no branch)":
+                    is_detached = True
 
-                    if match:
-                        object.__setattr__(
-                            self,
-                            "name",
-                            match.group("value"),
-                        )
+                    # We need to get the name of the branch, but can only do that via the
+                    # name resolution process.
+                    if self.is_selected:
+                        nonlocal resolve_detached
+                        resolve_detached = True
+
+                object.__setattr__(self, "is_detached", is_detached)
 
         # ----------------------------------------------------------------------
 
         branch_infos: list[BranchInfo] = []
 
         regex = re.compile(
-                    r"""(?#
-                    Start of line           )^(?#
-                    Header                  )(?P<header>\*)?\s+(?#
-                    Branch Name             )(?P<name>.+?)\s+(?#
-                    Commit id               )(?P<commit_id>[A-Fa-f0-9]+)\s+(?#
-                    Description             )(?P<description>.*?)(?#
-                    End of line             )$(?#
-                    )""",
-                )
+            r"""(?#
+            Start of line                   )^(?#
+            Header                          )(?P<header>\*)?\s+(?#
+            Branch Name                     )(?P<name>.+?)\s+(?#
+            Commit id                       )(?P<commit_id>[A-Fa-f0-9]+)\s+(?#
+            Description                     )(?P<description>.*?)(?#
+            End of line                     )$(?#
+            )""",
+        )
 
         for line in result.output.split("\n"):
             if line.isspace():
