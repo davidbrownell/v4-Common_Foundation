@@ -19,7 +19,7 @@ import sys
 
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, Callable, Iterator
+from typing import Any, Callable, Iterator, Optional
 
 try:
     import typer
@@ -33,7 +33,7 @@ except ModuleNotFoundError:
 from Common_Foundation.Streams.DoneManager import DoneManager, DoneManagerFlags
 from Common_Foundation.Streams.StreamDecorator import StreamDecorator
 
-from Impl import GenerateStyle, GetSemanticVersion
+from Impl import GenerateStyle, GetSemanticVersion, ValidateChanges as ValidateChangesImpl
 
 
 # ----------------------------------------------------------------------
@@ -104,19 +104,23 @@ def Generate(
 
 
 # ----------------------------------------------------------------------
-@app.command("Validate", no_args_is_help=False)
-def Validate(
+@app.command("ValidateChanges", no_args_is_help=False)
+def ValidateChanges(
     path: Path=typer.Argument(Path.cwd(), file_okay=False, exists=True, resolve_path=True, help="Generate a semantic version based on changes that impact the specified path."),
+    dest_branch_name: Optional[str]=typer.Option(None, help="Name of the branch that these changes will be applied to; most often this is the mainline branch for the repository."),
     verbose: bool=typer.Option(False, "--verbose", help="Write verbose information to the terminal."),
     debug: bool=typer.Option(False, "--debug", help="Write debug information to the terminal."),
 ) -> None:
-    """Validates that files within change(s) do not span multiple AutoSemVer domains."""
+    """Validates that files associated with change(s) in the current branch do not span multiple AutoSemVer domains."""
 
     with DoneManager.CreateCommandLine(
         output_flags=DoneManagerFlags.Create(verbose=verbose, debug=debug),
     ) as dm:
-        # TODO
-        pass
+        ValidateChangesImpl(
+            dm,
+            path=path,
+            dest_branch_name=dest_branch_name,
+        )
 
 
 # ----------------------------------------------------------------------

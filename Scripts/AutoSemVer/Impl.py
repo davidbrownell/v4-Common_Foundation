@@ -21,6 +21,7 @@ import json
 import os
 import platform
 import re
+import textwrap
 
 from dataclasses import dataclass, field
 from enum import Enum
@@ -35,8 +36,10 @@ from semantic_version import Version as SemVer
 from Common_Foundation import PathEx
 from Common_Foundation.SourceControlManagers.All import ALL_SCMS
 from Common_Foundation.SourceControlManagers.SourceControlManager import Repository
-from Common_Foundation.Streams.DoneManager import DoneManager, DoneManagerFlags
+from Common_Foundation.Streams.DoneManager import DoneManager
+from Common_Foundation import TextwrapEx
 from Common_Foundation import Types
+
 from Common_FoundationEx.InflectEx import inflect
 
 
@@ -109,20 +112,9 @@ def GetSemanticVersion(
     configuration_filenames: Optional[list[str]]=None,
     style: GenerateStyle=GenerateStyle.Standard,
 ) -> GetSemanticVersionResult:
-    repository: Optional[Repository] = None
+    configuration_filenames = configuration_filenames or DEFAULT_CONFIGURATION_FILENAMES
 
-    with dm.Nested(
-        "Calculating the Source Control Manager repository...",
-        lambda: "'{}' found".format("None" if repository is None else repository.scm.name),
-    ):
-        for potential_scm in ALL_SCMS:
-            if potential_scm.IsActive(path):
-                repository = potential_scm.Open(path)
-                break
-
-        if repository is None:
-            raise Exception("A source control manager could not be found for '{}'.".format(path))
-
+    repository = _GetRepository(dm, path)
     configuration: Optional[Configuration] = None
 
     # ----------------------------------------------------------------------
@@ -177,21 +169,19 @@ def GetSemanticVersion(
         ],
     ) as enumerate_dm:
         root_path = configuration.filename.parent if configuration.filename else repository.repo_root
-        configuration_filenames = configuration_filenames or DEFAULT_CONFIGURATION_FILENAMES
 
         # ----------------------------------------------------------------------
         def GetConfigurationPathForFile(
             filename: Path,
         ) -> Path:
-            for parent in filename.parents:
-                for configuration_filename in configuration_filenames:
-                    potential_filename = parent / configuration_filename
+            result = _GetConfigurationFileForFile(
+                filename,
+                repository.repo_root,
+                configuration_filenames,
+            )
 
-                    if potential_filename.is_file():
-                        return parent
-
-                if parent == repository.repo_root:
-                    break
+            if result is not None:
+                return result.parent
 
             return root_path
 
@@ -492,6 +482,91 @@ def GetConfiguration(
 
 
 # ----------------------------------------------------------------------
+def ValidateChanges(
+    dm: DoneManager,
+    *,
+    path: Path=Path.cwd(),
+    dest_branch_name: Optional[str]=None,
+    configuration_filenames: Optional[list[str]]=None,
+) -> None:
+    configuration_filenames = configuration_filenames or DEFAULT_CONFIGURATION_FILENAMES
+
+    repository = _GetRepository(dm, path)
+
+    dest_branch_name = dest_branch_name or repository.scm.default_branch_name
+
+    changes: list[str] = []
+
+    with dm.Nested(
+        "Calculating changes...",
+        lambda: "{} found".format(inflect.no("change", len(changes))),
+    ) as calculate_dm:
+        for change in repository.EnumChangesSinceMerge(dest_branch_name, None):
+            calculate_dm.WriteVerbose(change)
+            changes.append(change)
+
+    if not changes:
+        return
+
+    dm.WriteLine("")
+
+    with dm.Nested("Processing {}...".format(inflect.no("change", len(changes)))) as process_dm:
+        for change_index, change in enumerate(changes):
+            with process_dm.Nested(
+                "'{}' ({} of {})...".format(change, change_index + 1, len(changes)),
+            ) as this_dm:
+                configuration_files: dict[Path, list[Path]] = {}
+
+                for filename in repository.EnumChangedFiles(change):
+                    configuration_file = _GetConfigurationFileForFile(
+                        filename,
+                        repository.repo_root,
+                        configuration_filenames,
+                    )
+
+                    if configuration_file is not None:
+                        configuration_files.setdefault(configuration_file, []).append(filename)
+
+                if len(configuration_files) > 1:
+                    this_dm.WriteError(
+                        textwrap.dedent(
+                            """\
+                            The change '{}' spans multiple AutoSemVer configuration files. This change should
+                            be deconstructed into multiple changes so that semantic version generation works as
+                            expected.
+
+                            {}
+
+                            """,
+                        ).format(
+                            change,
+                            "".join(
+                                TextwrapEx.Indent(
+                                    textwrap.dedent(
+                                        """\
+                                        {}:
+                                        {}
+
+                                        """,
+                                    ).format(
+                                        PathEx.CreateRelativePath(repository.repo_root, configuration_file),
+                                        "\n".join(
+                                            "    - {}".format(PathEx.CreateRelativePath(repository.repo_root, filename))
+                                            for filename in filenames
+                                        ),
+                                    ),
+                                    4,
+                                    skip_first_line=False,
+                                )
+                                for configuration_file, filenames in configuration_files.items()
+                            ).rstrip(),
+                        ),
+                    )
+
+                    return
+
+
+# ----------------------------------------------------------------------
 # |
 # |  Private Types
 # |
@@ -520,3 +595,48 @@ def _DefaultValidatingValidatorFactory(
 _DefaultValidatingValidator                 = _DefaultValidatingValidatorFactory(Draft202012Validator)
 
 del _DefaultValidatingValidatorFactory
+
+
+# ----------------------------------------------------------------------
+# |
+# |  Private Functions
+# |
+# ----------------------------------------------------------------------
+def _GetRepository(
+    dm: DoneManager,
+    path: Path,
+) -> Repository:
+    result: Optional[Repository] = None
+
+    with dm.Nested(
+        "Calculating the Source Control Manager repository...",
+        lambda: "'{}' found".format("None" if result is None else result.scm.name),
+    ):
+        for potential_scm in ALL_SCMS:
+            if potential_scm.IsActive(path):
+                result = potential_scm.Open(path)
+                break
+
+        if result is None:
+            raise Exception("A source control manager could not be found for '{}'.".format(path))
+
+    return result
+
+
+# ----------------------------------------------------------------------
+def _GetConfigurationFileForFile(
+    filename: Path,
+    repo_root: Path,
+    configuration_filenames: list[str],
+) -> Optional[Path]:
+    for parent in filename.parents:
+        for configuration_filename in configuration_filenames:
+            potential_filename = parent / configuration_filename
+
+            if potential_filename.is_file():
+                return potential_filename
+
+        if parent == repo_root:
+            break
+
+    return None
