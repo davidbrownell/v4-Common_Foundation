@@ -38,11 +38,11 @@ on:
       - main
 
 jobs:
-  # BugBug _5b21e650-3435-4467-961e-1f0cacd31dcb:
-  # BugBug   name: "Validate (target: ${{ github.base_ref }})"
-  # BugBug   uses: davidbrownell/v4-Common_Foundation/.github/workflows/validate.yaml@CI-latest
-  # BugBug   with:
-  # BugBug     repo_branch: ${{ github.head_ref }}
+  _5b21e650-3435-4467-961e-1f0cacd31dcb:
+    name: "Validate (target: ${{ github.base_ref }})"
+    uses: davidbrownell/v4-Common_Foundation/.github/workflows/validate.yaml@CI-latest
+    with:
+      repo_branch: ${{ github.head_ref }}
 
   _6009b681-9a5b-4952-8914-8bb7ce927b82:
     name: "Commit Integrity Checks (target: ${{ github.base_ref }})"
