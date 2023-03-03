@@ -643,9 +643,9 @@ class Repository(DistributedRepositoryBase):
         branch_type, branch_name = self._GetCurrentBranchEx()
 
         if branch_type == Repository._BranchType.Standard:
-            command_suffix = " origin/{}".format(branch_name)
+            command_suffix = ' "origin/{}"'.format(branch_name)
         elif branch_type == Repository._BranchType.Tag:
-            command_suffix = " tags/{}".format(branch_name)
+            command_suffix = ' "tags/{}"'.format(branch_name)
         elif branch_type == Repository._BranchType.Commit:
             # Nothing to do here
             return ""
@@ -1115,7 +1115,7 @@ class Repository(DistributedRepositoryBase):
         commands += [
             "git clean -xdf",
             'git reset --hard{}'.format(
-                " origin/{}".format(branch_name) if branch_type == Repository._BranchType.Standard else "",
+                ' "origin/{}"'.format(branch_name) if branch_type == Repository._BranchType.Standard else "",
             ),
         ]
 
@@ -1365,6 +1365,19 @@ class Repository(DistributedRepositoryBase):
                     ),
                 )
 
+                if self.is_detached:
+                    match = re.match(
+                        r"^\(HEAD detached (?:at|from) (?P<value>.+?)\)$",
+                        self.name,
+                    )
+
+                    if match:
+                        object.__setattr__(
+                            self,
+                            "name",
+                            match.group("value"),
+                        )
+
         # ----------------------------------------------------------------------
 
         branch_infos: list[BranchInfo] = []
@@ -1476,7 +1489,7 @@ class Repository(DistributedRepositoryBase):
 
             for branch in branches:
                 command_line = self._GetCommandLine(
-                    'git --no-pager long "--branches=*{}" "--{}={}" -n 1 --format="%H"'.format(
+                    'git --no-pager log "--branches=*{}" "--{}={}" -n 1 --format="%H"'.format(
                         branch,
                         operator,
                         datetime_value.isoformat(timespec="seconds"),
