@@ -20,8 +20,9 @@ import copy
 import ctypes
 import subprocess
 import sys
+import textwrap
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, cast, Dict, IO, List, Optional, TextIO, Union
 
@@ -41,10 +42,30 @@ class RunResult(object):
     returncode: int
     output: str
 
+    error_command_line: Optional[str]       = field(default=None)
+
+    # ----------------------------------------------------------------------
+    def __post_init__(self):
+        assert self.error_command_line is None or self.returncode != 0
+
     # ----------------------------------------------------------------------
     def RaiseOnError(self) -> None:
         if self.returncode != 0:
-            raise Exception(self.output)
+            assert self.error_command_line is not None
+
+            raise Exception(
+                textwrap.dedent(
+                    """\
+                    Command Line
+                    ------------
+                    {}
+
+                    Output
+                    ------
+                    {}
+                    """,
+                ).format(self.error_command_line.rstrip(), self.output.rstrip()),
+            )
 
 
 # ----------------------------------------------------------------------
@@ -84,7 +105,13 @@ def Run(
     if CurrentShell.family_name == "Windows":
         content = content.replace("\r\n", "\n")
 
-    return RunResult(_PostprocessReturnCode(result.returncode), content)
+    returncode = _PostprocessReturnCode(result.returncode)
+
+    return RunResult(
+        returncode,
+        content,
+        command_line if returncode != 0 else None,
+    )
 
 
 # ----------------------------------------------------------------------
