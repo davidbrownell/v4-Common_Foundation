@@ -1,6 +1,6 @@
 # ----------------------------------------------------------------------
 # This GitHub workflow is used as a 2nd line of defense to validate the repository
-# and any dependencies that rely on this repository for functionality and is called
+# and any dependencies that rely on your repository for functionality and is called
 # after a commit is merged into the default branch.
 #
 # If your repository matches the following criteria, there is no need for customization:
