@@ -235,7 +235,7 @@ class Repository(ABC):
                 """,
             ),
         ):
-            return SubprocessEx.RunResult(0, "<<Skipped>>")
+            return SubprocessEx.RunResult(0, "<<Skipped>>", None)
 
         return self._Execute(self.GetCleanCommandLine())
 
@@ -807,7 +807,7 @@ class DistributedRepository(Repository):
                 """,
             ),
         ):
-            return SubprocessEx.RunResult(0, "<<Skipped>>")
+            return SubprocessEx.RunResult(0, "<<Skipped>>", None)
 
         return self._Execute(self.GetResetCommandLine(no_backup))
 
