@@ -17,74 +17,19 @@
 
 The following values may be customized by child templates:
 
-  - name: Name of this workflow
-  - inputs: Additional inputs required by the child template.
-  - cache_steps: Steps invoked after source is checked out and standard cache content has been restored.
-  - prologue_steps: Steps invoked after setup and activation but before build and tests.
-  - epilogue_steps: Steps invoked after build and tests.
+  - bat_name [required]:            Name of this workflow
+  - bat_inputs [optional]:          Additional inputs required by the child template.
+  - bat_cache_steps [optional]:     Steps invoked after source is checked out and standard cache content has been restored.
+  - bat_prologue_steps [optional]:  Steps invoked after setup and activation but before build and tests.
+  - bat_epilogue_steps [optional]:  Steps invoked after build and tests.
 
 #>>
 
-name: <<% block name %>><<% endblock %>>
+<<% extends "_SetupAndActivate.template.yaml" %>>
 
-on:
-  workflow_call:
-    inputs:
-      # ----------------------------------------------------------------------
-      # |  Misc
-      repo_name:
-        type: string
-        required: true
-        description: "Official GitHub repo name in the form: <username>/<repo_name> (e.g. 'davidbrownell/v4-Common_Foundation')."
+<<% block saa_name %>><<% block bat_name %>><<% endblock %>><<% endblock %>>
 
-      repo_branch:
-        type: string
-        required: true
-        description: Repository branch under test.
-
-      job_name_prefix:
-        type: string
-        required: true
-        description: "Prefix for the job; should be the friendly name of the repository or something similarly identifiable (e.g. 'Common_Foundation')."
-
-      os:
-        type: string
-        required: true
-        description: Operating system.
-
-      configuration:
-        type: string
-        required: true
-        description: "Name of the configuration to use when setting up and activating the environment (specify the 'None' string value for repositories that aren't configurable)."
-
-      bootstrap_branch_overrides:
-        type: string
-        required: false
-        description: Forces Enlist.py to clone repositories according to specified branch.
-
-      is_mixin_repository:
-        type: boolean
-        required: false
-        description: True if the repository is a mixin repository.
-        default: false
-
-      force_setup:
-        type: boolean
-        required: false
-        description: "Appends the '--force' flag when setting up repositories."
-        default: false
-
-      force_activate:
-        type: boolean
-        required: false
-        description: "Appends the '--force' flag when activating repositories."
-        default: false
-
-      no_cache:
-        type: boolean
-        required: false
-        description: "Disables caching."
-        default: false
+<<% block saa_inputs %>>
 
       # ----------------------------------------------------------------------
       #  Builder
@@ -106,117 +51,13 @@ on:
       execute_BuildVerificationTests:       {type: number, required: true, default: 0}
       execute_PerformanceTests:             {type: number, required: true, default: 0}
 
-<<% block inputs %>><<% endblock %>>
+<<% block bat_inputs %>><<% endblock %>>
+<<% endblock %>>
 
-jobs:
-  _8fb649ac-dac3-4de2-8bb5-a3eb6b7c5b70:
-    name: "${{ inputs.job_name_prefix }} (${{ inputs.os }}, ${{ inputs.configuration }})"
-    runs-on: ${{ inputs.os }}
+<<% block saa_cache_steps %>><<% block bat_cache_steps %>><<% endblock %>><<% endblock %>>
 
-    env:
-      COLUMNS: "200"
-      SIMULATE_TERMINAL_CAPABILITIES_SUPPORTS_COLORS: "1"
-      PYTHONIOENCODING: "UTF-8"
-
-    steps:
-      - name: "[Impl] Dump Contexts"
-        if: ${{ startsWith(inputs.os, 'ubuntu') }}
-        uses: davidbrownell/v4-Common_Foundation/.github/actions/dump_contexts@CI-v1
-
-      # outputs:
-      #   - github_workspace
-      #   - local_script_prefix
-      #   - script_extension
-      #   - shell_name
-      #   - source_command
-      #   - sudo_command
-      #
-      - name: "[Impl] Initialize OS-Specific Variables"
-        id: initialize
-        uses: davidbrownell/v4-Common_Foundation/.github/actions/initialize@CI-v1
-        with:
-          os: ${{ inputs.os }}
-
-      # outputs:
-      #   - archive_prefix
-      #   - repo_dir
-      #   - repo_dependencies_dir
-      #
-      - name: Checkout Source
-        id: checkout_source
-        uses: davidbrownell/v4-Common_Foundation/.github/actions/checkout_source@CI-v1
-        with:
-          repo_name: ${{ inputs.repo_name }}
-          repo_branch: ${{ inputs.repo_branch }}
-
-          os: ${{ inputs.os }}
-          configuration: ${{ inputs.configuration }}
-
-          shell_name: ${{ steps.initialize.outputs.shell_name }}
-
-      # outputs:
-      #   - cache_key
-      - name: Create Cache Key
-        id: cache_key
-        if: ${{ !(inputs.no_cache == true || inputs.no_cache == 'true') }}
-        uses: davidbrownell/v4-Common_Foundation/.github/actions/create_cache_key@CI-v1
-        with:
-          repo_name: ${{ inputs.repo_name }}
-
-          os: ${{ inputs.os }}
-          configuration: ${{ inputs.configuration }}
-
-          shell_name: ${{ steps.initialize.outputs.shell_name }}
-
-      # outputs:
-      #   - cache-hit
-      - name: Cache
-        id: generated_cache
-        if: ${{ !(inputs.no_cache == true || inputs.no_cache == 'true') }}
-        uses: actions/cache@v3
-        with:
-          key: ${{ steps.cache_key.outputs.cache_key }}
-          path: |
-            ${{ steps.checkout_source.outputs.repo_dir }}/Generated
-            ${{ steps.checkout_source.outputs.repo_dependencies_dir }}
-
-<<% block cache_steps %>><<% endblock %>>
-
-      - name: Setup
-        uses: davidbrownell/v4-Common_Foundation/.github/actions/setup@CI-v1
-        with:
-          repo_name: ${{ inputs.repo_name }}
-          repo_dir: ${{ steps.checkout_source.outputs.repo_dir }}
-          repo_dependencies_dir: ${{ steps.checkout_source.outputs.repo_dependencies_dir }}
-          branch_overrides: ${{ inputs.bootstrap_branch_overrides }}
-
-          configuration: ${{ inputs.configuration }}
-
-          local_script_prefix: ${{ steps.initialize.outputs.local_script_prefix }}
-          script_extension: ${{ steps.initialize.outputs.script_extension }}
-          shell_name: ${{ steps.initialize.outputs.shell_name }}
-          sudo_command: ${{ steps.initialize.outputs.sudo_command }}
-
-          force: ${{ inputs.force_setup }}
-
-      # outputs:
-      #   - activate_statement
-      #
-      - name: Activate
-        id: activate
-        uses: davidbrownell/v4-Common_Foundation/.github/actions/activate@CI-v1
-        with:
-          repo_dir: ${{ steps.checkout_source.outputs.repo_dir }}
-          repo_dependencies_dir: ${{ steps.checkout_source.outputs.repo_dependencies_dir }}
-
-          os: ${{ inputs.os }}
-          configuration: ${{ inputs.configuration }}
-
-          is_mixin_repository: ${{ inputs.is_mixin_repository }}
-
-          force: ${{ inputs.force_activate }}
-
-<<% block prologue_steps %>><<% endblock %>>
+<<% block saa_steps %>>
+<<% block bat_prologue_steps %>><<% endblock %>>
 
       - name: Builder
         if: ${{ inputs.run_Builder == true || inputs.run_Builder == 'true' }}
@@ -299,4 +140,5 @@ jobs:
   <<% endfor %>>
 <<% endfor %>>
 
-<<% block epilogue_steps %>><<% endblock %>>
+<<% block bat_epilogue_steps %>><<% endblock %>>
+<<% endblock %>>

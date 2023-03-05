@@ -15,4 +15,4 @@
 # ----------------------------------------------------------------------
 <<% extends "../_BuildAndTest.template.yaml" %>>
 
-<<% block name %>>"[impl] Common_Foundation-based Repository Validation"<<% endblock %>>
+<<% block bat_name %>>"[impl] Common_Foundation-based Repository Validation"<<% endblock %>>
