@@ -540,12 +540,14 @@ def _InitGithubWorkflows(
         [
             textwrap.dedent(
                 """\
+                "{event_on_pr}"
                 "{validate}"
                 "{validate_with_dependencies}"
 
                 Customize these files based on the instructions in each one.
                 """,
             ).format(
+                event_on_pr=PathEx.EnsureFile(config.root / ".github" / "workflows" / "event_on_pr.yaml"),
                 validate_with_dependencies=PathEx.EnsureFile(config.root / ".github" / "workflows" / "validate_with_dependencies.yaml"),
                 validate=PathEx.EnsureFile(config.root / ".github" / "workflows" / "validate.yaml"),
 

@@ -531,15 +531,13 @@ def ValidateChanges(
                     this_dm.WriteError(
                         textwrap.dedent(
                             """\
-                            The change '{}' spans multiple AutoSemVer configuration files. This change should
-                            be deconstructed into multiple changes so that semantic version generation works as
-                            expected.
+                            This change spans multiple AutoSemVer configuration files. This change should be
+                            deconstructed into multiple changes so that semantic version generation works as expected.
 
                             {}
 
                             """,
                         ).format(
-                            change,
                             "".join(
                                 TextwrapEx.Indent(
                                     textwrap.dedent(

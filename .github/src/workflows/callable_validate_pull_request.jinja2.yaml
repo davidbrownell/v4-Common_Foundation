@@ -1,0 +1,33 @@
+# ----------------------------------------------------------------------
+# |
+# |  callable_validate_pull_request.jinja2.yaml
+# |
+# |  David Brownell <db@DavidBrownell.com>
+# |      2023-03-03 09:28:09
+# |
+# ----------------------------------------------------------------------
+# |
+# |  Copyright David Brownell 2023
+# |  Distributed under the Boost Software License, Version 1.0. See
+# |  accompanying file LICENSE_1_0.txt or copy at
+# |  http://www.boost.org/LICENSE_1_0.txt.
+# |
+# ----------------------------------------------------------------------
+<<% extends "../_SetupAndActivate.template.yaml" %>>
+
+<<% block ssa_name %>>"[callable] Validates Pull Requests"<<% endblock %>>
+<<% block saa_cache_prefix %>>validate_pull_request<<% endblock %>>
+
+<<% block saa_steps %>>
+
+      - name: PullRequestValidator
+        uses: davidbrownell/v4-Common_Foundation/.github/actions/pull_request_validator@CI-v1
+        with:
+          shell_name: ${{ steps.initialize.outputs.shell_name }}
+          script_extension: ${{ steps.initialize.outputs.script_extensions }}
+
+          activate_statement: ${{ steps.activate.outputs.activate_statement }}
+
+          destination_branch: ${{ github.base_ref }}
+
+<<% endblock %>>

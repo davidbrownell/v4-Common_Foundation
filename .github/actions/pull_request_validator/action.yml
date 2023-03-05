@@ -8,7 +8,7 @@
 # this one.
 #
 #     Code Generator:         Jinja2
-#     Input Filename:         workflows/event_on_pr.jinja2.yaml
+#     Input Filename:         actions/pull_request_validator/action.jinja2.yml
 #
 # ----------------------------------------------------------------------
 # ----------------------------------------------------------------------
@@ -16,40 +16,34 @@
 
 # ----------------------------------------------------------------------
 # |
-# |  event_on_pr.yaml
+# |  action.yml
 # |
 # |  David Brownell <db@DavidBrownell.com>
-# |      2022-11-17 08:08:44
+# |      2023-03-03 13:45:38
 # |
 # ----------------------------------------------------------------------
 # |
-# |  Copyright David Brownell 2022-23
+# |  Copyright David Brownell 2023
 # |  Distributed under the Boost Software License, Version 1.0. See
 # |  accompanying file LICENSE_1_0.txt or copy at
 # |  http://www.boost.org/LICENSE_1_0.txt.
 # |
 # ----------------------------------------------------------------------
-name: "on pull request"
-run-name: "${{ github.run_number }} [${{ github.actor }}] ${{ github.head_ref }} -> ${{ github.base_ref }}"
+name: Pull Request Validator
+description: Validates Pull Requests.
 
-on:
-  pull_request:
-    branches:
-      - main
+inputs:
+  shell_name:                               {type: string, required: true}
+  script_extension:                         {type: string, required: true}
 
-jobs:
-  _5b21e650-3435-4467-961e-1f0cacd31dcb:
-    name: "Validate (target: ${{ github.base_ref }})"
-    uses: davidbrownell/v4-Common_Foundation/.github/workflows/validate.yaml@CI-latest
-    with:
-      repo_branch: ${{ github.head_ref }}
+  activate_statement:                       {type: string, required: true}
 
-  _6009b681-9a5b-4952-8914-8bb7ce927b82:
-    name: "Validate Pull Request (target: ${{ github.base_ref }})"
-    uses: davidbrownell/v4-Common_Foundation/.github/workflows/callable_validate_pull_request.yaml@CI-latest
-    with:
-      job_name_prefix: Common_Foundation
-      repo_name: davidbrownell/v4-Common_Foundation
-      repo_branch: ${{ github.head_ref }}
-      os: ubuntu-latest
-      configuration: python310
+  destination_branch:                       {type: string, required: true}
+
+runs:
+  using: composite
+  steps:
+    - name: "Validate Pull Request"
+      shell: "${{ inputs.shell_name }}"
+      run: |
+        ${{ inputs.activate_statement }} && PullRequestValidator${{ inputs.script_extension }} Validate --destination-branch-name "origin/${{ inputs.destination_branch }}" --debug
