@@ -90,7 +90,9 @@ def EnsureValid(
 ) -> TypeT:
     """Ensures that an optional value is not None and returns it"""
 
-    assert value is not None
+    if value is None:
+        raise ValueError("Invalid value")
+
     return value
 
 

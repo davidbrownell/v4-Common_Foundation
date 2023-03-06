@@ -28,7 +28,12 @@ from .Shell.All import CurrentShell
 def EnsureExists(
     path: Optional[Path],
 ) -> Path:
-    assert path is not None and path.exists(), path
+    if path is None:
+        raise ValueError("Value is None")
+
+    if not path.exists():
+        raise ValueError("'{}' does not exist.".format(path))
+
     return path
 
 
@@ -36,7 +41,12 @@ def EnsureExists(
 def EnsureFile(
     path: Optional[Path],
 ) -> Path:
-    assert path is not None and path.is_file(), path
+    EnsureExists(path)
+    assert path is not None
+
+    if not path.is_file():
+        raise ValueError("'{}' is not a file.".format(path))
+
     return path
 
 
@@ -44,7 +54,12 @@ def EnsureFile(
 def EnsureDir(
     path: Optional[Path],
 ) -> Path:
-    assert path is not None and path.is_dir(), path
+    EnsureExists(path)
+    assert path is not None
+
+    if not path.is_dir():
+        raise ValueError("'{}' is not a directory.".format(path))
+
     return path
 
 
