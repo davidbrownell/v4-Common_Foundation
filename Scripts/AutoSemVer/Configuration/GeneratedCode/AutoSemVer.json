@@ -5,7 +5,7 @@
       "type" : "string",
       "minLength" : 1
     },
-    "__ItemStatement-Ln96-Item-Ln96" : {
+    "__ItemStatement-Ln86-Item-Ln86" : {
       "type" : "string",
       "minLength" : 1
     }
@@ -33,18 +33,6 @@
       "description" : "Include the computer name in the metadata portion of the semantic version.",
       "default" : true
     },
-    "major_scm_token" : {
-      "type" : "string",
-      "minLength" : 1,
-      "description" : "The major version associated with the generated semantic version is incremented if a commit message contains this token.",
-      "default" : "+major"
-    },
-    "minor_scm_token" : {
-      "type" : "string",
-      "minLength" : 1,
-      "description" : "The minor version associated with the generated sematic version is incremented if a commit message contains this token.",
-      "default" : "+minor"
-    },
     "pre_release_environment_variable_name" : {
       "type" : "string",
       "minLength" : 1,
@@ -60,7 +48,7 @@
     "main_branch_names" : {
       "type" : "array",
       "items" : {
-        "$ref" : "#/$defs/__ItemStatement-Ln96-Item-Ln96"
+        "$ref" : "#/$defs/__ItemStatement-Ln86-Item-Ln86"
       },
       "minItems" : 1,
       "description" : "Name of branches considered to be 'mainline' branches; branch information will not be included in the generated semantic version.",
@@ -75,8 +63,6 @@
     "include_branch_name_when_necessary",
     "include_timestamp_when_necessary",
     "include_computer_name_when_necessary",
-    "major_scm_token",
-    "minor_scm_token",
     "pre_release_environment_variable_name",
     "initial_version",
     "main_branch_names"

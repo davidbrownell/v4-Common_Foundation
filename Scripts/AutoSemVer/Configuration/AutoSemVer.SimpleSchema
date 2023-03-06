@@ -73,16 +73,6 @@ include_computer_name_when_necessary: Boolean {
     description: "Include the computer name in the metadata portion of the semantic version."
 }
 
-major_scm_token: String {
-    default: "+major"
-    description: "The major version associated with the generated semantic version is incremented if a commit message contains this token."
-}
-
-minor_scm_token: String {
-    default: "+minor"
-    description: "The minor version associated with the generated sematic version is incremented if a commit message contains this token."
-}
-
 pre_release_environment_variable_name: String {
     default: "AUTO_SEM_VER_PRE_RELEASE_NAME"
     description: "Name of the environment variable used to specify the build name associated with the generated semantic version."
