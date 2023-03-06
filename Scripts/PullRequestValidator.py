@@ -1,22 +1,22 @@
 # ----------------------------------------------------------------------
 # |
-# |  Enlist.py
+# |  PullRequestValidator.py
 # |
 # |  David Brownell <db@DavidBrownell.com>
-# |      2022-08-24 18:51:15
+# |      2023-03-06 13:32:07
 # |
 # ----------------------------------------------------------------------
 # |
-# |  Copyright David Brownell 2022-23
+# |  Copyright David Brownell 2023
 # |  Distributed under the Boost Software License, Version 1.0. See
 # |  accompanying file LICENSE_1_0.txt or copy at
 # |  http://www.boost.org/LICENSE_1_0.txt.
 # |
 # ----------------------------------------------------------------------
-"""Enlistment activities for a repository and its dependencies."""
+"""Validates pull requests."""
 
 # This script serves to make PullRequestValidator.py accessible as a script, while still letting it reside
-# it its logical location at ../RepositoryBootstrap/Impl/Enlist.py.
+# it its logical location at ../RepositoryBootstrap/Impl/PullRequestValidator.py.
 
 import os
 import sys
@@ -39,16 +39,16 @@ def Execute(
     os.chdir(foundation_repo_root)
 
     with ExitStack(lambda: os.chdir(prev_dir)):
-        enlist_script_filename = Path("RepositoryBootstrap") / "Impl" / "Enlist.py"
-        assert (foundation_repo_root / enlist_script_filename).is_file(), (foundation_repo_root, enlist_script_filename)
+        script_filename = Path("RepositoryBootstrap") / "Impl" / "PullRequestValidator.py"
+        assert (foundation_repo_root / script_filename).is_file(), (foundation_repo_root, script_filename)
 
-        if len(args) <= 2 or "--help" in args:
+        if len(args) <= 1 or "--help" in args:
             working_dir = ""
         else:
             working_dir = ' --working-directory "{}"'.format(prev_dir)
 
         command_line = 'python -m "{script}"{args}{working_dir}'.format(
-            script=".".join(enlist_script_filename.with_suffix("").parts),
+            script=".".join(script_filename.with_suffix("").parts),
             args=" {}".format(" ".join('"{}"'.format(arg) for arg in args[1:])) if len(args) > 1 else "",
             working_dir=working_dir,
         )
