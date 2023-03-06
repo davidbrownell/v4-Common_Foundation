@@ -15,14 +15,26 @@
 # ----------------------------------------------------------------------
 """Contains data types used during the repository setup/activate process"""
 
+import re
+import textwrap
 import uuid
 
+from abc import abstractmethod, ABC
 from dataclasses import dataclass, field
-from enum import auto, Enum
+from enum import auto, Enum, IntFlag
+from functools import cached_property
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from Common_Foundation import JsonEx  # type: ignore
+from rich.console import Group
+from rich.panel import Panel
+
+from Common_Foundation import JsonEx
+from Common_Foundation.SourceControlManagers.SourceControlManager import Repository
+from Common_Foundation.Streams.Capabilities import Capabilities
+from Common_Foundation.Streams.DoneManager import DoneManager
+from Common_Foundation.Streams.StreamDecorator import StreamDecorator
+from Common_Foundation.Types import extensionmethod
 
 from . import Configuration as ConfigurationMod
 
@@ -166,17 +178,17 @@ class EnhancedRepoData(RepoData):
 # |
 # ----------------------------------------------------------------------
 @dataclass
-class CommitInfo(object):
+class ChangeInfo(object):
     """Information about a commit"""
 
     # ----------------------------------------------------------------------
-    class CommitType(Enum):
+    class ChangeType(Enum):
         Standard                            = auto()
         Amend                               = auto()
         Squash                              = auto()
 
     # ----------------------------------------------------------------------
-    commit_type: "CommitInfo.CommitType"    # immutable
+    commit_type: "ChangeInfo.ChangeType"    # immutable
     id: str                                 # immutable
     author: str                             # immutable
 
@@ -187,10 +199,6 @@ class CommitInfo(object):
     files_modified: Optional[List[Path]]
     files_removed: Optional[List[Path]]
 
-    # True if this commit has been created by the user. Allows the differentiation between
-    # validation invoked by `prepare-commit-msg` and `commit-msg`.
-    is_user_authored: bool                  = field(kw_only=True)
-
     # ----------------------------------------------------------------------
     def __post_init__(self):
         assert self.files_added is None or self.files_added
@@ -200,12 +208,12 @@ class CommitInfo(object):
 
 # ----------------------------------------------------------------------
 @dataclass(frozen=True)
-class PrePushInfo(object):
+class PushInfo(object):
     """Information about changes to be pushed to a remote repository."""
 
     # ----------------------------------------------------------------------
     remote_name: str
-    changes: List[str]
+    changes: List[ChangeInfo]
 
     # ----------------------------------------------------------------------
     def __post_init__(self):
@@ -214,13 +222,234 @@ class PrePushInfo(object):
 
 # ----------------------------------------------------------------------
 @dataclass(frozen=True)
-class PreIntegrateInfo(object):
+class MergeInfo(object):
     """Information about changes to be integrated from a remote repository."""
 
     # ----------------------------------------------------------------------
     remote_name: str
-    changes: List[str]
+    changes: List[ChangeInfo]
 
     # ----------------------------------------------------------------------
     def __post_init__(self):
         assert self.changes
+
+
+# ----------------------------------------------------------------------
+class SCMPlugin(ABC):
+    """\
+    Abstract base class for a plugin able to process changes.
+
+    Note that this functionality may be invoked outside of an activate environment,
+    so only import from python and Common_Foundation. Other imports will fail.
+    """
+
+    # ----------------------------------------------------------------------
+    # |
+    # |  Public Types
+    # |
+    # ----------------------------------------------------------------------
+    class Flag(IntFlag):
+        OnCommit                            = auto()
+        OnPush                              = auto()
+        OnMerge                             = auto()
+        ValidatePullRequest                 = auto()
+
+        OnCommitCanBeDisabled               = auto()
+        OnPushCanBeDisabled                 = auto()
+        OnMergeCanBeDisabled                = auto()
+        ValidatePullRequestCanBeDisabled    = auto()
+
+        # Amalgamations
+        CanBeDisabled                       = (
+            OnCommitCanBeDisabled
+            | ValidatePullRequestCanBeDisabled
+        )
+
+    # ----------------------------------------------------------------------
+    DEFAULT_PRIORITY                        = 10000
+
+    # ----------------------------------------------------------------------
+    # |
+    # |  Public Properties
+    # |
+    # ----------------------------------------------------------------------
+    @property
+    @abstractmethod
+    def name(self) -> str:
+        raise Exception("Abstract property")  # pragma: no cover
+
+    @property
+    @abstractmethod
+    def description(self) -> str:
+        raise Exception("Abstract property")  # pragma: no cover
+
+    @property
+    def priority(self) -> int:
+        return self.__class__.DEFAULT_PRIORITY
+
+    @property
+    @abstractmethod
+    def flags(self) -> "SCMPlugin.Flag":
+        raise Exception("Abstract property")  # pragma: no cover
+
+    @cached_property
+    def disable_commit_messages(self) -> list[str]:
+        return ["No {}".format(self.name), ]
+
+    @cached_property
+    def disable_environment_variable(self) -> str:
+        value = self.name
+
+        for regex, sub in [
+            (r"(.)([A-Z][a-z]+)", r"\1_\2"),
+            (r"([a-z0-9])([A-Z])", r"\1_\2"),
+        ]:
+            value = re.sub(regex, sub, value)
+
+        return "DEVELOPMENT_ENVIRONMENT_PULL_REQUEST_VALIDATOR_NO_{}".format(value.upper())
+
+    # ----------------------------------------------------------------------
+    # |
+    # |  Public Methods
+    # |
+    # ----------------------------------------------------------------------
+    @extensionmethod
+    def OnCommit(
+        self,
+        dm: DoneManager,
+        repository: Repository,
+        changes: list[ChangeInfo],
+    ) -> None:
+        raise Exception("Abstract method")  # pragma: no cover
+
+    # ----------------------------------------------------------------------
+    @extensionmethod
+    def OnPush(
+        self,
+        dm: DoneManager,
+        repository: Repository,
+        push_info: PushInfo,
+    ) -> None:
+        raise Exception("Abstract method")  # pragma: no cover
+
+    # ----------------------------------------------------------------------
+    @extensionmethod
+    def OnMerge(
+        self,
+        dm: DoneManager,
+        repository: Repository,
+        merge_info: MergeInfo,
+    ) -> None:
+        raise Exception("Abstract method") # pragma: no cover
+
+    # ----------------------------------------------------------------------
+    def DisplayError(
+        self,
+        dm: DoneManager,
+        message: str,
+        disable_flag: "SCMPlugin.Flag",
+        disable_description: str="this validation",
+    ) -> None:
+        dm.result = -1
+
+        self._DisplayImpl(
+            dm,
+            message,
+            "[bold red]",
+            disable_flag,
+            disable_description,
+        )
+
+    # ----------------------------------------------------------------------
+    # |
+    # |  Protected Methods
+    # |
+    # ----------------------------------------------------------------------
+    def _DisplayMessage(
+        self,
+        dm: DoneManager,
+        message: str,
+        disable_flag: "SCMPlugin.Flag",
+        disable_description: str="this validation",
+    ) -> None:
+        self._DisplayImpl(
+            dm,
+            message,
+            "[bold white]",
+            disable_flag,
+            disable_description,
+        )
+
+    # ----------------------------------------------------------------------
+    def _DisplayImpl(
+        self,
+        dm: DoneManager,
+        message: str,
+        style: str,
+        disable_flag: "SCMPlugin.Flag",
+        disable_description: str="this validation",
+    ) -> None:
+        with dm.YieldStdout() as stdout_context:
+            capabilities = Capabilities.Get(stdout_context.stream)
+
+            console = capabilities.CreateRichConsole(
+                StreamDecorator(
+                    stdout_context.stream,
+                    line_prefix=stdout_context.line_prefix,
+                ),  # type: ignore
+            )
+
+            console.size = (console.width - len(stdout_context.line_prefix), console.height)
+
+            panels: list[Panel] = [
+                Panel(
+                    Group(message),
+                    padding=(1, 2),
+                    title="{}{}[/]".format(style, self.name),
+                    title_align="left",
+                ),
+            ]
+
+            disable_messages: list[str] = [
+                "To permanently disable {} for your repository, set the environment variable '{}' to a non-zero value during the repository's activation (this is not recommended).".format(
+                    disable_description,
+                    self.disable_environment_variable,
+                ),
+            ]
+
+            if self.flags & disable_flag:
+                disable_messages.append("")
+
+                disable_commit_messages = self.disable_commit_messages
+
+                if len(disable_commit_messages) == 1:
+                    disable_messages.append(
+                        "To disable {}, include the text '{}' in the commit message.".format(
+                            disable_description,
+                            disable_messages[0],
+                        ),
+                    )
+                else:
+                    disable_messages.append(
+                        textwrap.dedent(
+                            """\
+                            To disable {}, include any of these in the commit message:
+
+                            {}
+                            """,
+                        ).format(
+                            disable_description,
+                            "\n".join("    - '{}'".format(disable_commit_message) for disable_commit_message in disable_commit_messages),
+                        ),
+                    )
+
+            panels.append(
+                Panel(
+                    Group(*disable_messages),
+                    padding=(1, 2),
+                    title="[bold yellow]Disabling this {}[/]".format(disable_description),
+                    title_align="left",
+                ),
+            )
+
+            console.print(Group(*panels))

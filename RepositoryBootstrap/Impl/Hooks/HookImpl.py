@@ -23,9 +23,8 @@ import sys
 import textwrap
 import traceback
 
-from collections import namedtuple
 from pathlib import Path
-from typing import Dict, Generator, List, Optional, Set, Union
+from typing import Callable, List, Optional
 
 from Common_Foundation.ContextlibEx import ExitStack
 from Common_Foundation.Shell.All import CurrentShell
@@ -34,8 +33,10 @@ from Common_Foundation.Streams.DoneManager import DoneManager
 from Common_Foundation import SubprocessEx
 from Common_Foundation import TextwrapEx
 
+from Common_FoundationEx.InflectEx import inflect
+
 from RepositoryBootstrap import Constants
-from RepositoryBootstrap.DataTypes import CommitInfo, PreIntegrateInfo, PrePushInfo
+from RepositoryBootstrap.DataTypes import ChangeInfo, PushInfo, MergeInfo, SCMPlugin
 from RepositoryBootstrap.Impl.ActivationData import ActivationData
 
 
@@ -43,12 +44,12 @@ from RepositoryBootstrap.Impl.ActivationData import ActivationData
 def Commit(
     dm: DoneManager,
     repository: Repository,
-    commits: List[CommitInfo],
+    changes: List[ChangeInfo],
 ) -> None:
     with dm.YieldVerboseStream() as stream:
         stream.write("HookImpl.py - Commit\n\n")
 
-        for commit_index, commit in enumerate(commits):
+        for commit_index, commit in enumerate(changes):
             stream.write(
                 textwrap.dedent(
                     """\
@@ -65,31 +66,58 @@ def Commit(
                 ),
             )
 
-    _Impl(dm, repository, commits, "OnCommit")
+    dm.WriteLine("")
+
+    _Impl(
+        dm,
+        repository.repo_root,
+        changes[0],
+        SCMPlugin.Flag.OnCommit,
+        SCMPlugin.Flag.OnCommitCanBeDisabled,
+        lambda plugin_dm, plugin: plugin.OnCommit(plugin_dm, repository, changes),
+    )
 
 
 # ----------------------------------------------------------------------
-def PrePush(
+def OnPush(
     dm: DoneManager,
     repository: Repository,
-    pre_push_info: PrePushInfo,
+    push_info: PushInfo,
 ) -> None:
     with dm.YieldVerboseStream() as stream:
-        stream.write("HookImpl.py - PrePush\n\n{}\n\n".format(pre_push_info))
+        stream.write("HookImpl.py - PrePush\n\n{}\n\n".format(push_info))
 
-    _Impl(dm, repository, pre_push_info, "OnPrePush")
+    dm.WriteLine("")
+
+    _Impl(
+        dm,
+        repository.repo_root,
+        push_info.changes[0],
+        SCMPlugin.Flag.OnPush,
+        SCMPlugin.Flag.OnPushCanBeDisabled,
+        lambda plugin_dm, plugin: plugin.OnPush(plugin_dm, repository, push_info),
+    )
 
 
 # ----------------------------------------------------------------------
-def PreIntegrate(
+def OnMerge(
     dm: DoneManager,
     repository: Repository,
-    pre_integrate_info: PreIntegrateInfo,
+    merge_info: MergeInfo,
 ) -> None:
     with dm.YieldVerboseStream() as stream:
-        stream.write("HookImpl.py - PreIntegrate\n\n{}\n\n".format(pre_integrate_info))
+        stream.write("HookImpl.py - PreIntegrate\n\n{}\n\n".format(merge_info))
 
-    _Impl(dm, repository, pre_integrate_info, "OnPreIntegrate")
+    dm.WriteLine("")
+
+    _Impl(
+        dm,
+        repository.repo_root,
+        merge_info.changes[0],
+        SCMPlugin.Flag.OnMerge,
+        SCMPlugin.Flag.OnMergeCanBeDisabled,
+        lambda plugin_dm, plugin: plugin.OnMerge(plugin_dm, repository, merge_info),
+    )
 
 
 # ----------------------------------------------------------------------
@@ -97,177 +125,166 @@ def PreIntegrate(
 # ----------------------------------------------------------------------
 def _Impl(
     dm: DoneManager,
-    repository: Repository,
-    info: Union[List[CommitInfo], PreIntegrateInfo, PrePushInfo],
-    function_name: str,
-) -> None:
-    for customization in _EnumerateScmCustomizations(dm, repository.repo_root):
-        func = getattr(customization.mod, function_name, None)
-        if func is None:
-            continue
-
-        result = func(
-            customization.dm,
-            customization.repo_data.configuration,
-            repository,
-            info,
-            first_configuration_in_repo=customization.is_first_configuration_in_repo,
-        )
-
-        if result is False:
-            break
-
-
-# ----------------------------------------------------------------------
-_EnumerateScmCustomizationsType             = namedtuple(
-    "_EnumerateScmCustomizationsType",
-    [
-        "dm",
-        "repo_data",
-        "is_first_configuration_in_repo",
-        "mod",
-    ],
-)
-
-def _EnumerateScmCustomizations(
-    dm: DoneManager,
     repo_root: Path,
-) -> Generator[_EnumerateScmCustomizationsType, None, None]:
-    activation_data_items: List[ActivationData] = []
-
+    most_recent_change: ChangeInfo,
+    action_flag: SCMPlugin.Flag,
+    disable_flag: SCMPlugin.Flag,
+    invoke_func: Callable[[DoneManager, SCMPlugin], None],
+) -> None:
     with dm.Nested(
         "Loading repository information for '{}'...".format(repo_root),
         suffix="\n",
     ) as activation_dm:
-        # Get the configurations to process
-        configurations: List[Optional[str]] = []
+        # ----------------------------------------------------------------------
+        def GetConfiguration() -> Optional[str]:
+            # Use the configuration associated with the current environment if this functionality
+            # is invoked in an activated environment.
+            current_repo_root = os.getenv(Constants.DE_REPO_ROOT_NAME)
+            if current_repo_root:
+                current_repo_root = Path(current_repo_root)
 
-        # Use the environment's configuration if we are attempting to modify the repo associated
-        # with the repository that is activated in the current environment.
-        current_repo_root = os.getenv(Constants.DE_REPO_ROOT_NAME)
+                if repo_root == current_repo_root:
+                    configuration = os.getenv(Constants.DE_REPO_CONFIGURATION_NAME)
+                    if configuration is not None or os.getenv(Constants.DE_REPO_ACTIVATED_KEY):
+                        return configuration
 
-        if current_repo_root:
-            current_repo_root = Path(current_repo_root)
-            assert current_repo_root.is_dir(), current_repo_root
-
-            if (
-                len(current_repo_root.parts) <= len(repo_root.parts)
-                and current_repo_root.parts == repo_root.parts[:len(current_repo_root.parts)]
-            ):
-                configuration = os.getenv(Constants.DE_REPO_CONFIGURATION_NAME)
-                if configuration:
-                    configurations.append(configuration)
-                elif os.getenv(Constants.DE_REPO_ACTIVATED_KEY):
-                    # If here, the repo isn't configurable
-                    configurations.append(None)
-
-        if not configurations:
-            # If here, we are either running outside of an activated environment or the current
-            # directory isn't in the repository
-            activate_basename = "{}{}".format(Constants.ACTIVATE_ENVIRONMENT_NAME, CurrentShell.script_extensions[0])
+            # If here, we aren't running in an activated environment or the environment activated
+            # is different from the repository.
+            activate_name = "{}{}".format(Constants.ACTIVATE_ENVIRONMENT_NAME, CurrentShell.script_extensions[0])
 
             activate_filename: Optional[Path] = None
 
             for parent in itertools.chain([repo_root, ], repo_root.parents):
-                potential_activate_filename = parent / activate_basename
+                potential_activate_filename = parent / activate_name
 
                 if potential_activate_filename.is_file():
                     activate_filename = potential_activate_filename
                     break
 
-            assert activate_filename is not None, repo_root
+            assert activate_filename is not None
 
-            command_line = '"{}" ListConfigurations --display-format json'.format(activate_filename)
+            # List the configurations
+            result = SubprocessEx.Run(
+                '"{}" ListConfigurations --display-format json'.format(activate_filename),
+            )
 
-            result = SubprocessEx.Run(command_line)
+            result.RaiseOnError()
 
             json_content = json.loads(result.output)
 
             if len(json_content) == 1 and "null" in json_content:
-                configurations.append(None)
-            else:
-                configurations += json_content.keys()
+                return None
 
-        assert configurations, repo_root
+            return next(iter(json_content.keys()))
 
-        for configuration in configurations:
-            with activation_dm.VerboseNested("") as this_dm:
-                activation_data_items.append(
-                    ActivationData.Load(
-                        this_dm,
-                        repo_root,
-                        configuration,
-                        force=True,
-                    ),
-                )
+        # ----------------------------------------------------------------------
 
-    processed_repositories: Dict[Path, Set[Optional[str]]] = {}
+        activation_data: Optional[ActivationData] = None
 
-    for activation_data in activation_data_items:
-        # Ensure that the root repo is included in the enumerated repositories
-        if not any(pr.root == repo_root for pr in activation_data.prioritized_repositories):
-            ConfiguredRepoDataWithPathProxyType         = namedtuple(
-                "ConfiguredRepoDataWithPathProxyType",
-                ["id", "name", "configuration", "is_mixin_repo", "root"],
+        with activation_dm.VerboseNested("") as activation_data_dm:
+            activation_data = ActivationData.Load(
+                activation_data_dm,
+                repo_root,
+                GetConfiguration(),
+                force=True,
             )
 
-            processed_repository_items = list(
-                itertools.chain(
-                    activation_data.prioritized_repositories,
-                    [
-                        ConfiguredRepoDataWithPathProxyType(
-                            activation_data.id,
-                            "Current Repository",
-                            activation_data.configuration,
-                            activation_data.is_mixin_repo,
-                            activation_data.root,
-                        ),
-                    ],
-                ),
-            )
+        assert activation_data is not None
 
-        else:
-            processed_repository_items = activation_data.prioritized_repositories
+    hook_filenames: list[Path] = []
 
-        for repo_data in reversed(processed_repository_items):
-            processed_configurations = processed_repositories.get(repo_data.root, None)
+    with dm.Nested(
+        "Calculating hook files...",
+        lambda: "{} found".format(inflect.no("hook file", len(hook_filenames))),
+    ):
+        for repo in activation_data.prioritized_repositories:
+            potential_hook_filename = repo.root / Constants.HOOK_ENVIRONMENT_CUSTOMIZATION_FILENAME
 
-            if processed_configurations is None:
-                is_first_configuration_in_repo = True
+            if potential_hook_filename.is_file():
+                hook_filenames.append(potential_hook_filename)
 
-                processed_configurations = set()
-                processed_repositories[repo_data.root] = processed_configurations
-            else:
-                is_first_configuration_in_repo = False
+    plugins: list[SCMPlugin] = []
 
-            if repo_data.configuration in processed_configurations:
-                continue
+    with dm.Nested(
+        "Extracting plugins...",
+        lambda: "{} found".format(inflect.no("plugin", len(plugins))),
+        suffix="\n",
+    ) as plugin_dm:
+        for hook_filename_index, hook_filename in enumerate(hook_filenames):
+            prev_len_plugins = len(plugins)
 
-            processed_configurations.add(repo_data.configuration)
-
-            potential_filename = repo_data.root / Constants.HOOK_ENVIRONMENT_CUSTOMIZATION_FILENAME
-            if not potential_filename.is_file():
-                continue
-
-            with dm.Nested(
-                "Processing '{}{}'...".format(
-                    repo_data.root,
-                    " [{}]".format(repo_data.configuration) if repo_data.configuration else "",
-                ),
-                suffix="\n",
+            with plugin_dm.VerboseNested(
+                "Processing '{}' ({} of {})...".format(hook_filename, hook_filename_index + 1, len(hook_filenames)),
+                lambda: "{} added".format(inflect.no("plugin", len(plugins) - prev_len_plugins)),
             ) as repo_dm:
-                sys.path.insert(0, str(potential_filename.parent))
+                sys.path.insert(0, str(hook_filename.parent))
                 with ExitStack(lambda: sys.path.pop(0)):
                     try:
-                        mod = importlib.import_module(potential_filename.stem)
+                        mod = importlib.import_module(hook_filename.stem)
 
-                        with ExitStack(lambda: sys.modules.pop(potential_filename.stem)):
-                            yield _EnumerateScmCustomizationsType(
-                                repo_dm,
-                                repo_data,
-                                is_first_configuration_in_repo,
-                                mod,
-                            )
+                        with ExitStack(lambda: sys.modules.pop(hook_filename.stem)):
+                            plugins += [
+                                plugin
+                                for plugin in getattr(mod, Constants.HOOK_ENVIRONMENT_GET_PLUGINS_METHOD_NAME)()
+                                if plugin.flags & action_flag
+                            ]
 
                     except:  # pylint: disable=bare-except
                         repo_dm.WriteError(traceback.format_exc())
+
+        plugins.sort(key=lambda plugin: (plugin.priority, plugin.name))
+
+    with dm.Nested("Processing plugins...") as process_dm:
+        for plugin_index, plugin in enumerate(plugins):
+            with process_dm.Nested(
+                "'{}' ({} of {})...".format(plugin.name, plugin_index + 1, len(plugins)),
+                suffix="\n" if process_dm.is_verbose else "",
+            ) as this_dm:
+                # Has this plugin been disabled via environment variable?
+                env_value = os.getenv(plugin.disable_environment_variable)
+                if env_value is not None and env_value != "0":
+                    this_dm.WriteVerbose(
+                        "Skipping '{}' due to the '{}' environment variable.".format(
+                            plugin.name,
+                            plugin.disable_environment_variable,
+                        ),
+                    )
+                    continue
+
+                # Has this plugin been disabled via commit message?
+                if plugin.flags & disable_flag:
+                    # ----------------------------------------------------------------------
+                    def GetDisableCommitMessage(
+                        value: str,
+                    ) -> Optional[str]:
+                        for disable_commit_message in plugin.disable_commit_messages:
+                            if disable_commit_message.lower() in value:
+                                return disable_commit_message
+
+                        return None
+
+                    # ----------------------------------------------------------------------
+
+                    dcm = GetDisableCommitMessage(most_recent_change.title)
+
+                    if dcm is None and most_recent_change.description:
+                        dcm = GetDisableCommitMessage(most_recent_change.description)
+
+                    if dcm is not None:
+                        this_dm.WriteVerbose(
+                            "Skipping '{}' due to '{}' in the change message for '{}'.".format(
+                                plugin.name,
+                                dcm,
+                                most_recent_change.id,
+                            ),
+                        )
+                        continue
+
+                try:
+                    invoke_func(this_dm, plugin)
+                except Exception as ex:
+                    plugin.DisplayError(
+                        this_dm,
+                        str(ex),
+                        disable_flag,
+                    )

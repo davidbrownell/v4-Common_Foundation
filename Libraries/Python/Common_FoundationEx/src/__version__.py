@@ -13,9 +13,6 @@
 # |  http://www.boost.org/LICENSE_1_0.txt.
 # |
 # ----------------------------------------------------------------------
-
-# Note that this value is hard-coded, but verified via ../../ValidateLibraryVersions.py as a part of
-# the CI process. This custom validation is only necessary for these libraries in this foundation
-# repository. See the comments in ../../ValidateLibraryVersions.py for more information.
+# pylint: disable=invalid-name,missing-module-docstring
 
 VERSION = "0.2.0"

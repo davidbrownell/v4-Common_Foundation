@@ -129,9 +129,13 @@ SCRIPT_DATA_NAME                                                            = "S
 
 # ----------------------------------------------------------------------
 # |  Custom Methods defined in `HOOK_ENVIRONMENT_CUSTOMIZATION_FILENAME`
-HOOK_ENVIRONMENT_COMMIT_METHOD_NAME                     = "OnCommitting"
-HOOK_ENVIRONMENT_PUSH_METHOD_NAME                       = "OnPushing"
-HOOK_ENVIRONMENT_PULL_METHOD_NAME                       = "OnPulled"
+
+# Callable[
+#     [],
+#     list[SCMPlugin]
+# ]
+HOOK_ENVIRONMENT_GET_PLUGINS_METHOD_NAME                = "GetPlugins"
+
 
 # ----------------------------------------------------------------------
 REPOSITORY_ID_FILENAME                                  = "__RepositoryId__"

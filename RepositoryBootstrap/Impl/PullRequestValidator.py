@@ -1,9 +1,9 @@
 # ----------------------------------------------------------------------
 # |
-# |  __main__.py
+# |  PullRequestValidator.py
 # |
 # |  David Brownell <db@DavidBrownell.com>
-# |      2023-03-04 13:05:40
+# |      2023-03-06 13:35:05
 # |
 # ----------------------------------------------------------------------
 # |
@@ -13,8 +13,7 @@
 # |  http://www.boost.org/LICENSE_1_0.txt.
 # |
 # ----------------------------------------------------------------------
-"""Validates changes within a pull request before it is committed."""
-
+from pathlib import Path
 from typing import Optional
 
 import typer
@@ -46,11 +45,11 @@ app                                         = typer.Typer(
 @app.command("Validate", no_args_is_help=False)
 def Validate(
     destination_branch_name: Optional[str]=typer.Option(None, "--destination-branch-name", help="Name of the destination branch; the default mainline branch name will be used if none is provided."),
-    latest_only: bool=typer.Option(False, "--latest-only", help="Only look at the latest change rather than all changes since the last merge to the destination branch."),
+    working_directory: Path=typer.Option(Path.cwd(), exists=True, file_okay=False, resolve_path=True, help="The working directory used to resolve path arguments."),
     verbose: bool=typer.Option(False, "--verbose", help="Write verbose information to the terminal."),
     debug: bool=typer.Option(False, "--debug", help="Write debug information to the terminal."),
 ) -> None:
-    """Validates changes within a pull request."""
+    """Validates a pull request."""
 
     with DoneManager.CreateCommandLine(
         output_flags=DoneManagerFlags.Create(verbose=verbose, debug=debug),
@@ -61,10 +60,11 @@ def Validate(
 # ----------------------------------------------------------------------
 @app.command("ListPlugins", no_args_is_help=False)
 def ListPlugins(
+    working_directory: Path=typer.Option(Path.cwd(), exists=True, file_okay=False, resolve_path=True, help="The working directory used to resolve path arguments."),
     verbose: bool=typer.Option(False, "--verbose", help="Write verbose information to the terminal."),
     debug: bool=typer.Option(False, "--debug", help="Write debug information to the terminal."),
 ) -> None:
-    """List the plugins invoked as part of the validation process."""
+    """Lists all plugins used in the validation of a pull request."""
 
     with DoneManager.CreateCommandLine(
         output_flags=DoneManagerFlags.Create(verbose=verbose, debug=debug),

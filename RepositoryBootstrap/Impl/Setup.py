@@ -974,7 +974,7 @@ def _SetupScmHooks(
             # Note that git uses bash on Windows, so the generated scripts are the same on all operating systems
             for script_name in [
                 "prepare-commit-msg",
-                "commit-msg",
+                # This method is not necessary, as all functionality can be implemented in "prepare-commit-msg" "commit-msg",
                 # TODO (This functionality is not implemented yet; See ./Hooks/GitHooks.py): "pre-push",
                 # TODO (This functionality is not implemented yet; See ./Hooks/GitHooks.py): "pre-receive",
             ]:

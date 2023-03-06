@@ -210,7 +210,7 @@ def EntryPoint(
             ]
 
         if include_latest:
-            versions.append("{}latest".format(version_info.prefix.rstrip("v")))
+            versions.append("{}latest".format((version_info.prefix or "").rstrip("v")))
 
         if repo.scm.name != "Git":
             raise Exception("Git is the only SCM supported at this time.")

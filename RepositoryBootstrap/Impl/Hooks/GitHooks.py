@@ -16,6 +16,7 @@
 """Functionality invoked by Git hook scripts"""
 
 import copy
+import os
 import re
 import textwrap
 import sys
@@ -23,16 +24,21 @@ import sys
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterator, List, Optional, Tuple, Union
+from typing import Iterator, List, Optional, Union
 
 import typer
 
 from typer.core import TyperGroup
 
+from Common_Foundation.ContextlibEx import ExitStack
+from Common_Foundation import PathEx
 from Common_Foundation.SourceControlManagers.GitSourceControlManager import GitSourceControlManager, Repository
 from Common_Foundation.Streams.Capabilities import Capabilities
 from Common_Foundation.Streams.DoneManager import DoneManager, DoneManagerFlags
 from Common_Foundation import TextwrapEx
+from Common_Foundation import Types
+
+from RepositoryBootstrap.DataTypes import ChangeInfo
 
 from . import HookImpl
 
@@ -73,18 +79,18 @@ def prepare_commit_msg(
             dm.WriteError("'{}' is a commit type not yet seen in the wild.".format(commit_type))
 
         if commit_type is None:
-            calculated_commit_type = HookImpl.CommitInfo.CommitType.Squash
+            calculated_commit_type = ChangeInfo.ChangeType.Squash
         elif commit_type in [
             "message",
             "template",  # I'm not sure why git wants to differentiate between these scenarios, as the contents of commit_message_file have been pre-populated with the contents of the template file
         ]:
             # GitKraken sends this type with a squash when extra_data is not None
             if extra_data is not None:
-                calculated_commit_type = HookImpl.CommitInfo.CommitType.Squash
+                calculated_commit_type = ChangeInfo.ChangeType.Squash
             else:
-                calculated_commit_type = HookImpl.CommitInfo.CommitType.Standard
+                calculated_commit_type = ChangeInfo.ChangeType.Standard
         elif commit_type == "commit":
-            calculated_commit_type = HookImpl.CommitInfo.CommitType.Amend
+            calculated_commit_type = ChangeInfo.ChangeType.Amend
         else:
             assert False, commit_type
 
@@ -104,57 +110,148 @@ def prepare_commit_msg(
                 commit_message_file,
                 commit_type or "None",
                 extra_data or "None",
-                calculated_commit_type,
+                str(calculated_commit_type),
             ),
         )
 
-        _OnCommitLikeChange(
-            dm,
-            working_dir,
-            name,
-            email,
-            commit_message_file,
-            calculated_commit_type,
-            is_user_authored=False,
-        )
+        git = GitSourceControlManager()
+
+        repository = git.Open(git.GetRoot(working_dir))
+        changes: list[ChangeInfo] = []
+
+        with dm.Nested(
+            "Extracting change information...",
+            suffix="\n" if dm.is_verbose else "",
+        ) as change_dm:
+            # Get the message info
+            commit_message_file = working_dir / commit_message_file
+            assert commit_message_file.is_file(), commit_message_file
+
+            with commit_message_file.open(
+                encoding="UTF-8",
+            ) as f:
+                message_content = f.read()
+
+            message_lines = message_content.split("\n")
+
+            title = message_lines[0]
+
+            if len(message_lines) == 1:
+                description = None
+            else:
+                message_line_index = 1
+
+                if len(message_lines) > (message_line_index + 1) and not message_lines[message_line_index]:
+                    message_line_index += 1
+
+                description = "\n".join(message_lines[message_line_index:])
+
+            if calculated_commit_type in [
+                ChangeInfo.ChangeType.Standard,
+                ChangeInfo.ChangeType.Amend,
+            ]:
+                # Get the files associated with the working repository
+                result = _ParseGitOutput(
+                    change_dm,
+                    repository.repo_root,
+                    "git status --porcelain=1 --untracked-files=no",
+                )
+
+                if result is None:
+                    assert change_dm.result != 0
+                    return
+
+                changes.append(
+                    ChangeInfo(
+                        ChangeInfo.ChangeType.Standard,
+                        "HEAD",
+                        "{} <{}>".format(name, email),
+                        title,
+                        description,
+                        result.files_added,
+                        result.files_modified,
+                        result.files_removed,
+                    ),
+                )
+
+                if calculated_commit_type == ChangeInfo.ChangeType.Amend:
+                    # Get the info for the change that is being amended
+                    result = _CreateChangeInfo(
+                        change_dm,
+                        repository.repo_root,
+                        calculated_commit_type,
+                        -1,
+                    )
+
+                    if result is None:
+                        assert change_dm.result != 0
+                        return
+
+                    changes.append(result)
+
+            elif calculated_commit_type == ChangeInfo.ChangeType.Squash:
+                # Unfortunately, once we are here, we don't seem to have the necessary context to figure
+                # out which changes actually prompted the hook to be fired. Make due as best that we can
+                # given the lack of information.
+                changes.append(
+                    ChangeInfo(
+                        calculated_commit_type,
+                        "<unknown>",
+                        "{} <{}>".format(name, email),
+                        title,
+                        description,
+                        None,
+                        None,
+                        None,
+                    ),
+                )
+
+            else:
+                assert False, commit_type  # pragma: no cover
+
+        original_change = copy.deepcopy(changes[0])
+
+        HookImpl.Commit(dm, repository, changes)
+
+        # Update the change if necessary
+        if changes[0] != original_change:
+            for unsupported_attribute in [
+                "files_added",
+                "files_modified",
+                "files_removed",
+            ]:
+                if getattr(changes[0], unsupported_attribute) != getattr(original_change, unsupported_attribute):
+                    raise Exception("Changes to '{}' are not supported yet.".format(unsupported_attribute))
+
+            if changes[0].title != original_change.title or changes[0].description != original_change.description:
+                new_message_content = changes[0].title
+
+                if changes[0].description:
+                    new_message_content += "\n\n{}".format(changes[0].description)
+
+                with commit_message_file.open(
+                    "w",
+                    encoding="UTF-8",
+                ) as f:
+                    f.write(new_message_content)
+
 
 
 # ----------------------------------------------------------------------
 @app.command("commit_msg", no_args_is_help=True)
 def commit_msg(
-    working_dir: Path=typer.Argument(..., file_okay=False, exists=True, resolve_path=True, help="git working directory."),
-    name: str=typer.Argument(..., help="git username."),
-    email: str=typer.Argument(..., help="git email."),
-    # Note that this filename is not resolved via typer due to the way in which the script is invoked.
-    commit_message_file: Path=typer.Argument(..., dir_okay=False, help="File generated by git that contains the commit message."),
-    verbose: bool=typer.Option(False, "--verbose", help="Write verbose information to the terminal."),
-    debug: bool=typer.Option(False, "--debug", help="Write debug information to the terminal."),
+    working_dir: Path=typer.Argument(..., file_okay=False, exists=True, resolve_path=True, help="git working directory."),          # pylint: disable=unused-argument
+    name: str=typer.Argument(..., help="git username."),                                                                            # pylint: disable=unused-argument
+    email: str=typer.Argument(..., help="git email."),                                                                              # pylint: disable=unused-argument
+    # Note that this filename is not resolved via typer due to the way in which the script is invoked.                              # pylint: disable=unused-argument
+    commit_message_file: Path=typer.Argument(..., dir_okay=False, help="File generated by git that contains the commit message."),  # pylint: disable=unused-argument
+    verbose: bool=typer.Option(False, "--verbose", help="Write verbose information to the terminal."),                              # pylint: disable=unused-argument
+    debug: bool=typer.Option(False, "--debug", help="Write debug information to the terminal."),                                    # pylint: disable=unused-argument
 ) -> None:
     """Functionality invoked before a commit is finalized."""
 
-    with _YieldCommandLineDoneManager(verbose=verbose, debug=debug) as dm:
-        dm.WriteInfo(
-            textwrap.dedent(
-                """\
-                commit_msg
-                ----------
-                commit_message_file:        {}
-
-                """,
-            ).format(
-                commit_message_file,
-            ),
-        )
-
-        _OnCommitLikeChange(
-            dm,
-            working_dir,
-            name,
-            email,
-            commit_message_file,
-            HookImpl.CommitInfo.CommitType.Standard,
-            is_user_authored=True,
-        )
+    # This is a noop, as everything can be done in prepare_commit_msg
+    return
 
 
 # ----------------------------------------------------------------------
@@ -231,191 +328,12 @@ def _YieldCommandLineDoneManager(
 
 
 # ----------------------------------------------------------------------
-def _OnCommitLikeChange(
-    dm: DoneManager,
-    working_dir: Path,
-    name: str,
-    email: str,
-    commit_message_file: Path,
-    commit_type: HookImpl.CommitInfo.CommitType,
-    *,
-    is_user_authored: bool,
-) -> None:
-    git = GitSourceControlManager()
-
-    repository = git.Open(git.GetRoot(working_dir))
-
-    with dm.Nested("Extracting commit information...") as commit_dm:
-        # Get the message info
-        commit_message_file = working_dir / commit_message_file
-        assert commit_message_file.is_file(), commit_message_file
-
-        with commit_message_file.open(
-            encoding="UTF-8",
-        ) as f:
-            message_content = f.read()
-
-        message_lines = message_content.split("\n")
-
-        title = message_lines[0]
-
-        if len(message_lines) == 1:
-            description = None
-        else:
-            message_line_index = 1
-
-            if len(message_lines) > (message_line_index + 1) and not message_lines[message_line_index]:
-                message_line_index += 1
-
-            description = "\n".join(message_lines[message_line_index:])
-
-        # Get the changed files
-        commits: List[HookImpl.CommitInfo] = []
-
-        if commit_type == HookImpl.CommitInfo.CommitType.Standard:
-            working_info = _CreateWorkingCommitInfo(
-                commit_dm,
-                repository.repo_root,
-                name,
-                email,
-                title,
-                description,
-                is_user_authored=is_user_authored,
-            )
-
-            if working_info is None:
-                return
-
-            commits.append(working_info)
-
-        elif commit_type == HookImpl.CommitInfo.CommitType.Amend:
-            working_info = _CreateWorkingCommitInfo(
-                commit_dm,
-                repository.repo_root,
-                name,
-                email,
-                title,
-                description,
-                is_user_authored=is_user_authored,
-            )
-
-            if working_info is None:
-                return
-
-            commits.append(working_info)
-
-            last_change_info = _CreateChangeCommitInfo(
-                commit_dm,
-                repository.repo_root,
-                commit_type,
-                -1,
-                is_user_authored=is_user_authored,
-            )
-
-            if last_change_info is None:
-                return
-
-            commits.append(last_change_info)
-
-        elif commit_type == HookImpl.CommitInfo.CommitType.Squash:
-            # Unfortunately, once we are here, we don't seem to have the necessary context to figure
-            # out which changes actually prompted the hook to be fired. Make due as best that we can
-            # given the lack of information.
-            commits.append(
-                HookImpl.CommitInfo(
-                    commit_type,
-                    "<unknown>",
-                    "{} <{}>".format(name, email),
-                    title,
-                    description,
-                    None,
-                    None,
-                    None,
-                    is_user_authored=is_user_authored,
-                ),
-            )
-
-        else:
-            assert False, commit_type
-
-    assert commits
-
-    original_commit_info = commits[0]
-
-    if original_commit_info.commit_type == HookImpl.CommitInfo.CommitType.Standard:
-        original_commit_info = copy.deepcopy(original_commit_info)
-
-    HookImpl.Commit(dm, repository, commits)
-
-    if commits[0] != original_commit_info:
-        if commits[0].files_added != original_commit_info.files_added:
-            raise Exception("Changes to files added is not supported yet")
-        if commits[0].files_modified != original_commit_info.files_modified:
-            raise Exception("Changes to files modified is not supported yet")
-        if commits[0].files_removed != original_commit_info.files_removed:
-            raise Exception("Changes to files removed is not supported yet")
-
-        if (
-            commits[0].title != original_commit_info.title
-            or commits[0].description != original_commit_info.description
-        ):
-            new_message_content = commits[0].title
-
-            if commits[0].description:
-                new_message_content += "\n\n{}".format(commits[0].description)
-
-            with commit_message_file.open(
-                "w",
-                encoding="UTF-8",
-            ) as f:
-                f.write(new_message_content)
-
-
-# ----------------------------------------------------------------------
-def _CreateWorkingCommitInfo(
+def _CreateChangeInfo(
     dm: DoneManager,
     repository_root: Path,
-    name: str,
-    email: str,
-    title: str,
-    description: Optional[str],
-    *,
-    is_user_authored: bool,
-) -> Optional[HookImpl.CommitInfo]:
-    result = _ParseGitOutput(
-        dm,
-        repository_root,
-        "git status --porcelain=1 --untracked-files=no",
-    )
-
-    if result is None:
-        assert dm.result != 0
-        return None
-
-    assert result.ignored_lines is None, result.ignored_lines
-
-    return HookImpl.CommitInfo(
-        HookImpl.CommitInfo.CommitType.Standard,
-        "HEAD",
-        "{} <{}>".format(name, email),
-        title,
-        description,
-        result.files_added,
-        result.files_modified,
-        result.files_removed,
-        is_user_authored=is_user_authored,
-    )
-
-
-# ----------------------------------------------------------------------
-def _CreateChangeCommitInfo(
-    dm: DoneManager,
-    repository_root: Path,
-    commit_type: HookImpl.CommitInfo.CommitType,
+    commit_type: ChangeInfo.ChangeType,
     change_id: Union[str, int],
-    *,
-    is_user_authored: bool,
-) -> Optional[HookImpl.CommitInfo]:
+) -> Optional[ChangeInfo]:
     # Ensure that the change id is a string
     if not isinstance(change_id, str):
         result = GitSourceControlManager.Execute(
@@ -514,7 +432,7 @@ def _CreateChangeCommitInfo(
     assert author is not None
     assert title is not None
 
-    return HookImpl.CommitInfo(
+    return ChangeInfo(
         commit_type,
         change_id,
         author,
@@ -523,7 +441,6 @@ def _CreateChangeCommitInfo(
         result.files_added,
         result.files_modified,
         result.files_removed,
-        is_user_authored=is_user_authored,
     )
 
 
