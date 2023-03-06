@@ -65,9 +65,6 @@ class Configuration(object):
 
     version_prefix: Optional[str]
 
-    major_scm_token: str
-    minor_scm_token: str
-
     prerelease_environment_variable_name: str
 
     initial_version: SemVer
@@ -273,7 +270,7 @@ def GetSemanticVersion(
             if HasExplicitVersion(commit):
                 break
 
-            elif configuration.major_scm_token in commit.description:
+            elif "+major" in commit.description:
                 enumerate_dm.WriteVerbose(
                     "Incrementing major version based on '{}' ({}).".format(
                         commit.commit,
@@ -286,7 +283,7 @@ def GetSemanticVersion(
                 update_minor = False
                 update_patch = False
 
-            elif configuration.minor_scm_token in commit.description:
+            elif "+minor" in commit.description:
                 if update_minor:
                     enumerate_dm.WriteVerbose(
                         "Incrementing minor version based on '{}' ({}).".format(
@@ -470,8 +467,6 @@ def GetConfiguration(
     return Configuration(
         configuration_filename,
         configuration_content.get("version_prefix", None),
-        configuration_content["major_scm_token"],
-        configuration_content["minor_scm_token"],
         configuration_content["pre_release_environment_variable_name"],
         SemVer.coerce(configuration_content["initial_version"]),
         configuration_content["main_branch_names"],
