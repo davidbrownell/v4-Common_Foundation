@@ -269,7 +269,7 @@ def Execute(
             files_to_copy.append("Bootstrap.sh")
 
     if config.include_scm_hook:
-        files_to_copy.append("ScmHook_custom.py")
+        files_to_copy.append("ScmPlugins.py")
 
         actions.append(
             textwrap.dedent(
