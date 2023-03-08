@@ -232,13 +232,15 @@ class Capabilities(object):
         def CreateRichConsole(
             self,
             file: Optional[IO[str]]=None,
+            *,
+            width: Optional[int]=None,
         ) -> Console:
             """Creates a `rich` `Console` instance"""
 
             args = self._GetRichConsoleArgs()
 
             # Width needs to be set separately
-            width_arg = args.pop("width", None)
+            width_arg = width if width is not None else args.pop("width", None)
 
             args["file"] = file
 
