@@ -1731,7 +1731,7 @@ class Repository(DistributedRepositoryBase):
                     yield DistributedRepositoryBase.ChangeInfo(
                         match.group("commit_id"),
                         match.group("description"),
-                        tags,
+                        prev_tags + tags,
                         match.group("author"),
                         datetime.strptime(match.group("date"), "%Y-%m-%d %H:%M:%S %z"),
                         file_info.added,
