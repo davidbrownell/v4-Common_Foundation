@@ -33,7 +33,7 @@ except ModuleNotFoundError:
 from Common_Foundation.Streams.DoneManager import DoneManager, DoneManagerFlags
 from Common_Foundation.Streams.StreamDecorator import StreamDecorator
 
-from Impl import GenerateStyle, GetSemanticVersion, ValidateChanges as ValidateChangesImpl
+from AutoSemVer import GenerateStyle, GetSemanticVersion
 
 
 # ----------------------------------------------------------------------
