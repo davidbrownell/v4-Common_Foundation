@@ -85,6 +85,8 @@ _date_optional_option                       = typer.Option(None, help="Date near
 _change_required_argument                   = typer.Argument(..., help="Change id in the repository.")
 _change_optional_option                     = typer.Option(None, help="Change id in the repository.")
 
+_include_working_changes_option             = typer.Option(False, "--include-working-changes", help="Include the current working changes in the result.")
+
 _verbose_option                             = typer.Option(False, "--verbose", help="Write verbose information to the terminal.")
 
 _no_prompt_option                           = typer.Option(False, "--no-prompt", help="Do not prompt for confirmation before invoking the functionality.")
@@ -567,6 +569,7 @@ def EnumChangesSinceMerge(
     change: Optional[str]=_change_optional_option,
     branch: Optional[str]=_branch_optional_option,
     date: Optional[datetime]=_date_optional_option,
+    include_working_changes: bool=_include_working_changes_option,
     repo_root: Path=_path_optional_option,
     scm_name: Optional[Scm]=_scm_optional_option,  # type: ignore
 ):
@@ -574,8 +577,46 @@ def EnumChangesSinceMerge(
 
     return _Wrap(
         "EnumChangesSinceMerge",
-        lambda repo: repo.GetEnumChangesSinceMergeCommandLine(dest_branch, arg),
-        lambda repo: repo.EnumChangesSinceMerge(dest_branch, arg),
+        lambda repo: repo.GetEnumChangesSinceMergeCommandLine(
+            dest_branch,
+            arg,
+            include_working_changes=include_working_changes,
+        ),
+        lambda repo: repo.EnumChangesSinceMerge(
+            dest_branch,
+            arg,
+            include_working_changes=include_working_changes,
+        ),
+        repo_root,
+        scm_name,
+    )
+
+
+# ----------------------------------------------------------------------
+@app.command("EnumChangesSinceMergeEx", rich_help_panel="Repository Commands", help=Repository.EnumChangesSinceMerge.__doc__, no_args_is_help=True)
+def EnumChangesSinceMergeEx(
+    dest_branch: str=typer.Argument(..., help="Destination branch name."),
+    change: Optional[str]=_change_optional_option,
+    branch: Optional[str]=_branch_optional_option,
+    date: Optional[datetime]=_date_optional_option,
+    include_working_changes: bool=_include_working_changes_option,
+    repo_root: Path=_path_optional_option,
+    scm_name: Optional[Scm]=_scm_optional_option,  # type: ignore
+):
+    arg = _CreateUpdateMergeArg(change, branch, date)
+
+    return _Wrap(
+        "EnumChangesSinceMergeEx",
+        lambda repo: repo.GetEnumChangesSinceMergeExCommandLine(
+            dest_branch,
+            arg,
+            include_working_changes=include_working_changes,
+        ),
+        lambda repo: repo.EnumChangesSinceMergeEx(
+            dest_branch,
+            arg,
+            include_working_changes=include_working_changes,
+        ),
         repo_root,
         scm_name,
     )
@@ -658,6 +699,38 @@ def ApplyPatch(
         "ApplyPatch",
         lambda repo: repo.GetApplyPatchCommandLine(patch_filename, commit),
         lambda repo: repo.ApplyPatch(patch_filename, commit),
+        repo_root,
+        scm_name,
+    )
+
+
+# ----------------------------------------------------------------------
+@app.command("EnumChanges", rich_help_panel="Repository Commands", help=Repository.EnumChanges.__doc__, no_args_is_help=False)
+def EnumChanges(
+    include_working_changes: bool=_include_working_changes_option,
+    repo_root: Path=_path_optional_option,
+    scm_name: Optional[Scm]=_scm_optional_option,  # type: ignore
+):
+    return _Wrap(
+        "EnumChanges",
+        lambda repo: repo.GetEnumChangesCommandLine(include_working_changes=include_working_changes),
+        lambda repo: repo.EnumChanges(include_working_changes=include_working_changes),
+        repo_root,
+        scm_name,
+    )
+
+
+# ----------------------------------------------------------------------
+@app.command("EnumChangesEx", rich_help_panel="Repository Commands", help=Repository.EnumChangesEx.__doc__, no_args_is_help=False)
+def EnumChangesEx(
+    include_working_changes: bool=_include_working_changes_option,
+    repo_root: Path=_path_optional_option,
+    scm_name: Optional[Scm]=_scm_optional_option,  # type: ignore
+):
+    return _Wrap(
+        "EnumChangesEx",
+        lambda repo: repo.GetEnumChangesExCommandLine(include_working_changes=include_working_changes),
+        lambda repo: repo.EnumChangesEx(include_working_changes=include_working_changes),
         repo_root,
         scm_name,
     )
@@ -1643,7 +1716,7 @@ def _DisplayResults(
         stream.write(result)
         stream.write("\n")
 
-    elif isinstance(result, (bool, int, Path)):
+    elif isinstance(result, (bool, datetime, int, Path)):
         stream.write(str(result))
         stream.write("\n")
 
@@ -1681,6 +1754,9 @@ def _DisplayResults(
                     TextwrapEx.Indent(sink, max_length + 1, skip_first_line=True),
                 ),
             )
+
+        stream.write("\n")
+
     else:
         assert False, (type(result), result)  # pragma: no cover
 

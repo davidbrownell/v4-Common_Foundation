@@ -42,7 +42,7 @@ def Execute(
         enlist_script_filename = Path("RepositoryBootstrap") / "Impl" / "Enlist.py"
         assert (foundation_repo_root / enlist_script_filename).is_file(), (foundation_repo_root, enlist_script_filename)
 
-        if len(args) <= 2 or "--help" in args:
+        if len(args) <= 2 or "--help" in args or "--working-directory" in args:
             working_dir = ""
         else:
             working_dir = ' --working-directory "{}"'.format(prev_dir)
