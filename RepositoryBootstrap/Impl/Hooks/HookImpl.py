@@ -268,10 +268,9 @@ def ExecutePlugins(
     def EnumerateChanges(
         dm: DoneManager,
         changes: list[ChangeInfo],
+        plugin: Optional[SCMPlugin],
     ) -> Generator[tuple[ChangeInfo, DoneManager], None, None]:
         for change_index, change in enumerate(changes):
-            change_was_successful = False
-
             with dm.Nested(
                 "'{} <{}>' ({} of {})...".format(
                     change.change_info.id,
@@ -281,6 +280,9 @@ def ExecutePlugins(
                 ),
                 suffix=lambda: "\n" if change_index != len(changes) - 1 else "",
             ) as change_dm:
+                if plugin is not None and _ShouldSkip(change_dm, plugin, change, disable_flag):
+                    continue
+
                 try:
                     yield change, change_dm
 
@@ -291,8 +293,6 @@ def ExecutePlugins(
                         error = str(ex)
 
                     change_dm.WriteError(error)
-
-                change_was_successful = change_dm.result == 0
 
     # ----------------------------------------------------------------------
 
@@ -337,7 +337,7 @@ def ExecutePlugins(
                                 plugin.ExecuteBatch(
                                     plugin_dm,
                                     repository,
-                                    EnumerateChanges(plugin_dm, changes),
+                                    EnumerateChanges(plugin_dm, changes, plugin),
                                 )
                             except Exception as ex:
                                 if plugin_dm.is_debug:
@@ -367,7 +367,7 @@ def ExecutePlugins(
                 with group_dm.Nested(
                     "Processing {}...".format(inflect.no("change", len(changes))),
                 ) as standard_dm:
-                    for change, change_dm in EnumerateChanges(standard_dm, changes):
+                    for change, change_dm in EnumerateChanges(standard_dm, changes, None):
                         for plugin_index, plugin in enumerate(priority_group.standard_plugins):
                             plugin_was_successful = False
 
@@ -378,38 +378,16 @@ def ExecutePlugins(
                                     len(priority_group.standard_plugins),
                                 ),
                                 suffix=lambda: "\n" if (
-                                    plugin_index != len(priority_group.standard_plugins) - 1
+                                    plugin_index != len(priority_group.standard_plugins) - 1  # type: ignore
                                     and (
                                         change_dm.is_verbose
                                         or not plugin_was_successful
                                     )
                                 ) else "",
                             ) as plugin_dm:
-                                if plugin.flags & disable_flag:
-                                    lower_content = change.title.lower() + (
-                                        change.description.lower()
-                                        if change.description is not None
-                                        else ""
-                                    )
+                                if _ShouldSkip(plugin_dm, plugin, change, disable_flag):
+                                    continue
 
-                                    disable_commit_message = next(
-                                        (
-                                            dcm
-                                            for dcm in plugin.disable_commit_messages
-                                            if dcm.lower() in lower_content
-                                        ),
-                                        None,
-                                    )
-
-                                    if disable_commit_message is not None:
-                                        plugin_dm.WriteInfo(
-                                            "The plugin '{}' was skipped because '{}' appeared in the change description.".format(
-                                                plugin.name,
-                                                disable_commit_message,
-                                            ),
-                                        )
-
-                                        continue
                                 try:
                                     plugin.Execute(plugin_dm, repository, change)
                                 except Exception as ex:
@@ -495,3 +473,40 @@ def ExecutePlugins(
                                 "\n".join("    - {}".format(dcm) for dcm in disable_commit_messages),
                             ),
                         )
+
+# ----------------------------------------------------------------------
+# ----------------------------------------------------------------------
+# ----------------------------------------------------------------------
+def _ShouldSkip(
+    dm: DoneManager,
+    plugin: SCMPlugin,
+    change: ChangeInfo,
+    disable_flag: SCMPlugin.Flag,
+) -> bool:
+    if plugin.flags & disable_flag:
+        lower_content = change.title.lower() + (
+            change.description.lower()
+            if change.description is not None
+            else ""
+        )
+
+        disable_commit_message = next(
+            (
+                dcm
+                for dcm in plugin.disable_commit_messages
+                if dcm.lower() in lower_content
+            ),
+            None,
+        )
+
+        if disable_commit_message is not None:
+            dm.WriteInfo(
+                "The plugin '{}' was skipped because '{}' appeared in the change description.".format(
+                    plugin.name,
+                    disable_commit_message,
+                ),
+            )
+
+            return True
+
+    return False
