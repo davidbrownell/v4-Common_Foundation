@@ -46,4 +46,4 @@ runs:
     - name: "Validate Pull Request"
       shell: "${{ inputs.shell_name }}"
       run: |
-        ${{ inputs.activate_statement }} && PullRequestValidator${{ inputs.script_extension }} Validate --destination-branch-name "origin/${{ inputs.destination_branch }}" --debug
+        ${{ inputs.activate_statement }} && PullRequestValidator${{ inputs.script_extension }} Validate "origin/${{ inputs.destination_branch }}" --debug
