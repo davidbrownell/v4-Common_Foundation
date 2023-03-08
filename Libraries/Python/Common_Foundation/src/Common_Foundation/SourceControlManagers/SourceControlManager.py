@@ -179,6 +179,32 @@ class Repository(ABC):
     """Abstract base class for a repository associated with a SourceControlManager"""
 
     # ----------------------------------------------------------------------
+    # |
+    # |  Public Types
+    # |
+    # ----------------------------------------------------------------------
+    @dataclass(frozen=True)
+    class ChangeInfo(object):
+        # ----------------------------------------------------------------------
+        WORKING_CHANGES_COMMIT_ID: ClassVar[str]        = "<working>"
+
+        id: str
+        description: str
+        tags: list[str]
+
+        author: str
+        author_date: datetime
+
+        files_added: list[Path]
+        files_removed: list[Path]
+        files_modified: list[Path]
+        working_files: list[Path]
+
+    # ----------------------------------------------------------------------
+    # |
+    # |  Public Methods
+    # |
+    # ----------------------------------------------------------------------
     def __init__(
         self,
         scm: SourceControlManager,
@@ -599,6 +625,8 @@ class Repository(ABC):
             UpdateMergeArgs.Branch,
             UpdateMergeArgs.BranchAndDate,
         ],
+        *,
+        include_working_changes: bool=False,
     ) -> str:
         """Returns the command line used to implement Repository.EnumChangesSinceMerge"""
         raise Exception("Abstract method")  # pragma: no cover
@@ -615,9 +643,46 @@ class Repository(ABC):
             UpdateMergeArgs.Branch,
             UpdateMergeArgs.BranchAndDate,
         ],
+        *,
+        include_working_changes: bool=False,
     ) -> Generator[str, None, None]:
         """Enumerates changes since the specified merge."""
+        raise Exception("Abstract method")  # pragma: no cover
 
+    # ----------------------------------------------------------------------
+    @abstractmethod
+    def GetEnumChangesSinceMergeExCommandLine(
+        self,
+        dest_branch: str,
+        source_merge_arg: Union[
+            None,
+            UpdateMergeArgs.Change,
+            UpdateMergeArgs.Date,
+            UpdateMergeArgs.Branch,
+            UpdateMergeArgs.BranchAndDate,
+        ],
+        *,
+        include_working_changes: bool=False,
+    ) -> str:
+        """Returns the command line to implement Repository.EnumChangesSinceMergeEx"""
+        raise Exception("Abstract method")  # pragma: no cover
+
+    # ----------------------------------------------------------------------
+    @abstractmethod
+    def EnumChangesSinceMergeEx(
+        self,
+        dest_branch: str,
+        source_merge_arg: Union[
+            None,
+            UpdateMergeArgs.Change,
+            UpdateMergeArgs.Date,
+            UpdateMergeArgs.Branch,
+            UpdateMergeArgs.BranchAndDate,
+        ],
+        *,
+        include_working_changes: bool=False,
+    ) -> Generator["Repository.ChangeInfo", None, None]:
+        """Enumerates changes since the specified merge."""
         raise Exception("Abstract method")  # pragma: no cover
 
     # ----------------------------------------------------------------------
@@ -719,28 +784,42 @@ class Repository(ABC):
         return self._Execute(self.GetApplyPatchCommandLine(patch_filename, commit))
 
     # ----------------------------------------------------------------------
-    @dataclass(frozen=True)
-    class EnumChangesResult(object):
-        WORKING_CHANGES_COMMIT_ID: ClassVar[str]        = "<working>"
+    @abstractmethod
+    def GetEnumChangesCommandLine(
+        self,
+        *,
+        include_working_changes: bool=False,
+    ) -> str:
+        """Returns the command line used to implement Repository.EnumChanges"""
+        raise Exception("Abstract method")  # pragma: no cover
 
-        commit: str
-        description: str
-        tags: list[str]
-
-        author: str
-        author_date: datetime
-
-        files_added: list[Path]
-        files_removed: list[Path]
-        files_modified: list[Path]
-        working_files: list[Path]
-
+    # ----------------------------------------------------------------------
     @abstractmethod
     def EnumChanges(
         self,
         *,
         include_working_changes: bool=False,
-    ) -> Generator[EnumChangesResult, None, None]:
+    ) -> Generator[str, None, None]:
+        """Enumerates changes on the local branch, starting with the most recent and working backwards in time."""
+        raise Exception("Abstract method")  # pragma: no cover
+
+    # ----------------------------------------------------------------------
+    @abstractmethod
+    def GetEnumChangesExCommandLine(
+        self,
+        *,
+        include_working_changes: bool=False,
+    ) -> str:
+        """Returns the command line used to implement Repository.EnumChangesEx"""
+        raise Exception("Abstract method")  # pragma: no cover
+
+    # ----------------------------------------------------------------------
+    @abstractmethod
+    def EnumChangesEx(
+        self,
+        *,
+        include_working_changes: bool=False,
+    ) -> Generator["Repository.ChangeInfo", None, None]:
         """Enumerates changes on the local branch, starting with the most recent and working backwards in time."""
         raise Exception("Abstract method")  # pragma: no cover
 
@@ -836,6 +915,8 @@ class DistributedRepository(Repository):
         """Enumerates filenames associated with changes that have not yet been applied to the working directory."""
         raise Exception("Abstract method")  # pragma: no cover
 
+    # TODO: EnumUpdateChangesEx
+
     # ----------------------------------------------------------------------
     @abstractmethod
     def GetHasLocalChangesCommandLine(self) -> str:
@@ -860,6 +941,8 @@ class DistributedRepository(Repository):
         """Enumerates filenames associated with committed changes that have not yet been pushed to the remote repository."""
         raise Exception("Abstract method")  # pragma: no cover
 
+    # TODO: EnumLocalChangesEx
+
     # ----------------------------------------------------------------------
     @abstractmethod
     def GetHasRemoteChangesCommandLine(self) -> str:
@@ -883,6 +966,8 @@ class DistributedRepository(Repository):
     def EnumRemoteChanges(self) -> Generator[str, None, None]:
         """Enumerates filenames associated with changes at the remote repository that have not yet been pulled."""
         raise Exception("Abstract method")  # pragma: no cover
+
+    # TODO: EnumRemoteChangesEx
 
     # ----------------------------------------------------------------------
     def GetGetDistributedChangeStatusCommandLine(self) -> str:

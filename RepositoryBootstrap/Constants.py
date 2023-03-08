@@ -33,7 +33,7 @@ DEACTIVATE_ENVIRONMENT_NAME                             = "Deactivate"
 DEFAULT_ENVIRONMENT_NAME                                = "DefaultEnv"
 DEFAULT_CONFIGURATION_NAME                              = "DefaultConfig"
 
-HOOK_ENVIRONMENT_CUSTOMIZATION_FILENAME                 = "ScmHook_custom.py"
+SCM_PLUGINS_CUSTOMIZATION_FILENAME                      = "ScmPlugins.py"
 
 TEMPORARY_FILE_EXTENSION                                                    = ".SourceRepositoryTools"
 
@@ -128,13 +128,13 @@ SCRIPT_LIST_NAME                                                            = "D
 SCRIPT_DATA_NAME                                                            = "ScriptData.json"
 
 # ----------------------------------------------------------------------
-# |  Custom Methods defined in `HOOK_ENVIRONMENT_CUSTOMIZATION_FILENAME`
+# |  Custom Methods defined in `SCM_PLUGINS_CUSTOMIZATION_FILENAME`
 
 # Callable[
 #     [],
 #     list[SCMPlugin]
 # ]
-HOOK_ENVIRONMENT_GET_PLUGINS_METHOD_NAME                = "GetPlugins"
+SCM_PLUGINS_ENVIRONMENT_GET_PLUGINS_METHOD_NAME         = "GetPlugins"
 
 
 # ----------------------------------------------------------------------

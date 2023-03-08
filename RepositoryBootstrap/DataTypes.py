@@ -16,24 +16,19 @@
 """Contains data types used during the repository setup/activate process"""
 
 import re
-import textwrap
 import uuid
 
 from abc import abstractmethod, ABC
 from dataclasses import dataclass, field
+from datetime import datetime
 from enum import auto, Enum, IntFlag
 from functools import cached_property
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from rich.console import Group
-from rich.panel import Panel
-
 from Common_Foundation import JsonEx
 from Common_Foundation.SourceControlManagers.SourceControlManager import Repository
-from Common_Foundation.Streams.Capabilities import Capabilities
 from Common_Foundation.Streams.DoneManager import DoneManager
-from Common_Foundation.Streams.StreamDecorator import StreamDecorator
 from Common_Foundation.Types import extensionmethod
 
 from . import Configuration as ConfigurationMod
@@ -188,22 +183,71 @@ class ChangeInfo(object):
         Squash                              = auto()
 
     # ----------------------------------------------------------------------
-    commit_type: "ChangeInfo.ChangeType"    # immutable
-    id: str                                 # immutable
-    author: str                             # immutable
+    change_type: "ChangeInfo.ChangeType"    # immutable
+    change_info: Repository.ChangeInfo      # immutable
 
     title: str
     description: Optional[str]
 
-    files_added: Optional[List[Path]]
-    files_modified: Optional[List[Path]]
-    files_removed: Optional[List[Path]]
+    # ----------------------------------------------------------------------
+    @classmethod
+    def Create(
+        cls,
+        change_type: "ChangeInfo.ChangeType",
+        commit_id: str,
+        title: str,
+        description: Optional[str],
+        author: str,
+        author_date: datetime,
+        files_added: list[Path],
+        files_removed: list[Path],
+        files_modified: list[Path],
+    ) -> "ChangeInfo":
+        if description:
+            official_description = "{}\n\n{}".format(title.rstrip(), description.strip())
+        else:
+            official_description = title.rstrip()
+
+        return cls(
+            change_type,
+            Repository.ChangeInfo(
+                commit_id,
+                official_description,
+                [],
+                author,
+                author_date,
+                files_added,
+                files_removed,
+                files_modified,
+                [],
+            ),
+            title,
+            description,
+        )
 
     # ----------------------------------------------------------------------
-    def __post_init__(self):
-        assert self.files_added is None or self.files_added
-        assert self.files_modified is None or self.files_modified
-        assert self.files_removed is None or self.files_removed
+    @classmethod
+    def CreateFromRepositoryChangeInfo(
+        cls,
+        change_info: Repository.ChangeInfo,
+    ) -> "ChangeInfo":
+        match = re.match(
+            r"(?P<title>[^\n]+)(?:\n+(?P<description>.+))?",
+            change_info.description,
+            re.DOTALL | re.MULTILINE,
+        )
+
+        assert match is not None, change_info.description
+
+        title = match.group("title")
+        description = match.group("description") or None
+
+        return cls(
+            ChangeInfo.ChangeType.Standard,
+            change_info,
+            title,
+            description,
+        )
 
 
 # ----------------------------------------------------------------------
@@ -279,11 +323,6 @@ class SCMPlugin(ABC):
         raise Exception("Abstract property")  # pragma: no cover
 
     @property
-    @abstractmethod
-    def description(self) -> str:
-        raise Exception("Abstract property")  # pragma: no cover
-
-    @property
     def priority(self) -> int:
         return self.__class__.DEFAULT_PRIORITY
 
@@ -298,7 +337,7 @@ class SCMPlugin(ABC):
 
     @cached_property
     def disable_environment_variable(self) -> str:
-        value = self.name
+        value = self.name.replace(" ", "")
 
         for regex, sub in [
             (r"(.)([A-Z][a-z]+)", r"\1_\2"),
@@ -308,148 +347,22 @@ class SCMPlugin(ABC):
 
         return "DEVELOPMENT_ENVIRONMENT_PULL_REQUEST_VALIDATOR_NO_{}".format(value.upper())
 
+    @property
+    @extensionmethod
+    def has_verbose_output(self) -> bool:
+        """Return True if the plugin displays verbose output (even when successful)"""
+        return False
+
     # ----------------------------------------------------------------------
     # |
     # |  Public Methods
     # |
     # ----------------------------------------------------------------------
-    @extensionmethod
-    def OnCommit(
+    @abstractmethod
+    def Execute(
         self,
         dm: DoneManager,
         repository: Repository,
-        changes: list[ChangeInfo],
+        change: ChangeInfo,
     ) -> None:
         raise Exception("Abstract method")  # pragma: no cover
-
-    # ----------------------------------------------------------------------
-    @extensionmethod
-    def OnPush(
-        self,
-        dm: DoneManager,
-        repository: Repository,
-        push_info: PushInfo,
-    ) -> None:
-        raise Exception("Abstract method")  # pragma: no cover
-
-    # ----------------------------------------------------------------------
-    @extensionmethod
-    def OnMerge(
-        self,
-        dm: DoneManager,
-        repository: Repository,
-        merge_info: MergeInfo,
-    ) -> None:
-        raise Exception("Abstract method") # pragma: no cover
-
-    # ----------------------------------------------------------------------
-    def DisplayError(
-        self,
-        dm: DoneManager,
-        message: str,
-        disable_flag: "SCMPlugin.Flag",
-        disable_description: str="this validation",
-    ) -> None:
-        dm.result = -1
-
-        self._DisplayImpl(
-            dm,
-            message,
-            "[bold red]",
-            disable_flag,
-            disable_description,
-        )
-
-    # ----------------------------------------------------------------------
-    # |
-    # |  Protected Methods
-    # |
-    # ----------------------------------------------------------------------
-    def _DisplayMessage(
-        self,
-        dm: DoneManager,
-        message: str,
-        disable_flag: "SCMPlugin.Flag",
-        disable_description: str="this validation",
-    ) -> None:
-        self._DisplayImpl(
-            dm,
-            message,
-            "[bold white]",
-            disable_flag,
-            disable_description,
-        )
-
-    # ----------------------------------------------------------------------
-    def _DisplayImpl(
-        self,
-        dm: DoneManager,
-        message: str,
-        style: str,
-        disable_flag: "SCMPlugin.Flag",
-        disable_description: str="this validation",
-    ) -> None:
-        with dm.YieldStdout() as stdout_context:
-            capabilities = Capabilities.Get(stdout_context.stream)
-
-            console = capabilities.CreateRichConsole(
-                StreamDecorator(
-                    stdout_context.stream,
-                    line_prefix=stdout_context.line_prefix,
-                ),  # type: ignore
-            )
-
-            console.size = (console.width - len(stdout_context.line_prefix), console.height)
-
-            panels: list[Panel] = [
-                Panel(
-                    Group(message),
-                    padding=(1, 2),
-                    title="{}{}[/]".format(style, self.name),
-                    title_align="left",
-                ),
-            ]
-
-            disable_messages: list[str] = [
-                "To permanently disable {} for your repository, set the environment variable '{}' to a non-zero value during the repository's activation (this is not recommended).".format(
-                    disable_description,
-                    self.disable_environment_variable,
-                ),
-            ]
-
-            if self.flags & disable_flag:
-                disable_messages.append("")
-
-                disable_commit_messages = self.disable_commit_messages
-
-                if len(disable_commit_messages) == 1:
-                    disable_messages.append(
-                        "To disable {}, include the text '{}' in the commit message.".format(
-                            disable_description,
-                            disable_messages[0],
-                        ),
-                    )
-                else:
-                    disable_messages.append(
-                        textwrap.dedent(
-                            """\
-                            To disable {}, include any of these in the commit message:
-
-                            {}
-                            """,
-                        ).format(
-                            disable_description,
-                            "\n".join("    - '{}'".format(disable_commit_message) for disable_commit_message in disable_commit_messages),
-                        ),
-                    )
-
-            panels.append(
-                Panel(
-                    Group(*disable_messages),
-                    padding=(1, 2),
-                    title="[bold yellow]Disabling this {}[/]".format(disable_description),
-                    title_align="left",
-                ),
-            )
-
-            console.print(Group(*panels))

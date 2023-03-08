@@ -575,6 +575,8 @@ class Repository(DistributedRepositoryBase):
             UpdateMergeArgs.Branch,
             UpdateMergeArgs.BranchAndDate,
         ],
+        *,
+        include_working_changes: bool=False,
     ) -> str:
         # ----------------------------------------------------------------------
         def GetDateOperator(
@@ -651,9 +653,14 @@ class Repository(DistributedRepositoryBase):
             UpdateMergeArgs.Branch,
             UpdateMergeArgs.BranchAndDate,
         ],
+        *,
+        include_working_changes: bool=False,
     ) -> Generator[str, None, None]:
         result = self._Execute(
-            self.GetEnumChangesSinceMergeCommandLine(dest_branch, source_merge_arg),
+            self.GetEnumChangesSinceMergeCommandLine(
+                dest_branch,
+                source_merge_arg,
+                include_working_changes=include_working_changes),
         )
         assert result.returncode == 0, result.output
 
@@ -661,6 +668,38 @@ class Repository(DistributedRepositoryBase):
             line = line.strip()
             if line:
                 yield line
+
+    # ----------------------------------------------------------------------
+    def GetEnumChangesSinceMergeExCommandLine(
+        self,
+        dest_branch,
+        source_merg_arg: Union[
+            None,
+            UpdateMergeArgs.Change,
+            UpdateMergeArgs.Date,
+            UpdateMergeArgs.Branch,
+            UpdateMergeArgs.BranchAndDate,
+        ],
+        *,
+        include_working_changes: bool=False,
+    ) -> str:
+        raise Exception("This functionality is not yet implemented.")
+
+    # ----------------------------------------------------------------------
+    def EnumChangesSinceMergeEx(
+        self,
+        dest_branch,
+        source_merg_arg: Union[
+            None,
+            UpdateMergeArgs.Change,
+            UpdateMergeArgs.Date,
+            UpdateMergeArgs.Branch,
+            UpdateMergeArgs.BranchAndDate,
+        ],
+        *,
+        include_working_changes: bool=False,
+    ) -> Generator[DistributedRepositoryBase.ChangeInfo, None, None]:
+        raise Exception("This functionality is not yet implemented.")
 
     # ----------------------------------------------------------------------
     def GetEnumChangedFilesCommandLine(
@@ -785,11 +824,35 @@ class Repository(DistributedRepositoryBase):
         )
 
     # ----------------------------------------------------------------------
+    def GetEnumChangesCommandLine(
+        self,
+        *,
+        include_working_changes: bool=False,
+    ) -> str:
+        raise Exception("This functionality is not yet implemented.")
+
+    # ----------------------------------------------------------------------
     def EnumChanges(
         self,
         *,
         include_working_changes: bool=False,
-    ) -> Generator[DistributedRepositoryBase.EnumChangesResult, None, None]:
+    ) -> Generator[str, None, None]:
+        raise Exception("This functionality is not yet implemented.")
+
+    # ----------------------------------------------------------------------
+    def GetEnumChangesExCommandLine(
+        self,
+        *,
+        include_working_changes: bool=False,
+    ) -> str:
+        raise Exception("This functionality is not yet implemented.")
+
+    # ----------------------------------------------------------------------
+    def EnumChangesEx(
+        self,
+        *,
+        include_working_changes: bool=False,
+    ) -> Generator[DistributedRepositoryBase.ChangeInfo, None, None]:
         raise Exception("This functionality is not yet implemented.")
 
     # ----------------------------------------------------------------------

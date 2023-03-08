@@ -15,6 +15,7 @@
 # ----------------------------------------------------------------------
 """Contains the GitSourceControlManager object"""
 
+import itertools
 import re
 import textwrap
 
@@ -22,7 +23,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from enum import auto, Enum
 from pathlib import Path
-from typing import Any, ClassVar, Dict, List, Generator, Optional, Pattern, Tuple, Union
+from typing import Any, Callable, ClassVar, Dict, List, Generator, Optional, Pattern, Tuple, Union
 
 from Common_Foundation.ContextlibEx import ExitStack
 from Common_Foundation.Shell.All import CurrentShell
@@ -694,62 +695,16 @@ class Repository(DistributedRepositoryBase):
             UpdateMergeArgs.Branch,
             UpdateMergeArgs.BranchAndDate,
         ],
+        *,
+        include_working_changes: bool=False,
     ) -> str:
-        # Git is really screwed up. After a 30 minute search, I couldn't find a way to
-        # specify a branch and beginning revision in a single command. Therefore, I am
-        # doing it manually.
-
-        source_branch: Optional[str] = None
-        additional_filters: List[str] = []
-
-        # ----------------------------------------------------------------------
-        def GetDateOperator(arg):
-            if arg is None or arg:
-                return "since"
-
-            return "until"
-
-        # ----------------------------------------------------------------------
-
-        if source_merge_arg is None:
-            source_branch = self._GetCurrentBranchEx(detached_is_error=True)[1]
-
-        elif isinstance(source_merge_arg, UpdateMergeArgs.Change):
-            source_branch = self._GetBranchAssociatedWithChange(source_merge_arg.change)
-
-        elif isinstance(source_merge_arg, UpdateMergeArgs.Date):
-            source_branch = self._GetCurrentBranchEx(detached_is_error=True)[1]
-
-            additional_filters.append(
-                '--{}="{}"'.format(
-                    GetDateOperator(source_merge_arg.greater_than),
-                    source_merge_arg.date.isoformat(timespec="seconds"),
-                ),
-            )
-
-        elif isinstance(source_merge_arg, UpdateMergeArgs.Branch):
-            source_branch = source_merge_arg.branch
-
-        elif isinstance(source_merge_arg, UpdateMergeArgs.BranchAndDate):
-            source_branch = source_merge_arg.branch
-
-            additional_filters.append(
-                '--{}="{}"'.format(
-                    GetDateOperator(source_merge_arg.greater_than),
-                    source_merge_arg.date.isoformat(timespec="seconds"),
-                ),
-            )
-
-        else:
-            assert False, source_merge_arg  # pragma: no cover
-
-        return self._GetCommandLine(
-            'git --no-pager log "{source_branch}" --not "{dest_branch}" --format="%H" --no-merges{additional_filters}'.format(
-                source_branch=source_branch,
-                dest_branch=dest_branch,
-                additional_filters=" {}".format(" ".join(additional_filters)) if additional_filters else "",
+        return self._CreateLoggerInfo(
+            *self._GetEnumChangesSinceMergeCommandLineParts(
+                dest_branch,
+                source_merge_arg,
             ),
-        )
+            include_working_changes=include_working_changes,
+        )[0]
 
     # ----------------------------------------------------------------------
     def EnumChangesSinceMerge(
@@ -762,26 +717,60 @@ class Repository(DistributedRepositoryBase):
             UpdateMergeArgs.Branch,
             UpdateMergeArgs.BranchAndDate,
         ],
+        *,
+        include_working_changes: bool=False,
     ) -> Generator[str, None, None]:
-        result = GitSourceControlManager.Execute(self.GetEnumChangesSinceMergeCommandLine(dest_branch, source_merge_arg))
-        assert result.returncode == 0, result.output
+        yield from self._CreateLoggerInfo(
+            *self._GetEnumChangesSinceMergeCommandLineParts(
+                dest_branch,
+                source_merge_arg,
+            ),
+            include_working_changes=include_working_changes,
+        )[1]()
 
-        changes = [line.strip() for line in result.output.split("\n") if line.strip()]
+    # ----------------------------------------------------------------------
+    def GetEnumChangesSinceMergeExCommandLine(
+        self,
+        dest_branch: str,
+        source_merge_arg: Union[
+            None,
+            UpdateMergeArgs.Change,
+            UpdateMergeArgs.Date,
+            UpdateMergeArgs.Branch,
+            UpdateMergeArgs.BranchAndDate,
+        ],
+        *,
+        include_working_changes: bool=False,
+    ) -> str:
+        return self._CreateLoggerExInfo(
+            *self._GetEnumChangesSinceMergeCommandLineParts(
+                dest_branch,
+                source_merge_arg,
+            ),
+            include_working_changes=include_working_changes,
+        )[0]
 
-        if isinstance(source_merge_arg, UpdateMergeArgs.Change):
-            starting_index: Optional[int] = None
-
-            for index, change in enumerate(changes):
-                if change == source_merge_arg.change:
-                    starting_index = index
-                    break
-
-            if starting_index is None:
-                changes = []
-            else:
-                changes = changes[starting_index:]
-
-        yield from changes
+    # ----------------------------------------------------------------------
+    def EnumChangesSinceMergeEx(
+        self,
+        dest_branch: str,
+        source_merge_arg: Union[
+            None,
+            UpdateMergeArgs.Change,
+            UpdateMergeArgs.Date,
+            UpdateMergeArgs.Branch,
+            UpdateMergeArgs.BranchAndDate,
+        ],
+        *,
+        include_working_changes: bool=False,
+    ) -> Generator[DistributedRepositoryBase.ChangeInfo, None, None]:
+        yield from self._CreateLoggerExInfo(
+            *self._GetEnumChangesSinceMergeCommandLineParts(
+                dest_branch,
+                source_merge_arg,
+            ),
+            include_working_changes=include_working_changes,
+        )[1]()
 
     # ----------------------------------------------------------------------
     def GetEnumChangedFilesCommandLine(
@@ -908,198 +897,52 @@ class Repository(DistributedRepositoryBase):
         return self._GetCommandLine('git apply "{}"'.format(str(patch_filename)))
 
     # ----------------------------------------------------------------------
+    def GetEnumChangesCommandLine(
+        self,
+        *,
+        include_working_changes: bool=False,
+    ) -> str:
+        return self._CreateLoggerInfo(
+            "HEAD",
+            [],
+            include_working_changes=include_working_changes,
+        )[0]
+
+    # ----------------------------------------------------------------------
     def EnumChanges(
         self,
         *,
         include_working_changes: bool=False,
-    ) -> Generator[DistributedRepositoryBase.EnumChangesResult, None, None]:
-        if include_working_changes:
-            result = self._Execute(
-                self._GetCommandLine("git status --porcelain=1"),
-            )
+    ) -> Generator[str, None, None]:
+        yield from self._CreateLoggerInfo(
+            "HEAD",
+            [],
+            include_working_changes=include_working_changes,
+        )[1]()
 
-            assert result.returncode == 0, result.output
+    # ----------------------------------------------------------------------
+    def GetEnumChangesExCommandLine(
+        self,
+        *,
+        include_working_changes: bool=False,
+    ) -> str:
+        return self._CreateLoggerExInfo(
+            "HEAD",
+            [],
+            include_working_changes=include_working_changes,
+        )[0]
 
-            file_info = Repository.FileInfo.Extract(
-                self.repo_root,
-                result.output,
-            )
-
-            if file_info.working:
-                yield Repository.EnumChangesResult(
-                    Repository.EnumChangesResult.WORKING_CHANGES_COMMIT_ID,
-                    "Working Changes",
-                    [],
-                    self.Who(),
-                    datetime.now(),
-                    file_info.added,
-                    file_info.removed,
-                    file_info.modified,
-                    file_info.working,
-                )
-
-        # ----------------------------------------------------------------------
-        @dataclass(frozen=True)
-        class Datum(object):
-            name: str
-            git_format: str
-            regex: str
-
-        # ----------------------------------------------------------------------
-
-        datums: list[Datum] = [
-            Datum(
-                "commit_id",
-                "%H%n",
-                r"(?P<commit_id>\S+)\r?\n",
-            ),
-            Datum(
-                "description",
-                "%B%n",
-                r"(?P<description>.*?\n)?",
-            ),
-            Datum(
-                "tags",
-                "%D%n",
-                r"(?P<tags>.+?\n)?",
-            ),
-            Datum(
-                "author",
-                "%aN <%aE>%n",
-                r"(?P<author>[^\n]+)\n",
-            ),
-            Datum(
-                "date",
-                "%ai%n",
-                r"(?P<date>[^\n]+)\n",
-            ),
-        ]
-
-        commit_delimiter = "140c4c3011e84e018c296ef729c3f662"
-        section_delimiter = "e3882de41b4f430b8ca7740998dc104e"
-
-        commit_regex = re.compile(
-            r"""(?#
-            {sections}
-            Section Delimiter               ){section_delimiter}_files\r?\n(?#
-            File Content                    )(?P<files>.*)(?#
-            )""".format(
-                sections="".join(
-                    textwrap.dedent(
-                        r"""
-                        Section Delimiter   ){section_delimiter}_{name}\r?\n(?#
-                        {name}              ){regex}(?#
-                        """,
-                    ).format(
-                        section_delimiter=section_delimiter,
-                        name=datum.name,
-                        regex=datum.regex,
-                    ).rstrip()
-                    for datum in datums
-                ),
-                section_delimiter=section_delimiter,
-            ),
-            re.DOTALL | re.MULTILINE,
-        )
-
-        git_format = "{commit_delimiter}%n{datums}%n{section_delimiter}_files%n".format(
-            commit_delimiter=commit_delimiter,
-            datums="".join("{}_{}%n{}".format(section_delimiter, datum.name, datum.git_format) for datum in datums),
-            section_delimiter=section_delimiter,
-        )
-
-        command_line_template = self._GetCommandLine(
-            " ".join(
-                [
-                    "git",
-                    "--no-pager",
-                    "log",
-                    "HEAD",
-                    '"--format={}"'.format(git_format),
-                    "-n", "10",
-                    "--name-status",
-                    "--no-color",
-                    "--skip", "{}",
-                ],
-            ),
-        )
-
-        # Execute
-        split_token = "{}\n".format(commit_delimiter)
-
-        offset = 0
-
-        # Merges will not include files, but tags are often applied to merges.
-        # If we detect a merge, don't send it but keep the tags around for the
-        # next commit (which will be the parent of the merge).
-        prev_tags: list[str] = []
-
-        while True:
-            result = self._Execute(
-                command_line_template.format(offset),
-                add_newline=True,
-            )
-
-            if not result.output or result.output.isspace():
-                break
-
-            if "does not have any commits yet" in result.output:
-                break
-
-            commits = result.output.split(split_token)
-
-            assert commits
-            assert not commits[0] or commits[0].isspace(), commits[0]
-
-            for commit in commits[1:]:
-                match = commit_regex.match(commit)
-                if match is None:
-                    raise Exception("Unexpected git output:\n\n**{}**\n".format(commit.rstrip()))
-
-                offset += 1
-
-                # Extract the commit data
-                tag_content = match.group("tags")
-                file_content = match.group("files")
-
-                tags: list[str] = []
-
-                if tag_content:
-                    for potential_tag in tag_content.split(","):
-                        potential_tag = potential_tag.strip()
-
-                        if potential_tag.startswith("tag: "):
-                            tags.append(potential_tag[len("tag: "):])
-
-                if not file_content:
-                    # We are looking at a merge commit
-                    assert not prev_tags
-                    prev_tags = tags
-
-                    continue
-
-                commit_id = match.group("commit_id")
-                description = match.group("description")
-                author = match.group("author")
-                date = datetime.strptime(match.group("date"), "%Y-%m-%d %H:%M:%S %z")
-
-                # Extract the file info
-                file_info = self.__class__.FileInfo.Extract(self.repo_root, file_content)
-                assert not file_info.ignored
-
-                yield Repository.EnumChangesResult(
-                    commit_id,
-                    description,
-                    tags + prev_tags,
-                    author,
-                    date,
-                    file_info.added,
-                    file_info.removed,
-                    file_info.modified,
-                    file_info.working,
-                )
-
-                prev_tags = []
+    # ----------------------------------------------------------------------
+    def EnumChangesEx(
+        self,
+        *,
+        include_working_changes: bool=False,
+    ) -> Generator[DistributedRepositoryBase.ChangeInfo, None, None]:
+        yield from self._CreateLoggerExInfo(
+            "HEAD",
+            [],
+            include_working_changes=include_working_changes,
+        )[1]()
 
     # ----------------------------------------------------------------------
     def GetResetCommandLine(
@@ -1547,3 +1390,367 @@ class Repository(DistributedRepositoryBase):
             result.output = result.output[len("* "):]
 
         return result.output
+
+    # ----------------------------------------------------------------------
+    def _GetEnumChangesSinceMergeCommandLineParts(
+        self,
+        dest_branch: str,
+        source_merge_arg: Union[
+            None,
+            UpdateMergeArgs.Change,
+            UpdateMergeArgs.Date,
+            UpdateMergeArgs.Branch,
+            UpdateMergeArgs.BranchAndDate,
+        ],
+    ) -> tuple[str, list[str]]:
+        # Git is really screwed up. After a 30 minute search, I couldn't find a way to
+        # specify a branch and beginning revision in a single command. Therefore, I am
+        # doing it manually.
+
+        source_branch: Optional[str] = None
+        additional_filters: List[str] = [
+            "--not", '"{}"'.format(dest_branch),
+        ]
+
+        # ----------------------------------------------------------------------
+        def GetDateOperator(arg):
+            if arg is None or arg:
+                return "since"
+
+            return "until"
+
+        # ----------------------------------------------------------------------
+
+        if source_merge_arg is None:
+            source_branch = self._GetCurrentBranchEx(detached_is_error=True)[1]
+
+        elif isinstance(source_merge_arg, UpdateMergeArgs.Change):
+            source_branch = self._GetBranchAssociatedWithChange(source_merge_arg.change)
+
+        elif isinstance(source_merge_arg, UpdateMergeArgs.Date):
+            source_branch = self._GetCurrentBranchEx(detached_is_error=True)[1]
+
+            additional_filters.append(
+                '--{}="{}"'.format(
+                    GetDateOperator(source_merge_arg.greater_than),
+                    source_merge_arg.date.isoformat(timespec="seconds"),
+                ),
+            )
+
+        elif isinstance(source_merge_arg, UpdateMergeArgs.Branch):
+            source_branch = source_merge_arg.branch
+
+        elif isinstance(source_merge_arg, UpdateMergeArgs.BranchAndDate):
+            source_branch = source_merge_arg.branch
+
+            additional_filters.append(
+                '--{}="{}"'.format(
+                    GetDateOperator(source_merge_arg.greater_than),
+                    source_merge_arg.date.isoformat(timespec="seconds"),
+                ),
+            )
+
+        else:
+            assert False, source_merge_arg  # pragma: no cover
+
+        return source_branch, additional_filters
+
+    # ----------------------------------------------------------------------
+    def _CreateLoggerInfo(
+        self,
+        source_branch: str,
+        additional_command_line_parts: list[str],
+        *,
+        include_working_changes: bool,
+    ) -> tuple[str, Callable[[], Generator[str, None, None]]]:
+        if include_working_changes:
+            working_command_line = self._GetCommandLine("git status --porcelain=1")
+        else:
+            working_command_line = None
+
+        log_command_line = self._GetCommandLine(
+            " ".join(
+                itertools.chain(
+                    [
+                        "git",
+                        "--no-pager",
+                        "log",
+                        '"{}"'.format(source_branch),
+                        '"--format=%H"',
+                        "--no-color",
+                        "--no-merges",
+                    ],
+                    additional_command_line_parts,
+                ),
+            ),
+        )
+
+        # ----------------------------------------------------------------------
+        def Impl() -> Generator[str, None, None]:
+            if working_command_line:
+                result = self._Execute(working_command_line)
+                assert result.returncode == 0, result
+
+                if result.output:
+                    yield DistributedRepositoryBase.ChangeInfo.WORKING_CHANGES_COMMIT_ID
+
+            offset = 0
+
+            while True:
+                result = self._Execute(
+                    '{} -n 10 --skip {}'.format(log_command_line, offset),
+                    add_newline=True,
+                )
+
+                result.RaiseOnError()
+
+                if (
+                    not result.output
+                    or result.output.isspace()
+                    or "does not have any commits yet" in result.output
+                ):
+                    break
+
+                for line in result.output.split("\n"):
+                    line = line.strip()
+                    if not line:
+                        continue
+
+                    yield line
+                    offset += 1
+
+        # ----------------------------------------------------------------------
+
+        command_line_parts: list[str] = []
+
+        if working_command_line:
+            command_line_parts.append(working_command_line)
+
+        command_line_parts.append(log_command_line)
+
+        return " && ".join(command_line_parts), Impl
+
+    # ----------------------------------------------------------------------
+    def _CreateLoggerExInfo(
+        self,
+        source_branch: str,
+        additional_command_line_parts: list[str],
+        *,
+        include_working_changes: bool,
+    ) -> tuple[str, Callable[[], Generator[DistributedRepositoryBase.ChangeInfo, None, None]]]:
+        if include_working_changes:
+            working_command_line = self._GetCommandLine("git status --porcelain=1")
+        else:
+            working_command_line = None
+
+        # ----------------------------------------------------------------------
+        @dataclass(frozen=True)
+        class Datum(object):
+            name: str
+            git_format: str
+            regex: str
+
+        # ----------------------------------------------------------------------
+
+        datums: list[Datum] = [
+            Datum(
+                "commit_id",
+                "%H%n",
+                r"(?P<commit_id>\S+)\r?\n",
+            ),
+            Datum(
+                "description",
+                "%B%n",
+                r"(?P<description>.*?\n)?",
+            ),
+            Datum(
+                "tags",
+                "%D%n",
+                r"(?P<tags>.+?\n)?",
+            ),
+            Datum(
+                "author",
+                "%aN <%aE>%n",
+                r"(?P<author>[^\n]+)\n",
+            ),
+            Datum(
+                "date",
+                "%ai%n",
+                r"(?P<date>[^\n]+)\n",
+            ),
+        ]
+
+        commit_delimiter = "140c4c3011e84e018c296ef729c3f662"
+        section_delimiter = "e3882de41b4f430b8ca7740998dc104e"
+
+        git_format = "{commit_delimiter}%n{datums}%n{section_delimiter}_files%n".format(
+            commit_delimiter=commit_delimiter,
+            datums="".join(
+                "{}_{}%n{}".format(
+                    section_delimiter,
+                    datum.name,
+                    datum.git_format,
+                )
+                for datum in datums
+            ),
+            section_delimiter=section_delimiter,
+        )
+
+        # Create the command line
+        log_command_line = self._GetCommandLine(
+            " ".join(
+                itertools.chain(
+                    [
+                        "git",
+                        "--no-pager",
+                        "log",
+                        '"{}"'.format(source_branch),
+                        '"--format={}"'.format(git_format),
+                        "--name-status",
+                        "--no-color",
+                    ],
+                    additional_command_line_parts,
+                ),
+            ),
+        )
+
+        # ----------------------------------------------------------------------
+        def Impl() -> Generator[DistributedRepositoryBase.ChangeInfo, None, None]:
+            if include_working_changes:
+                result = self._Execute(working_command_line)
+                assert result.returncode == 0, result
+
+                file_info = Repository.FileInfo.Extract(
+                    self.repo_root,
+                    result.output,
+                )
+
+                if file_info.working:
+                    yield DistributedRepositoryBase.ChangeInfo(
+                        DistributedRepositoryBase.ChangeInfo.WORKING_CHANGES_COMMIT_ID,
+                        "Working Changes",
+                        [],
+                        self.Who(),
+                        datetime.now(),
+                        file_info.added,
+                        file_info.removed,
+                        file_info.modified,
+                        file_info.working,
+                    )
+
+            # Create the regex used to extract results
+            commit_regex = re.compile(
+                r"""(?#
+                {sections}
+                Section Delimiter                       ){section_delimiter}_files\r?\n(?#
+                File Content                            )(?P<files>.*)(?#
+                )""".format(
+                    sections="".join(
+                        textwrap.dedent(
+                            r"""
+                            Section Delimiter           ){section_delimiter}_{name}\r?\n(?#
+                            {name}                      ){regex}(?#
+                            """,
+                        ).format(
+                            section_delimiter=section_delimiter,
+                            name=datum.name,
+                            regex=datum.regex,
+                        ).rstrip()
+                        for datum in datums
+                    ),
+                    section_delimiter=section_delimiter,
+                ),
+                re.DOTALL | re.MULTILINE,
+            )
+
+            # Parse the content
+            split_token = "{}\n".format(commit_delimiter)
+
+            offset = 0
+
+            # Merges will not include files, but tags are often applied to merges.
+            # If we detect a merge, don't send it but keep the tags around for the
+            # next commit (which will be the parent of the merge).
+            prev_tags: list[str] = []
+
+            while True:
+                result = self._Execute(
+                    '{} -n 10 --skip {}'.format(log_command_line, offset),
+                    add_newline=True,
+                )
+
+                result.RaiseOnError()
+
+                if (
+                    not result.output
+                    or result.output.isspace()
+                    or "does not have any commits yet" in result.output
+                ):
+                    break
+
+                commits = result.output.split(split_token)
+
+                assert commits
+
+                # We can ignore the first commit, as the split will produce an empty
+                # string as the first element in the array.
+                assert not commits[0] or commits[0].isspace(), commits[0]
+
+                for commit in commits[1:]:
+                    match = commit_regex.match(commit)
+                    if match is None:
+                        raise Exception("Unexpected git output:\n\n{}\n\n".format(commit))
+
+                    offset += 1
+
+                    # Extract the tag data
+                    tag_content = match.group("tags")
+
+                    tags: list[str] = []
+
+                    if tag_content:
+                        for potential_tag in tag_content.split(", "):
+                            potential_tag = potential_tag.strip()
+
+                            if potential_tag.startswith("tag: "):
+                                tags.append(potential_tag[len("tag: "):])
+
+                    # Extract the file data
+                    file_content = match.group("files")
+
+                    if not file_content:
+                        # We are looking at a merge commit
+                        assert not prev_tags
+                        prev_tags = tags
+
+                        continue
+
+                    file_info = self.__class__.FileInfo.Extract(self.repo_root, file_content)
+                    assert not file_info.ignored
+
+                    yield DistributedRepositoryBase.ChangeInfo(
+                        match.group("commit_id"),
+                        match.group("description"),
+                        tags,
+                        match.group("author"),
+                        datetime.strptime(match.group("date"), "%Y-%m-%d %H:%M:%S %z"),
+                        file_info.added,
+                        file_info.removed,
+                        file_info.modified,
+                        file_info.working,
+                    )
+
+                    prev_tags = []
+
+            assert not prev_tags, prev_tags
+
+        # ----------------------------------------------------------------------
+
+        command_line_parts: list[str] = []
+
+        if working_command_line:
+            command_line_parts.append(working_command_line)
+
+        command_line_parts.append(log_command_line)
+
+        return " && ".join(command_line_parts), Impl

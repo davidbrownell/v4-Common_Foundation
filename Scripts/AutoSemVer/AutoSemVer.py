@@ -1,6 +1,6 @@
 # ----------------------------------------------------------------------
 # |
-# |  Impl.py
+# |  AutoSemVer.py
 # |
 # |  David Brownell <db@DavidBrownell.com>
 # |      2023-03-01 09:15:06
@@ -141,8 +141,8 @@ def GetSemanticVersion(
         else:
             configuration_dm.WriteVerbose("Configuration information loaded from '{}'.".format(configuration.filename))
 
-    commits_processed = 0
-    commits_applied = 0
+    changes_processed = 0
+    changes_applied = 0
 
     baseline_version: Optional[list[int]] = None
 
@@ -156,12 +156,12 @@ def GetSemanticVersion(
     has_working_changes = False
 
     with dm.Nested(
-        "Enumerating commits...",
+        "Enumerating changes...",
         [
-            lambda: "{} processed".format(inflect.no("commit", commits_processed)),
+            lambda: "{} processed".format(inflect.no("change", changes_processed)),
             lambda: "{} applied [{:.02f}%]".format(
-                inflect.no("commit", commits_applied),
-                0 if commits_processed == 0 else ((commits_applied / commits_processed) * 100),
+                inflect.no("change", changes_applied),
+                0 if changes_processed == 0 else ((changes_applied / changes_processed) * 100),
             ),
         ],
     ) as enumerate_dm:
@@ -171,8 +171,8 @@ def GetSemanticVersion(
         def GetConfigurationPathForFile(
             filename: Path,
         ) -> Path:
-            result = _GetConfigurationFileForFile(
-                filename,
+            result = GetConfigurationFilename(
+                filename.parent,
                 repository.repo_root,
                 configuration_filenames,
             )
@@ -184,13 +184,13 @@ def GetSemanticVersion(
 
         # ----------------------------------------------------------------------
         def ShouldProcess(
-            commit: Repository.EnumChangesResult,
+            change: Repository.ChangeInfo,
         ) -> bool:
             for filename in itertools.chain(
-                commit.files_added,
-                commit.files_modified,
-                commit.files_removed,
-                commit.working_files
+                change.files_added,
+                change.files_modified,
+                change.files_removed,
+                change.working_files
             ):
                 if (
                     PathEx.IsDescendant(filename, root_path)
@@ -217,13 +217,13 @@ def GetSemanticVersion(
 
         # ----------------------------------------------------------------------
         def HasExplicitVersion(
-            commit: Repository.EnumChangesResult,
+            change: Repository.ChangeInfo,
             *,
             process_tags: bool=False,
         ) -> bool:
             nonlocal baseline_version
 
-            queries = commit.tags if process_tags else [commit.description, ]
+            queries = change.tags if process_tags else [change.description, ]
 
             for query in queries:
                 match = version_regex.search(query)
@@ -239,8 +239,8 @@ def GetSemanticVersion(
                 enumerate_dm.WriteVerbose(
                     "The explicit version '{}' was found in '{}' ({}).".format(
                         match.group(0),
-                        commit.commit,
-                        commit.author_date,
+                        change.id,
+                        change.author_date,
                     ),
                 )
 
@@ -250,31 +250,31 @@ def GetSemanticVersion(
 
         # ----------------------------------------------------------------------
 
-        for commit in repository.EnumChanges(
+        for change in repository.EnumChangesEx(
             include_working_changes=True,
         ):
-            commits_processed += 1
+            changes_processed += 1
 
-            if HasExplicitVersion(commit, process_tags=True):
-                commits_applied += 1
+            if HasExplicitVersion(change, process_tags=True):
+                changes_applied += 1
                 break
 
-            if not ShouldProcess(commit):
+            if not ShouldProcess(change):
                 continue
 
-            commits_applied += 1
+            changes_applied += 1
 
-            if commit.commit == Repository.EnumChangesResult.WORKING_CHANGES_COMMIT_ID:
+            if change.id == Repository.ChangeInfo.WORKING_CHANGES_COMMIT_ID:
                 has_working_changes = True
 
-            if HasExplicitVersion(commit):
+            if HasExplicitVersion(change):
                 break
 
-            elif "+major" in commit.description:
+            elif "+major" in change.description:
                 enumerate_dm.WriteVerbose(
                     "Incrementing major version based on '{}' ({}).".format(
-                        commit.commit,
-                        commit.author_date,
+                        change.id,
+                        change.author_date,
                     ),
                 )
 
@@ -283,12 +283,12 @@ def GetSemanticVersion(
                 update_minor = False
                 update_patch = False
 
-            elif "+minor" in commit.description:
+            elif "+minor" in change.description:
                 if update_minor:
                     enumerate_dm.WriteVerbose(
                         "Incrementing minor version based on '{}' ({}).".format(
-                            commit.commit,
-                            commit.author_date,
+                            change.id,
+                            change.author_date,
                         ),
                     )
 
@@ -300,8 +300,8 @@ def GetSemanticVersion(
                 if update_patch:
                     enumerate_dm.WriteVerbose(
                         "Incrementing patch version based on '{}' ({}).".format(
-                            commit.commit,
-                            commit.author_date,
+                            change.id,
+                            change.author_date,
                         ),
                     )
 
@@ -419,6 +419,26 @@ def GetSemanticVersion(
 
 
 # ----------------------------------------------------------------------
+def GetConfigurationFilename(
+    path: Path,
+    repository_root: Path,
+    configuration_filenames: Optional[list[str]]=None,
+) -> Optional[Path]:
+    configuration_filenames = configuration_filenames or DEFAULT_CONFIGURATION_FILENAMES
+
+    for parent in itertools.chain([path, ], path.parents):
+        for potential_configuration_filename in configuration_filenames:
+            potential_filename = parent / potential_configuration_filename
+            if potential_filename.is_file():
+                return potential_filename
+
+        if parent == repository_root:
+            break
+
+    return None
+
+
+# ----------------------------------------------------------------------
 def GetConfiguration(
     path: Path,
     repository_root: Path,
@@ -426,33 +446,26 @@ def GetConfiguration(
 ) -> Configuration:
     configuration_filenames = configuration_filenames or DEFAULT_CONFIGURATION_FILENAMES
 
-    # Load the configuration data
-    configuration_filename: Optional[Path] = None
+    # Get the configuration filename
+    configuration_filename: Optional[Path] = GetConfigurationFilename(
+        path,
+        repository_root,
+        configuration_filenames,
+    )
+
+    # Get the configuration content
     configuration_content: dict[str, Any] = {}
 
-    for parent in itertools.chain([path, ], path.parents):
-        if parent == repository_root:
-            break
+    if configuration_filename:
+        with configuration_filename.open() as f:
+            if configuration_filename.suffix in [".yaml", ".yml"]:
+                configuration_content = cast(dict[str, Any], rtyaml.load(f))
 
-        for potential_configuration_filename in configuration_filenames:
-            potential_filename = parent / potential_configuration_filename
+            elif configuration_filename.suffix == ".json":
+                configuration_content = json.load(f)
 
-            if not potential_filename.is_file():
-                continue
-
-            configuration_filename = potential_filename
-
-            with potential_filename.open() as f:
-                if potential_filename.suffix in [".yaml", ".yml"]:
-                    configuration_content = cast(dict[str, Any], rtyaml.load(f))
-
-                elif potential_filename.suffix == ".json":
-                    configuration_content = json.load(f)
-
-                else:
-                    raise Exception("'{}' is not a recognized configuration file type.".format(potential_filename))
-
-                break
+            else:
+                raise Exception("'{}' is not a recognized configuration file type.".format(configuration_filename))
 
     # Load the schema
     schema_filename = PathEx.EnsureFile(Path(__file__).parent / "Configuration" / "GeneratedCode" / "AutoSemVer.json")
@@ -474,89 +487,6 @@ def GetConfiguration(
         include_timestamp_when_necessary=configuration_content["include_timestamp_when_necessary"],
         include_computer_name_when_necessary=configuration_content["include_computer_name_when_necessary"],
     )
-
-
-# ----------------------------------------------------------------------
-def ValidateChanges(
-    dm: DoneManager,
-    *,
-    path: Path=Path.cwd(),
-    dest_branch_name: Optional[str]=None,
-    configuration_filenames: Optional[list[str]]=None,
-) -> None:
-    configuration_filenames = configuration_filenames or DEFAULT_CONFIGURATION_FILENAMES
-
-    repository = _GetRepository(dm, path)
-
-    dest_branch_name = dest_branch_name or repository.scm.default_branch_name
-
-    changes: list[str] = []
-
-    with dm.Nested(
-        "Calculating changes...",
-        lambda: "{} found".format(inflect.no("change", len(changes))),
-    ) as calculate_dm:
-        for change in repository.EnumChangesSinceMerge(dest_branch_name, None):
-            calculate_dm.WriteVerbose(change)
-            changes.append(change)
-
-    if not changes:
-        return
-
-    dm.WriteLine("")
-
-    with dm.Nested("Processing {}...".format(inflect.no("change", len(changes)))) as process_dm:
-        for change_index, change in enumerate(changes):
-            with process_dm.Nested(
-                "'{}' ({} of {})...".format(change, change_index + 1, len(changes)),
-            ) as this_dm:
-                configuration_files: dict[Path, list[Path]] = {}
-
-                for filename in repository.EnumChangedFiles(change):
-                    configuration_file = _GetConfigurationFileForFile(
-                        filename,
-                        repository.repo_root,
-                        configuration_filenames,
-                    )
-
-                    if configuration_file is not None:
-                        configuration_files.setdefault(configuration_file, []).append(filename)
-
-                if len(configuration_files) > 1:
-                    this_dm.WriteError(
-                        textwrap.dedent(
-                            """\
-                            This change spans multiple AutoSemVer configuration files. This change should be
-                            deconstructed into multiple changes so that semantic version generation works as expected.
-
-                            {}
-
-                            """,
-                        ).format(
-                            "".join(
-                                TextwrapEx.Indent(
-                                    textwrap.dedent(
-                                        """\
-                                        {}:
-                                        {}
-
-                                        """,
-                                    ).format(
-                                        PathEx.CreateRelativePath(repository.repo_root, configuration_file),
-                                        "\n".join(
-                                            "    - {}".format(PathEx.CreateRelativePath(repository.repo_root, filename))
-                                            for filename in filenames
-                                        ),
-                                    ),
-                                    4,
-                                    skip_first_line=False,
-                                )
-                                for configuration_file, filenames in configuration_files.items()
-                            ).rstrip(),
-                        ),
-                    )
-
-                    return
 
 
 # ----------------------------------------------------------------------
@@ -614,22 +544,3 @@ def _GetRepository(
             raise Exception("A source control manager could not be found for '{}'.".format(path))
 
     return result
-
-
-# ----------------------------------------------------------------------
-def _GetConfigurationFileForFile(
-    filename: Path,
-    repo_root: Path,
-    configuration_filenames: list[str],
-) -> Optional[Path]:
-    for parent in filename.parents:
-        for configuration_filename in configuration_filenames:
-            potential_filename = parent / configuration_filename
-
-            if potential_filename.is_file():
-                return potential_filename
-
-        if parent == repo_root:
-            break
-
-    return None
