@@ -28,7 +28,7 @@ from Common_Foundation import TextwrapEx
 from Common_FoundationEx.InflectEx import inflect
 
 from RepositoryBootstrap.DataTypes import ChangeInfo, SCMPlugin
-from RepositoryBootstrap.Impl.Hooks.HookImpl import ExecutePlugins
+from RepositoryBootstrap.Impl.Hooks.HookImpl import ExecutePlugins, GetPlugins
 
 
 # ----------------------------------------------------------------------
@@ -118,10 +118,9 @@ def ListPlugins(
                 TextwrapEx.CreateTable(
                     [
                         "Plugin",
-                        "Description",
                     ],
                     [
-                        [plugin.name, plugin.description]
+                        [plugin.name]
                         for plugin in plugins
                     ],
                 ),

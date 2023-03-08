@@ -546,7 +546,7 @@ class _ValidatePythonLibraryVersions(SCMPlugin):
         self,
         dm: DoneManager,
         repository: Repository,
-        change: ChangeInfo,
+        change: ChangeInfo,  # pylint: disable=unused-argument
     ) -> None:
         python_libraries: list[Path] = []
 
@@ -654,3 +654,6 @@ class _ValidatePythonLibraryVersions(SCMPlugin):
                                 calculated=calculated_version_str,
                             ),
                         )
+
+        if dm.result == 0:
+            dm.WriteVerbose("\nAll versions match.")
