@@ -42,7 +42,7 @@ def Execute(
         script_filename = Path("RepositoryBootstrap") / "Impl" / "PullRequestValidator.py"
         assert (foundation_repo_root / script_filename).is_file(), (foundation_repo_root, script_filename)
 
-        if len(args) <= 1 or "--help" in args:
+        if len(args) <= 1 or "--help" in args or "--working-directory" in args:
             working_dir = ""
         else:
             working_dir = ' --working-directory "{}"'.format(prev_dir)

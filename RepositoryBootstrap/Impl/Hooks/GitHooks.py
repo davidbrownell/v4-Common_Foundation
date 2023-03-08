@@ -23,6 +23,7 @@ import sys
 
 from contextlib import contextmanager
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 from typing import Iterator, List, Optional, Union
 
@@ -30,13 +31,10 @@ import typer
 
 from typer.core import TyperGroup
 
-from Common_Foundation.ContextlibEx import ExitStack
-from Common_Foundation import PathEx
 from Common_Foundation.SourceControlManagers.GitSourceControlManager import GitSourceControlManager, Repository
 from Common_Foundation.Streams.Capabilities import Capabilities
 from Common_Foundation.Streams.DoneManager import DoneManager, DoneManagerFlags
 from Common_Foundation import TextwrapEx
-from Common_Foundation import Types
 
 from RepositoryBootstrap.DataTypes import ChangeInfo
 
@@ -162,15 +160,16 @@ def prepare_commit_msg(
                     return
 
                 changes.append(
-                    ChangeInfo(
+                    ChangeInfo.Create(
                         ChangeInfo.ChangeType.Standard,
                         "HEAD",
-                        "{} <{}>".format(name, email),
                         title,
                         description,
-                        result.files_added,
-                        result.files_modified,
-                        result.files_removed,
+                        "{} <{}>".format(name, email),
+                        datetime.now(),
+                        result.files_added or [],
+                        result.files_removed or [],
+                        result.files_modified or [],
                     ),
                 )
 
@@ -194,15 +193,16 @@ def prepare_commit_msg(
                 # out which changes actually prompted the hook to be fired. Make due as best that we can
                 # given the lack of information.
                 changes.append(
-                    ChangeInfo(
+                    ChangeInfo.Create(
                         calculated_commit_type,
                         "<unknown>",
-                        "{} <{}>".format(name, email),
                         title,
                         description,
-                        None,
-                        None,
-                        None,
+                        "{} <{}>".format(name, email),
+                        datetime.now(),
+                        [],
+                        [],
+                        [],
                     ),
                 )
 
@@ -211,18 +211,10 @@ def prepare_commit_msg(
 
         original_change = copy.deepcopy(changes[0])
 
-        HookImpl.Commit(dm, repository, changes)
+        HookImpl.OnCommit(dm, repository, changes)
 
         # Update the change if necessary
         if changes[0] != original_change:
-            for unsupported_attribute in [
-                "files_added",
-                "files_modified",
-                "files_removed",
-            ]:
-                if getattr(changes[0], unsupported_attribute) != getattr(original_change, unsupported_attribute):
-                    raise Exception("Changes to '{}' are not supported yet.".format(unsupported_attribute))
-
             if changes[0].title != original_change.title or changes[0].description != original_change.description:
                 new_message_content = changes[0].title
 
@@ -234,7 +226,6 @@ def prepare_commit_msg(
                     encoding="UTF-8",
                 ) as f:
                     f.write(new_message_content)
-
 
 
 # ----------------------------------------------------------------------
@@ -382,6 +373,7 @@ def _CreateChangeInfo(
     )
 
     author: Optional[str] = None
+    author_date: Optional[datetime] = None
     title: Optional[str] = None
     description_whitespace_len: Optional[int] = None
     description_lines: List[str] = []
@@ -396,6 +388,8 @@ def _CreateChangeInfo(
             if tag == "Author":
                 assert author is None
                 author = value
+            if tag == "Date":
+                author_date = datetime.strptime(value, "%a %b %d %H:%M:%S %Y %z")
 
             in_description = False
             continue
@@ -430,17 +424,19 @@ def _CreateChangeInfo(
         description_lines = description_lines[1:]
 
     assert author is not None
+    assert author_date is not None
     assert title is not None
 
-    return ChangeInfo(
+    return ChangeInfo.Create(
         commit_type,
         change_id,
-        author,
         title,
         "\n".join(description_lines) if description_lines else None,
-        result.files_added,
-        result.files_modified,
-        result.files_removed,
+        author,
+        author_date,
+        result.files_added or [],
+        result.files_removed or [],
+        result.files_modified or [],
     )
 
 

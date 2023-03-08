@@ -23,8 +23,9 @@ import sys
 import textwrap
 import traceback
 
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Callable, List, Optional
+from typing import List, Optional
 
 from Common_Foundation.ContextlibEx import ExitStack
 from Common_Foundation.Shell.All import CurrentShell
@@ -41,13 +42,13 @@ from RepositoryBootstrap.Impl.ActivationData import ActivationData
 
 
 # ----------------------------------------------------------------------
-def Commit(
+def OnCommit(
     dm: DoneManager,
     repository: Repository,
     changes: List[ChangeInfo],
 ) -> None:
     with dm.YieldVerboseStream() as stream:
-        stream.write("HookImpl.py - Commit\n\n")
+        stream.write("HookImpl.py - OnCommit\n\n")
 
         for commit_index, commit in enumerate(changes):
             stream.write(
@@ -68,13 +69,12 @@ def Commit(
 
     dm.WriteLine("")
 
-    _Impl(
+    ExecutePlugins(
         dm,
-        repository.repo_root,
-        changes[0],
+        repository,
+        changes,
         SCMPlugin.Flag.OnCommit,
         SCMPlugin.Flag.OnCommitCanBeDisabled,
-        lambda plugin_dm, plugin: plugin.OnCommit(plugin_dm, repository, changes),
     )
 
 
@@ -85,17 +85,16 @@ def OnPush(
     push_info: PushInfo,
 ) -> None:
     with dm.YieldVerboseStream() as stream:
-        stream.write("HookImpl.py - PrePush\n\n{}\n\n".format(push_info))
+        stream.write("HookImpl.py - OnPush\n\n{}\n\n".format(push_info))
 
     dm.WriteLine("")
 
-    _Impl(
+    ExecutePlugins(
         dm,
-        repository.repo_root,
-        push_info.changes[0],
+        repository,
+        push_info.changes,
         SCMPlugin.Flag.OnPush,
         SCMPlugin.Flag.OnPushCanBeDisabled,
-        lambda plugin_dm, plugin: plugin.OnPush(plugin_dm, repository, push_info),
     )
 
 
@@ -106,31 +105,25 @@ def OnMerge(
     merge_info: MergeInfo,
 ) -> None:
     with dm.YieldVerboseStream() as stream:
-        stream.write("HookImpl.py - PreIntegrate\n\n{}\n\n".format(merge_info))
+        stream.write("HookImpl.py - OnMerge\n\n{}\n\n".format(merge_info))
 
     dm.WriteLine("")
 
-    _Impl(
+    ExecutePlugins(
         dm,
-        repository.repo_root,
-        merge_info.changes[0],
+        repository,
+        merge_info.changes,
         SCMPlugin.Flag.OnMerge,
         SCMPlugin.Flag.OnMergeCanBeDisabled,
-        lambda plugin_dm, plugin: plugin.OnMerge(plugin_dm, repository, merge_info),
     )
 
 
 # ----------------------------------------------------------------------
-# ----------------------------------------------------------------------
-# ----------------------------------------------------------------------
-def _Impl(
+def GetPlugins(
     dm: DoneManager,
     repo_root: Path,
-    most_recent_change: ChangeInfo,
     action_flag: SCMPlugin.Flag,
-    disable_flag: SCMPlugin.Flag,
-    invoke_func: Callable[[DoneManager, SCMPlugin], None],
-) -> None:
+) -> list[SCMPlugin]:
     with dm.Nested(
         "Loading repository information for '{}'...".format(repo_root),
         suffix="\n",
@@ -191,17 +184,17 @@ def _Impl(
 
         assert activation_data is not None
 
-    hook_filenames: list[Path] = []
+    scm_plugins_filenames: list[Path] = []
 
     with dm.Nested(
-        "Calculating hook files...",
-        lambda: "{} found".format(inflect.no("hook file", len(hook_filenames))),
+        "Calculating plugin files...",
+        lambda: "{} found".format(inflect.no("plugin file", len(scm_plugins_filenames))),
     ):
         for repo in activation_data.prioritized_repositories:
-            potential_hook_filename = repo.root / Constants.HOOK_ENVIRONMENT_CUSTOMIZATION_FILENAME
+            potential_scm_plugins_filename = repo.root / Constants.SCM_PLUGINS_CUSTOMIZATION_FILENAME
 
-            if potential_hook_filename.is_file():
-                hook_filenames.append(potential_hook_filename)
+            if potential_scm_plugins_filename.is_file():
+                scm_plugins_filenames.append(potential_scm_plugins_filename)
 
     plugins: list[SCMPlugin] = []
 
@@ -210,81 +203,191 @@ def _Impl(
         lambda: "{} found".format(inflect.no("plugin", len(plugins))),
         suffix="\n",
     ) as plugin_dm:
-        for hook_filename_index, hook_filename in enumerate(hook_filenames):
+        for scm_plugins_filename_index, scm_plugins_filename in enumerate(scm_plugins_filenames):
             prev_len_plugins = len(plugins)
 
             with plugin_dm.VerboseNested(
-                "Processing '{}' ({} of {})...".format(hook_filename, hook_filename_index + 1, len(hook_filenames)),
+                "Processing '{}' ({} of {})...".format(scm_plugins_filename, scm_plugins_filename_index + 1, len(scm_plugins_filenames)),
                 lambda: "{} added".format(inflect.no("plugin", len(plugins) - prev_len_plugins)),
             ) as repo_dm:
-                sys.path.insert(0, str(hook_filename.parent))
+                sys.path.insert(0, str(scm_plugins_filename.parent))
                 with ExitStack(lambda: sys.path.pop(0)):
                     try:
-                        mod = importlib.import_module(hook_filename.stem)
+                        mod = importlib.import_module(scm_plugins_filename.stem)
 
-                        with ExitStack(lambda: sys.modules.pop(hook_filename.stem)):
-                            plugins += [
-                                plugin
-                                for plugin in getattr(mod, Constants.HOOK_ENVIRONMENT_GET_PLUGINS_METHOD_NAME)()
-                                if plugin.flags & action_flag
-                            ]
+                        with ExitStack(lambda: sys.modules.pop(scm_plugins_filename.stem)):
+                            for plugin in getattr(mod, Constants.SCM_PLUGINS_ENVIRONMENT_GET_PLUGINS_METHOD_NAME)():
+                                if not plugin.flags & action_flag:
+                                    continue
+
+                                env_var = os.getenv(plugin.disable_environment_variable)
+                                if env_var is not None and env_var != "0":
+                                    repo_dm.WriteVerbose(
+                                        "The plugin '{}' was skipped due to the environment variable '{}'.".format(
+                                            plugin.name,
+                                            plugin.disable_environment_variable,
+                                        ),
+                                    )
+                                    continue
+
+                                plugins.append(plugin)
 
                     except:  # pylint: disable=bare-except
                         repo_dm.WriteError(traceback.format_exc())
 
         plugins.sort(key=lambda plugin: (plugin.priority, plugin.name))
 
-    with dm.Nested("Processing plugins...") as process_dm:
-        for plugin_index, plugin in enumerate(plugins):
-            with process_dm.Nested(
-                "'{}' ({} of {})...".format(plugin.name, plugin_index + 1, len(plugins)),
-                suffix="\n" if process_dm.is_verbose else "",
-            ) as this_dm:
-                # Has this plugin been disabled via environment variable?
-                env_value = os.getenv(plugin.disable_environment_variable)
-                if env_value is not None and env_value != "0":
-                    this_dm.WriteVerbose(
-                        "Skipping '{}' due to the '{}' environment variable.".format(
-                            plugin.name,
-                            plugin.disable_environment_variable,
-                        ),
-                    )
+    return plugins
+
+
+# ----------------------------------------------------------------------
+def ExecutePlugins(
+    dm: DoneManager,
+    repository: Repository,
+    changes: list[ChangeInfo],
+    action_flag: SCMPlugin.Flag,
+    disable_flag: SCMPlugin.Flag,
+) -> None:
+    plugins = GetPlugins(dm, repository.repo_root, action_flag)
+    if not plugins:
+        return
+
+    # ----------------------------------------------------------------------
+    @dataclass
+    class ResultInfo(object):
+        errors: int                         = field(init=False, default=0)
+        warnings: int                       = field(init=False, default=0)
+
+    # ----------------------------------------------------------------------
+
+    result_infos: dict[int, ResultInfo] = {}
+
+    for change_index, change in enumerate(changes):
+        heading = "Processing '{} <{}>'".format(change.change_info.id, change.change_info.author_date)
+
+        if len(changes) > 1:
+            heading += " ({} of {})".format(change_index + 1, len(changes))
+
+        heading += "..."
+
+        with dm.Nested(
+            heading,
+            suffix="\n",
+        ) as change_dm:
+            for plugin_index, plugin in enumerate(plugins):
+                was_plugin_successful = False
+
+                with change_dm.Nested(
+                    "'{}' ({} of {})...".format(plugin.name, plugin_index + 1, len(plugins)),
+                    suffix="\n" if dm.is_verbose or not was_plugin_successful or plugin.has_verbose_output else "",
+                ) as plugin_dm:
+                    if plugin.flags & disable_flag:
+                        lower_content = change.title.lower() + (change.description.lower() if change.description else "")
+
+                        disable_commit_message = next(
+                            (
+                                dcm
+                                for dcm in plugin.disable_commit_messages
+                                if dcm.lower() in lower_content
+                            ),
+                            None,
+                        )
+
+                        if disable_commit_message is not None:
+                            plugin_dm.WriteInfo(
+                                "The plugin '{}' was skipped because '{}' appeared within the commit description.".format(
+                                    plugin.name,
+                                    disable_commit_message,
+                                ),
+                            )
+
+                            continue
+
+                    try:
+                        plugin.Execute(plugin_dm, repository, change)
+                    except Exception as ex:
+                        if plugin_dm.is_debug:
+                            error = traceback.format_exc()
+                        else:
+                            error = str(ex)
+
+                        plugin_dm.WriteError(error)
+
+                    if plugin_dm.result != 0:
+                        result_info_key = id(plugin)
+
+                        if result_info_key not in result_infos:
+                            result_infos[result_info_key] = ResultInfo()
+
+                        if plugin_dm.result < 0:
+                            result_infos[result_info_key].errors += 1
+                        elif plugin_dm.result > 0:
+                            result_infos[result_info_key].warnings += 1
+                        else:
+                            assert False, plugin_dm.result  # pragma: no cover
+                    else:
+                        was_plugin_successful = True
+
+    if result_infos:
+        num_errors = sum(result_info.errors for result_info in result_infos.values())
+        num_warnings = sum(result_info.warnings for result_info in result_infos.values())
+
+        with dm.Nested(
+            "{} and {} {} encountered...".format(
+                inflect.no("error", num_errors),
+                inflect.no("warning", num_warnings),
+                inflect.plural_verb("was", num_errors + num_warnings),
+            ),
+        ) as error_dm:
+            for plugin in plugins:
+                result_info = result_infos.get(id(plugin), None)
+                if result_info is None:
                     continue
 
-                # Has this plugin been disabled via commit message?
-                if plugin.flags & disable_flag:
-                    # ----------------------------------------------------------------------
-                    def GetDisableCommitMessage(
-                        value: str,
-                    ) -> Optional[str]:
-                        for disable_commit_message in plugin.disable_commit_messages:
-                            if disable_commit_message.lower() in value:
-                                return disable_commit_message
+                with error_dm.Nested(
+                    "'{}': {} and {}...".format(
+                        plugin.name,
+                        inflect.no("error", result_info.errors),
+                        inflect.no("warning", result_info.warnings),
+                    ),
+                    suffix="\n",
+                ) as plugin_dm:
+                    if result_info.errors:
+                        plugin_dm.result = -1
+                    elif result_info.warnings:
+                        plugin_dm.result = 1
+                    else:
+                        assert False, result_info  # pragma: no cover
 
-                        return None
+                    plugin_dm.WriteInfo(
+                        textwrap.dedent(
+                            """\
+                            # ----------------------------------------------------------------------
+                            To permanently disable this plugin, set this environment variable to a
+                            non-zero value during activation for this repository.
 
-                    # ----------------------------------------------------------------------
+                                {}
 
-                    dcm = GetDisableCommitMessage(most_recent_change.title)
+                            This is not recommended.
 
-                    if dcm is None and most_recent_change.description:
-                        dcm = GetDisableCommitMessage(most_recent_change.description)
+                            """,
+                        ).format(plugin.disable_environment_variable),
+                    )
 
-                    if dcm is not None:
-                        this_dm.WriteVerbose(
-                            "Skipping '{}' due to '{}' in the change message for '{}'.".format(
-                                plugin.name,
-                                dcm,
-                                most_recent_change.id,
+                    if disable_flag != 0:
+                        disable_commit_messages = plugin.disable_commit_messages
+
+                        plugin_dm.WriteInfo(
+                            textwrap.dedent(
+                                """\
+                                # ----------------------------------------------------------------------
+                                To disable this plugin for this change, add any of the following values
+                                to the commit message associated with the change:
+
+                                {}
+
+                                """,
+                            ).format(
+                                "\n".join("    - {}".format(dcm) for dcm in disable_commit_messages),
                             ),
                         )
-                        continue
-
-                try:
-                    invoke_func(this_dm, plugin)
-                except Exception as ex:
-                    plugin.DisplayError(
-                        this_dm,
-                        str(ex),
-                        disable_flag,
-                    )
