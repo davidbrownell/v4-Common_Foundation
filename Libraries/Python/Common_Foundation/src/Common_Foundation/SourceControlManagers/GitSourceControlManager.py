@@ -641,31 +641,38 @@ class Repository(DistributedRepositoryBase):
             UpdateMergeArgs.BranchAndDate,
         ],
     ) -> str:
+        # There are 4 scenarios to consider:
+        #     1) The call is attempting to update the current branch
+        #     2) The call is attempting to update a detached head state
+        #     3) The call is attempting to update to a new branch
+        #     4) The call is attempting to update to a new detached head state
+
         branch_type, branch_name = self._GetCurrentBranchEx()
+        is_detached = branch_type != Repository._BranchType.Standard
 
-        if branch_type == Repository._BranchType.Standard:
-            command_suffix = ' "origin/{}"'.format(branch_name)
-        elif branch_type == Repository._BranchType.Tag:
-            command_suffix = ' "tags/{}"'.format(branch_name)
-        elif branch_type == Repository._BranchType.Commit:
-            # Nothing to do here
-            return ""
-        else:
-            assert False, branch_type  # pragma: no cover
-
-        commands: List[str] = [
-            'git merge{}'.format(command_suffix),
-        ]
+        commands: list[str] = []
 
         if update_arg is None:
-            pass
+            if not is_detached:
+                commands.append('git pull')
+
         elif isinstance(update_arg, UpdateMergeArgs.Branch):
-            commands.insert(0, 'git checkout "{}"'.format(update_arg.branch))
-        elif isinstance(update_arg, (UpdateMergeArgs.Change, UpdateMergeArgs.BranchAndDate)):
-            revision = self._GetUpdateMergeArgCommandLine(update_arg)
-            commands.append('git checkout {}'.format(revision))
+            if update_arg.branch == branch_name:
+                if not is_detached:
+                    commands.append('git pull')
+            else:
+                commands.append('git checkout "{}"'.format(update_arg.branch))
+
+                # We want to pull if the thing that we are checking out is a branch,
+                # but do not want to pull if the thing that we are checking out is
+                # a tag that will put us in a detached head state.
+                if any(update_arg.branch == branch for branch in self.EnumBranches()):
+                    commands.append('git pull')
+
         else:
-            assert False, update_arg  # pragma: no cover
+            commands.append(
+                'git checkout "{}"'.format(self._GetUpdateMergeArgCommandLine(update_arg)),
+            )
 
         return self._GetCommandLine(" && ".join(commands))
 
