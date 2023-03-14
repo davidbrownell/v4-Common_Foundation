@@ -127,7 +127,7 @@ def Stream(
     output_func = cast(Callable[[str], None], stream.write)
     flush_func = stream.flush
 
-    capabilities = Capabilities.Get(sys.stdout)
+    capabilities = Capabilities.Get(stream)
 
     # Windows seems to want to interpret '\r\n' as '\n\n' when output is redirected to a file. Work
     # around that issue as best as we can.
@@ -205,6 +205,7 @@ def Stream(
             env,
             **{
                 "PYTHONUNBUFFERED": "1",
+                "COLUMNS": capabilities.columns,
                 Capabilities.SIMULATE_TERMINAL_INTERACTIVE_ENV_VAR: "1" if capabilities.is_interactive else "0",
                 Capabilities.SIMULATE_TERMINAL_COLORS_ENV_VAR: "1" if capabilities.supports_colors else "0",
                 Capabilities.SIMULATE_TERMINAL_HEADLESS_ENV_VAR: "1" if capabilities.is_headless else "0",
