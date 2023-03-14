@@ -1640,7 +1640,7 @@ def _WrapAll(
                             for future in futures:
                                 future.result()
 
-                for action_result, ex, repository in zip(action_results, exceptions, repositories):
+                for action_result, ex, (repository, query_result) in zip(action_results, exceptions, query_repositories):
                     if ex is not None:
                         action_dm.result = -1
 
@@ -1659,11 +1659,14 @@ def _WrapAll(
 
                         continue
 
+                    if isinstance(action_result, SubprocessEx.RunResult):
+                        action_dm.result = action_result.returncode
+
                     sink = io.StringIO()
                     _DisplayResults(sink, action_result)
                     sink = sink.getvalue().rstrip()
 
-                    action_dm.WriteVerbose(
+                    (action_dm.WriteVerbose if action_dm.result == 0 else action_dm.WriteWarning)(
                         textwrap.dedent(
                             """\
                             {}
@@ -1743,6 +1746,9 @@ def _DisplayResults(
         max_length += 1
 
         for k, v in d.items():
+            if v is None:
+                continue
+
             sink = io.StringIO()
 
             _DisplayResults(sink, v)
