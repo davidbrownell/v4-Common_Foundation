@@ -19,7 +19,7 @@ import sys
 
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, Callable, Iterator, Optional
+from typing import Any, Callable, Iterator
 
 try:
     import typer
