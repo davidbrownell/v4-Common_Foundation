@@ -36,26 +36,6 @@ fi
 #    DEVELOPMENT_ENVIRONMENT_ENVIRONMENT_NAME
 #
 
-# Ensure that the script is being invoked via source (as it modifies the current environment)
-if [[ ${should_continue} == 1 && ${0##*/} == Activate.sh ]]
-then
-    echo ""
-    echo "[31m[1mERROR:[0m This script activates a terminal for development according to information specific to the repository."
-    echo "[31m[1mERROR:[0m"
-    echo "[31m[1mERROR:[0m Because this process makes changes to environment variables, it must be run within the current context."
-    echo "[31m[1mERROR:[0m To do this, please source (run) the script as follows:"
-    echo "[31m[1mERROR:[0m"
-    echo "[31m[1mERROR:[0m     source ./Activate.sh"
-    echo "[31m[1mERROR:[0m"
-    echo "[31m[1mERROR:[0m         - or -"
-    echo "[31m[1mERROR:[0m"
-    echo "[31m[1mERROR:[0m     . ./Activate.sh"
-    echo "[31m[1mERROR:[0m"
-    echo ""
-
-    should_continue=0
-fi
-
 # Read the bootstrap data
 if [[ ${should_continue} == 1 && ! -e `pwd`/Generated/${os_name}/${DEVELOPMENT_ENVIRONMENT_ENVIRONMENT_NAME}/EnvironmentBootstrap.data ]]
 then
@@ -128,6 +108,26 @@ then
         python -m RepositoryBootstrap.Impl.Activate ListConfigurations "`pwd`" "$@"
         should_continue=0
     fi
+fi
+
+# Ensure that the script is being invoked via source (as it modifies the current environment)
+if [[ ${should_continue} == 1 && ${0##*/} == Activate.sh ]]
+then
+    echo ""
+    echo "[31m[1mERROR:[0m This script activates a terminal for development according to information specific to the repository."
+    echo "[31m[1mERROR:[0m"
+    echo "[31m[1mERROR:[0m Because this process makes changes to environment variables, it must be run within the current context."
+    echo "[31m[1mERROR:[0m To do this, please source (run) the script as follows:"
+    echo "[31m[1mERROR:[0m"
+    echo "[31m[1mERROR:[0m     source ./Activate.sh"
+    echo "[31m[1mERROR:[0m"
+    echo "[31m[1mERROR:[0m         - or -"
+    echo "[31m[1mERROR:[0m"
+    echo "[31m[1mERROR:[0m     . ./Activate.sh"
+    echo "[31m[1mERROR:[0m"
+    echo ""
+
+    should_continue=0
 fi
 
 # If here, we are in a verified activation scenario. Set the previous value to this value, knowing that that is the value
