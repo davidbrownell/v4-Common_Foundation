@@ -44,6 +44,7 @@ from .Commands import (
     Set,
     SetPath,
     SymbolicLink,
+    WindowTitle,
 )
 
 from .CommandVisitor import CommandVisitor
@@ -509,3 +510,11 @@ class WindowsCommandVisitor(CommandVisitor):
                 },
             },
         )
+
+    # ----------------------------------------------------------------------
+    @overridemethod
+    def OnWindowTitle(
+        self,
+        command: WindowTitle,
+    ) -> Optional[str]:
+        return "title {}".format(command.value)
