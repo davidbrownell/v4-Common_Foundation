@@ -240,7 +240,7 @@ def Activate(
                 _ActivateTools,
                 _ActivateScripts,
                 _ActivateCustom,
-                _ActivatePrompt,
+                _ActivatePromptAndTitle,
                 _ActivateActivatedKey,
             ]
 
@@ -631,7 +631,7 @@ def _ActivateCustom(
 
 
 # ----------------------------------------------------------------------
-def _ActivatePrompt(
+def _ActivatePromptAndTitle(
     activation_key: str,                    # pylint: disable=unused-argument
     dm: DoneManager,                        # pylint: disable=unused-argument
     configuration: Optional[str],
@@ -661,6 +661,7 @@ def _ActivatePrompt(
             prompt,
             is_prefix=True,
         ),
+        Commands.WindowTitle(prompt),
     ]
 
 

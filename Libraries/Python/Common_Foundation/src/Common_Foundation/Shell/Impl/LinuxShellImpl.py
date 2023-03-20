@@ -42,6 +42,7 @@ from ..Commands import (
     Set,
     SetPath,
     SymbolicLink,
+    WindowTitle,
 )
 
 from ..CommandVisitor import CommandVisitor
@@ -493,3 +494,13 @@ class LinuxCommandVisitor(CommandVisitor):
             target=command.target,
             link=command.link_filename,
         )
+
+    # ----------------------------------------------------------------------
+    @overridemethod
+    def OnWindowTitle(
+        self,
+        command: WindowTitle,
+    ) -> Optional[str]:
+        # I'm not sure how to do this consistently across distros and terminal
+        # types on Linux.
+        return None

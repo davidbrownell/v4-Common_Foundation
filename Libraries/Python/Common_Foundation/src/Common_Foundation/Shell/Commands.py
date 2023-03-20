@@ -260,3 +260,10 @@ class PopDirectory(Command):
 class Raw(Command):
     """Raw, shell-specific content that isn't altered during decoration"""
     value: str
+
+
+# ----------------------------------------------------------------------
+@dataclass(frozen=True)
+class WindowTitle(Command):
+    """Window title for the terminal session"""
+    value: str

@@ -525,7 +525,7 @@ class _ValidateDistinctAutoSemVerConfigurations(SCMPlugin):
                 textwrap.dedent(
                     """\
 
-                    This change spans multiple AutoSemVer configuration files and  must be split
+                    This change spans multiple AutoSemVer configuration files and must be split
                     into multiple changes so that AutoSemVer increments each independently.
 
                     {}
