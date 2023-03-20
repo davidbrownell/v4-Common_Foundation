@@ -40,6 +40,7 @@ from .Commands import (
     Set,
     SetPath,
     SymbolicLink,
+    WindowTitle,
 )
 
 
@@ -206,6 +207,14 @@ class CommandVisitor(ABC):
         raise Exception("Abstract method")  # pragma: no cover
 
     # ----------------------------------------------------------------------
+    @abstractmethod
+    def OnWindowTitle(
+        self,
+        command: WindowTitle,
+    ) -> Optional[str]:
+        raise Exception("Abstract method")  # pragma: no cover
+
+    # ----------------------------------------------------------------------
     # ----------------------------------------------------------------------
     # ----------------------------------------------------------------------
     def Accept(
@@ -233,6 +242,7 @@ class CommandVisitor(ABC):
             Set: self.OnSet,
             SetPath: self.OnSetPath,
             SymbolicLink: self.OnSymbolicLink,
+            WindowTitle: self.OnWindowTitle,
         }
 
         func = lookup_map.get(type(command), None)  # type: ignore
