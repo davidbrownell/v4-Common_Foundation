@@ -302,7 +302,9 @@ class ActivationData(object):
             ".{}".format(environment_name) if environment_name != Constants.DEFAULT_ENVIRONMENT_NAME else "",
             CurrentShell.script_extensions[0],
         )
-        assert activation_script.is_file(), activation_script
+
+        if not activation_script.is_file():
+            raise Exception("'{}' is not a valid file name.".format(activation_script))
 
         data_filename = cls._GetActivationFilename(repository_root, configuration)
 
