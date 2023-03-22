@@ -161,6 +161,20 @@ def Activate(
 
                     update_fingerprints_file = True
 
+            # Process mixins
+            for default_mixin in CurrentShell.EnumEnvironmentVariableValues(Constants.DE_GLOBAL_MIXINS):
+                default_mixin = Path(default_mixin)
+
+                if not default_mixin.is_dir():
+                    raise Exception(
+                        "The default mixin '{}', defined by the environment variable '{}', is not a valid directory.".format(
+                            default_mixin,
+                            Constants.DE_GLOBAL_MIXINS,
+                        ),
+                    )
+
+                mixins.append(Path(default_mixin))
+
             # ----------------------------------------------------------------------
             def LoadMixinLibrary(
                 mixin_path: Path,
@@ -662,6 +676,7 @@ def _ActivatePromptAndTitle(
             is_prefix=True,
         ),
         Commands.WindowTitle(prompt),
+        Commands.Set(Constants.DE_REPO_WINDOW_TITLE, prompt),
     ]
 
 
