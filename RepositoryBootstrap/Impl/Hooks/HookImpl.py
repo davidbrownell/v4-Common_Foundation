@@ -161,6 +161,8 @@ def GetPlugins(
                 '"{}" ListConfigurations --display-format json'.format(activate_filename),
             )
 
+            result.RaiseOnError()
+
             json_content = json.loads(result.output)
 
             if len(json_content) == 1 and "null" in json_content:
