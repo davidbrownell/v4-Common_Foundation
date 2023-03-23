@@ -275,18 +275,18 @@ else
     fi
 fi
 
-if [[ "${previous_foundation}" != "" ]]; then
-    export DEVELOPMENT_ENVIRONMENT_FOUNDATION=${previous_foundation}
-else
-    unset DEVELOPMENT_ENVIRONMENT_FOUNDATION
-fi
-
 unset DEVELOPMENT_ENVIRONMENT_ORIGINAL_PATH
 unset PYTHONPATH
 
 if [[ ${should_continue} != 1 ]]
 then
     export PATH=${previous_path}
+
+    if [[ "${previous_foundation}" != "" ]]; then
+        export DEVELOPMENT_ENVIRONMENT_FOUNDATION=${previous_foundation}
+    else
+        unset DEVELOPMENT_ENVIRONMENT_FOUNDATION
+    fi
 
     exit 1
 fi
