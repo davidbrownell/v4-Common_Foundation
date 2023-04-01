@@ -30,10 +30,25 @@ except ModuleNotFoundError:
     sys.stdout.write("\nERROR: This script is not available in a 'nolibs' environment.\n")
     sys.exit(-1)
 
+from Common_Foundation.ContextlibEx import ExitStack
+from Common_Foundation import PathEx
 from Common_Foundation.Streams.DoneManager import DoneManager, DoneManagerFlags
 from Common_Foundation.Streams.StreamDecorator import StreamDecorator
 
-from AutoSemVer import GenerateStyle, GetSemanticVersion
+sys.path.insert(0, str(PathEx.EnsureDir(Path(__file__).parent.parent)))
+with ExitStack(lambda: sys.path.pop(0)):
+    # This configuration (in terms of the items listed below) is the only way that I could get
+    # this to work both locally and when frozen as an executable, here and with plugins.
+    #
+    # Modify at your own risk.
+    #
+    #   Factors that contributed to this configuration:
+    #
+    #       - Directory name (which is why there is the funky 'src/AutoSemVer/src/AutoSemVer' layout
+    #       - This file as 'EntryPoint/__main__.py' rather than '../EntryPoint.py'
+    #       - Build.py/setup.py located outside of 'src'
+
+    from AutoSemVerLib import GenerateStyle, GetSemanticVersion
 
 
 # ----------------------------------------------------------------------
@@ -60,6 +75,7 @@ def Generate(
     path: Path=typer.Argument(Path.cwd(), file_okay=False, exists=True, resolve_path=True, help="Generate a semantic version based on changes that impact the specified path."),
     style: GenerateStyle=typer.Option(GenerateStyle.Standard, "--style", case_sensitive=False, help="Specifies the way in which the semantic version is generated; this is useful when targets using the generated semantic version do not fully support the semantic version specification."),
     prerelease_name: str=typer.Option(None, "--prerelease-name", help="Create a semantic version string with this prerelease name."),
+    no_prefix: bool=typer.Option(False, "--no-prefix", help="Do not include the prefix in the generated semantic version."),
     no_branch_name: bool=typer.Option(False, "--no-branch-name", help="Do not include the branch name in the prerelease section of the generated semantic version."),
     no_metadata: bool=typer.Option(False, "--no-metadata", help="Do not include the build metadata section of the generated semantic version."),
     verbose: bool=typer.Option(False, "--verbose", help="Write verbose information to the terminal."),
@@ -96,6 +112,7 @@ def Generate(
             path=path,
             prerelease_name=prerelease_name,
             include_branch_name_when_necessary=not no_branch_name,
+            no_prefix=no_prefix,
             no_metadata=no_metadata,
             style=style,
         )
