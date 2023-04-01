@@ -223,6 +223,8 @@ class Repository(DistributedRepositoryBase):
             cls,
             repo_root: Path,
             git_file_item_output: str,
+            *,
+            rename_is_modification: bool=False,
         ) -> Optional[
             tuple[
                 Optional[Path],             # Added
@@ -272,6 +274,14 @@ class Repository(DistributedRepositoryBase):
                 assert " -> " in filename, filename
                 source, dest = filename.split(" -> ", maxsplit=1)
 
+                if rename_is_modification:
+                    return (
+                        None,
+                        None,
+                        repo_root / dest,
+                        None,
+                    )
+
                 return (
                     repo_root / dest,
                     repo_root / source,
@@ -282,6 +292,14 @@ class Repository(DistributedRepositoryBase):
             elif code.startswith("R"):
                 assert "\t" in filename, filename
                 source, dest = filename.split("\t", maxsplit=1)
+
+                if rename_is_modification:
+                    return (
+                        None,
+                        None,
+                        repo_root / dest,
+                        None,
+                    )
 
                 return (
                     repo_root / dest,
@@ -313,6 +331,8 @@ class Repository(DistributedRepositoryBase):
             cls,
             repo_root: Path,
             git_output: str,
+            *,
+            rename_is_modification: bool,
         ) -> "Repository.FileInfo":
             added: list[Path] = []
             removed: list[Path] = []
@@ -324,7 +344,11 @@ class Repository(DistributedRepositoryBase):
                 if not line or line.isspace():
                     continue
 
-                result = cls.DecodeGitFileItemOutput(repo_root, line)
+                result = cls.DecodeGitFileItemOutput(
+                    repo_root,
+                    line,
+                    rename_is_modification=rename_is_modification,
+                )
                 if result is None:
                     ignored.append(line)
                     continue
@@ -748,6 +772,7 @@ class Repository(DistributedRepositoryBase):
         ],
         *,
         include_working_changes: bool=False,
+        rename_is_modification: bool=False,
     ) -> str:
         return self._CreateLoggerExInfo(
             *self._GetEnumChangesSinceMergeCommandLineParts(
@@ -755,6 +780,7 @@ class Repository(DistributedRepositoryBase):
                 source_merge_arg,
             ),
             include_working_changes=include_working_changes,
+            rename_is_modification=rename_is_modification,
         )[0]
 
     # ----------------------------------------------------------------------
@@ -770,6 +796,7 @@ class Repository(DistributedRepositoryBase):
         ],
         *,
         include_working_changes: bool=False,
+        rename_is_modification: bool=False,
     ) -> Generator[DistributedRepositoryBase.ChangeInfo, None, None]:
         yield from self._CreateLoggerExInfo(
             *self._GetEnumChangesSinceMergeCommandLineParts(
@@ -777,6 +804,7 @@ class Repository(DistributedRepositoryBase):
                 source_merge_arg,
             ),
             include_working_changes=include_working_changes,
+            rename_is_modification=rename_is_modification,
         )[1]()
 
     # ----------------------------------------------------------------------
@@ -932,11 +960,13 @@ class Repository(DistributedRepositoryBase):
         self,
         *,
         include_working_changes: bool=False,
+        rename_is_modification: bool=False,
     ) -> str:
         return self._CreateLoggerExInfo(
             "HEAD",
             [],
             include_working_changes=include_working_changes,
+            rename_is_modification=rename_is_modification,
         )[0]
 
     # ----------------------------------------------------------------------
@@ -944,11 +974,13 @@ class Repository(DistributedRepositoryBase):
         self,
         *,
         include_working_changes: bool=False,
+        rename_is_modification: bool=False,
     ) -> Generator[DistributedRepositoryBase.ChangeInfo, None, None]:
         yield from self._CreateLoggerExInfo(
             "HEAD",
             [],
             include_working_changes=include_working_changes,
+            rename_is_modification=rename_is_modification,
         )[1]()
 
     # ----------------------------------------------------------------------
@@ -1544,6 +1576,7 @@ class Repository(DistributedRepositoryBase):
         additional_command_line_parts: list[str],
         *,
         include_working_changes: bool,
+        rename_is_modification: bool,
     ) -> tuple[str, Callable[[], Generator[DistributedRepositoryBase.ChangeInfo, None, None]]]:
         if include_working_changes:
             working_command_line = self._GetCommandLine("git status --porcelain=1")
@@ -1630,6 +1663,7 @@ class Repository(DistributedRepositoryBase):
                 file_info = Repository.FileInfo.Extract(
                     self.repo_root,
                     result.output,
+                    rename_is_modification=rename_is_modification,
                 )
 
                 if file_info.working:
@@ -1732,7 +1766,11 @@ class Repository(DistributedRepositoryBase):
 
                         continue
 
-                    file_info = self.__class__.FileInfo.Extract(self.repo_root, file_content)
+                    file_info = self.__class__.FileInfo.Extract(
+                        self.repo_root,
+                        file_content,
+                        rename_is_modification=rename_is_modification,
+                    )
                     assert not file_info.ignored
 
                     yield DistributedRepositoryBase.ChangeInfo(

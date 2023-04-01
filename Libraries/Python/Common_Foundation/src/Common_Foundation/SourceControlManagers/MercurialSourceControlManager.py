@@ -660,7 +660,8 @@ class Repository(DistributedRepositoryBase):
             self.GetEnumChangesSinceMergeCommandLine(
                 dest_branch,
                 source_merge_arg,
-                include_working_changes=include_working_changes),
+                include_working_changes=include_working_changes,
+            ),
         )
         assert result.returncode == 0, result.output
 
@@ -682,6 +683,7 @@ class Repository(DistributedRepositoryBase):
         ],
         *,
         include_working_changes: bool=False,
+        rename_is_modification: bool=False,
     ) -> str:
         raise Exception("This functionality is not yet implemented.")
 
@@ -698,6 +700,7 @@ class Repository(DistributedRepositoryBase):
         ],
         *,
         include_working_changes: bool=False,
+        rename_is_modification: bool=False,
     ) -> Generator[DistributedRepositoryBase.ChangeInfo, None, None]:
         raise Exception("This functionality is not yet implemented.")
 
@@ -844,6 +847,7 @@ class Repository(DistributedRepositoryBase):
         self,
         *,
         include_working_changes: bool=False,
+        rename_is_modification: bool=False,
     ) -> str:
         raise Exception("This functionality is not yet implemented.")
 
@@ -852,6 +856,7 @@ class Repository(DistributedRepositoryBase):
         self,
         *,
         include_working_changes: bool=False,
+        rename_is_modification: bool=False,
     ) -> Generator[DistributedRepositoryBase.ChangeInfo, None, None]:
         raise Exception("This functionality is not yet implemented.")
 

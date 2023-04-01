@@ -663,6 +663,7 @@ class Repository(ABC):
         ],
         *,
         include_working_changes: bool=False,
+        rename_is_modification: bool=False,
     ) -> str:
         """Returns the command line to implement Repository.EnumChangesSinceMergeEx"""
         raise Exception("Abstract method")  # pragma: no cover
@@ -681,6 +682,7 @@ class Repository(ABC):
         ],
         *,
         include_working_changes: bool=False,
+        rename_is_modification: bool=False,
     ) -> Generator["Repository.ChangeInfo", None, None]:
         """Enumerates changes since the specified merge."""
         raise Exception("Abstract method")  # pragma: no cover
@@ -809,6 +811,7 @@ class Repository(ABC):
         self,
         *,
         include_working_changes: bool=False,
+        rename_is_modification: bool=False,
     ) -> str:
         """Returns the command line used to implement Repository.EnumChangesEx"""
         raise Exception("Abstract method")  # pragma: no cover
@@ -819,6 +822,7 @@ class Repository(ABC):
         self,
         *,
         include_working_changes: bool=False,
+        rename_is_modification: bool=False,
     ) -> Generator["Repository.ChangeInfo", None, None]:
         """Enumerates changes on the local branch, starting with the most recent and working backwards in time."""
         raise Exception("Abstract method")  # pragma: no cover
