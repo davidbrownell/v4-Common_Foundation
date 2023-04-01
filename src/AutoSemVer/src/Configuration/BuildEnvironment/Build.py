@@ -138,7 +138,7 @@ class BuildInfo(BuildInfoBase):
                 debug=is_debug,
             ),
         ) as dm:
-            command_line = 'SimpleSchema{script_ext} Generate ../AutoSemVer.SimpleSchema "{output_dir}" --plugin JsonSchema --single-task{debug}{verbose}'.format(
+            command_line = 'SimpleSchema{script_ext} Generate ../AutoSemVerSchema.SimpleSchema "{output_dir}" --plugin JsonSchema --single-task{debug}{verbose}'.format(
                 script_ext=CurrentShell.script_extensions[0],
                 output_dir=Path(__file__).parent.parent / "GeneratedCode",
                 debug=" --debug" if is_debug else "",
