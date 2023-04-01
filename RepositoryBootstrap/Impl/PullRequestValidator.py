@@ -80,6 +80,7 @@ def Validate(
                 for change_info in repository.EnumChangesSinceMergeEx(
                     destination_branch_name,
                     None,
+                    rename_is_modification=True,
                 )
             ]
 

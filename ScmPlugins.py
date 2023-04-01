@@ -40,9 +40,9 @@ from RepositoryBootstrap.DataTypes import ChangeInfo, SCMPlugin
 
 
 # ----------------------------------------------------------------------
-sys.path.insert(0, str(PathEx.EnsureDir(Path(__file__).parent / "Scripts" / "AutoSemVer")))
+sys.path.insert(0, str(PathEx.EnsureDir(Path(__file__).parent / "src" / "AutoSemVer" / "src")))
 with ExitStack(lambda: sys.path.pop(0)):
-    import AutoSemVer  # type: ignore
+    import AutoSemVerLib  # type: ignore
 
 
 # ----------------------------------------------------------------------
@@ -462,7 +462,7 @@ class _ValidateAutoSemVerUsage(SCMPlugin):
                 )
 
             elif not any(
-                AutoSemVer.GetConfigurationFilename(filename, repository.repo_root)
+                AutoSemVerLib.GetConfigurationFilename(filename, repository.repo_root)
                 for filename in itertools.chain(
                     change.change_info.files_added,
                     change.change_info.files_removed,
@@ -500,22 +500,23 @@ class _ValidateDistinctAutoSemVerConfigurations(SCMPlugin):
         repository: Repository,
         change: ChangeInfo,
     ) -> None:
-        configuration_files: dict[Path, list[Path]] = {}
+        configuration_files: dict[Path, list[tuple[str, Path]]] = {}
 
-        for filename in itertools.chain(
-            change.change_info.files_added,
-            change.change_info.files_removed,
-            change.change_info.files_modified,
-        ):
-            configuration_file = AutoSemVer.GetConfigurationFilename(
-                filename.parent,
-                repository.repo_root,
-            )
+        for prefix, filenames in [
+            ("+", change.change_info.files_added),
+            ("-", change.change_info.files_removed),
+            ("M", change.change_info.files_modified),
+        ]:
+            for filename in filenames:
+                configuration_file = AutoSemVerLib.GetConfigurationFilename(
+                    filename.parent,
+                    repository.repo_root,
+                )
 
-            if configuration_file is None:
-                configuration_file = Path("<No Configuration File>")
+                if configuration_file is None:
+                    configuration_file = Path("<No Configuration File>")
 
-            configuration_files.setdefault(configuration_file, []).append(filename)
+                configuration_files.setdefault(configuration_file, []).append((prefix, filename))
 
         if len(configuration_files) > 1:
             keys = list(configuration_files.keys())
@@ -547,8 +548,8 @@ class _ValidateDistinctAutoSemVerConfigurations(SCMPlugin):
                                     else PathEx.CreateRelativePath(repository.repo_root, configuration_file)
                                 ),
                                 "\n".join(
-                                    "    {}".format(PathEx.CreateRelativePath(repository.repo_root, filename))
-                                    for filename in sorted(configuration_files[configuration_file])
+                                    "    {} {}".format(prefix, PathEx.CreateRelativePath(repository.repo_root, filename))
+                                    for prefix, filename in sorted(configuration_files[configuration_file])
                                 ),
                             ),
                             4,
@@ -631,13 +632,13 @@ class _ValidatePythonLibraryVersions(SCMPlugin):
                                     continue
 
                     # Calculate the version
-                    calculated_version: Optional[AutoSemVer.GetSemanticVersionResult] = None
+                    calculated_version: Optional[AutoSemVerLib.GetSemanticVersionResult] = None
 
                     with library_dm.Nested(
                         "Calculating actual version...",
                         lambda: calculated_version.version if calculated_version is not None else "errors were encountered",
                     ) as version_dm:
-                        calculated_version = AutoSemVer.GetSemanticVersion(
+                        calculated_version = AutoSemVerLib.GetSemanticVersion(
                             version_dm,
                             path=python_library,
                             include_branch_name_when_necessary=False,

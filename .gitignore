@@ -1,16 +1,16 @@
 # ----------------------------------------------------------------------
-/Activate.cmd
-/Activate[.-]*.cmd
-/Activate.sh
-/Activate[.-]*.sh
+**/Activate.cmd
+**/Activate[.-]*.cmd
+**/Activate.sh
+**/Activate[.-]*.sh
 
-/Deactivate.cmd
-/Deactivate[.-]*.cmd
-/Deactivate.sh
-/Deactivate[.-]*.sh
+**/Deactivate.cmd
+**/Deactivate[.-]*.cmd
+**/Deactivate.sh
+**/Deactivate[.-]*.sh
 
-/Setup[.-]*.cmd
-/Setup[.-]*.sh
+**/Setup[.-]*.cmd
+**/Setup[.-]*.sh
 
 # ----------------------------------------------------------------------
 **/Generated/**
@@ -34,8 +34,7 @@ Libraries/Python/Common_FoundationEx/src/Common_FoundationEx.egg-info/*
 
 RepositoryBootstrap/SetupAndActivate/DynamicPluginArchitecture.py
 
-Scripts/AutoSemVer/Configuration/GeneratedCode/Compiler.ConditionalInvocationQueryMixin.data
-Scripts/AutoSemVerTemp/Configuration/GeneratedCode/Compiler.ConditionalInvocationQueryMixin.data
+src/AutoSemVer/**/Compiler.ConditionalInvocationQueryMixin.data
 
 Tools/7zip/v22.1/Linux/*/**
 Tools/7zip/v22.1/Windows/*/**

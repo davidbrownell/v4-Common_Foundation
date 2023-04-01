@@ -1,6 +1,6 @@
 # ----------------------------------------------------------------------
 # |
-# |  AutoSemVer.py
+# |  AutoSemVerLib.py
 # |
 # |  David Brownell <db@DavidBrownell.com>
 # |      2023-03-01 09:15:06
@@ -103,6 +103,7 @@ def GetSemanticVersion(
     include_branch_name_when_necessary: bool=True,
     include_timestamp_when_necessary: bool=True,
     include_computer_name_when_necessary: bool=True,
+    no_prefix: bool=False,
     no_metadata: bool=False,
     configuration_filenames: Optional[list[str]]=None,
     style: GenerateStyle=GenerateStyle.Standard,
@@ -349,7 +350,7 @@ def GetSemanticVersion(
         lambda: version_string or "errors were encountered",
     ):
         version_parts: list[str] = [
-            configuration.version_prefix or "",
+            "" if not configuration.version_prefix or no_prefix else configuration.version_prefix,
             str(semantic_version),
         ]
 
@@ -390,8 +391,8 @@ def GetSemanticVersion(
             if configuration.include_computer_name_when_necessary and include_computer_name_when_necessary:
                 metadata_components.append(platform.node())
 
-        if has_working_changes:
-            metadata_components.append("working_changes")
+            if has_working_changes:
+                metadata_components.append("working_changes")
 
         if style == GenerateStyle.Standard:
             # No modifications necessary
@@ -466,7 +467,7 @@ def GetConfiguration(
                 raise Exception("'{}' is not a recognized configuration file type.".format(configuration_filename))
 
     # Load the schema
-    schema_filename = PathEx.EnsureFile(Path(__file__).parent / "Configuration" / "GeneratedCode" / "AutoSemVer.json")
+    schema_filename = PathEx.EnsureFile(Path(__file__).parent / "Configuration" / "GeneratedCode" / "AutoSemVerSchema.json")
 
     with schema_filename.open() as f:
         schema_content = json.load(f)
