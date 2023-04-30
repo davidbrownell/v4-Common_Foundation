@@ -427,11 +427,16 @@ class Repository(DistributedRepositoryBase):
         assert result.returncode == 0, result.output
 
         regex = re.compile(r"^\*?\s*\[(origin/)?(?P<name>\S+?)\]\s+.+?")
+        encountered: set[str] = set()
 
         for line in result.output.split("\n"):
             match = regex.match(line)
             if match:
-                yield match.group("name")
+                branch = match.group("name")
+
+                if branch not in encountered:
+                    yield match.group("name")
+                    encountered.add(branch)
 
     # ----------------------------------------------------------------------
     def GetGetCurrentBranchCommandLine(self) -> str:
