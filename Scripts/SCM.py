@@ -1071,6 +1071,7 @@ def AllDistributedChangeStatus(
         repo = cast(DistributedRepository, repo)
 
         return (
+            sum(1 for _ in repo.EnumBranches()),
             repo.GetDistributedChangeStatus(),
             repo.GetCurrentBranch(),
         )
@@ -1103,6 +1104,9 @@ def AllDistributedChangeStatus(
         with dm.YieldStream() as stream:
             stream.write("\n")
 
+            first_branch_col = 2
+            first_change_col = 5
+
             # ----------------------------------------------------------------------
             def DecorateBranch(
                 repository: Repository,
@@ -1126,17 +1130,17 @@ def AllDistributedChangeStatus(
                 cols[0] = "{}{}{}".format(col_header_color_on, cols[0], color_off)
 
                 if row_index >= 0:
-                    repository, (change_status, current_branch) = repositories[row_index]
+                    repository, (num_branches, change_status, current_branch) = repositories[row_index]
 
-                    cols[2] = DecorateBranch(repository, change_status.most_recent_branch, cols[2])
-                    cols[3] = DecorateBranch(repository, current_branch, cols[3])
+                    cols[first_branch_col + 1] = DecorateBranch(repository, change_status.most_recent_branch, cols[first_branch_col + 1])
+                    cols[first_branch_col + 2] = DecorateBranch(repository, current_branch, cols[first_branch_col + 2])
 
                     for index, value in [
-                        (4, change_status.has_untracked_changes),
-                        (5, change_status.has_working_changes),
-                        (6, change_status.has_local_changes),
-                        (7, change_status.has_remote_changes),
-                        (8, change_status.has_update_changes),
+                        (first_change_col + 0, change_status.has_untracked_changes),
+                        (first_change_col + 1, change_status.has_working_changes),
+                        (first_change_col + 2, change_status.has_local_changes),
+                        (first_change_col + 3, change_status.has_remote_changes),
+                        (first_change_col + 4, change_status.has_update_changes),
                     ]:
                         if value:
                             cols[index] = "{}{}{}".format(yes_color_on, cols[index], color_off)
@@ -1149,11 +1153,8 @@ def AllDistributedChangeStatus(
             ) -> None:
                 whitespace_padding = 2
 
-                first_branch_col = 2
-                first_change_col = 4
-
                 branch_width = sum(col_sizes[first_branch_col: first_change_col]) + whitespace_padding * (first_change_col - first_branch_col - 1)
-                changes_width = sum(col_sizes[first_change_col:]) + whitespace_padding * (len(col_sizes[first_change_col:]) - 1)
+                changes_width = sum(col_sizes[first_change_col:]) + whitespace_padding * (len(col_sizes[first_change_col:]) - 1) - 1
 
                 stream.write(
                     textwrap.dedent(
@@ -1166,8 +1167,8 @@ def AllDistributedChangeStatus(
                         initial_padding=" " * (sum(col_sizes[:first_branch_col]) + whitespace_padding * first_branch_col),
                         branch_name="Branches".center(branch_width),
                         change_name="Changes".center(changes_width),
-                        branch_decorator="/{}\\".format("-" * (branch_width - 2)),
-                        change_decorator="/{}\\".format("-" * (changes_width - 2)),
+                        branch_decorator="/{}\\".format("-" * (branch_width - 1)),
+                        change_decorator="/{}\\".format("-" * (changes_width - 1)),
                     ),
                 )
 
@@ -1178,6 +1179,7 @@ def AllDistributedChangeStatus(
                     [
                         "Directory (relative to '{}')".format(str(root)),
                         "SCM",
+                        "Num",
                         "Most Recent",
                         "Current",
                         "Untracked",
@@ -1190,6 +1192,7 @@ def AllDistributedChangeStatus(
                         [
                             "{}{}".format(os.path.sep, str(PathEx.CreateRelativePath(root, repository.repo_root))),
                             repository.scm.name,
+                            str(num_branches),
                             change_status.most_recent_branch,
                             most_recent_branch,
                             "Yes" if change_status.has_untracked_changes else "No",
@@ -1198,11 +1201,12 @@ def AllDistributedChangeStatus(
                             "Yes" if change_status.has_remote_changes else "No",
                             "Yes" if change_status.has_update_changes else "No",
                         ]
-                        for repository, (change_status, most_recent_branch) in repositories
+                        for repository, (num_branches, change_status, most_recent_branch) in repositories
                     ],
                     [
                         TextwrapEx.Justify.Left,
                         TextwrapEx.Justify.Left,
+                        TextwrapEx.Justify.Right,
                         TextwrapEx.Justify.Left,
                         TextwrapEx.Justify.Left,
                         TextwrapEx.Justify.Center,
