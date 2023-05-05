@@ -134,8 +134,8 @@ def GetCustomActions(
                                     textwrap.dedent(
                                         """\
                                         Long path support is not enabled. While this isn't a requirement for running on
-                                        Windows, it could present problems with python imports in deeply nested directory
-                                        hierarchies.
+                                        Windows, long path support could prevent problems associated with python imports
+                                        in deeply nested directory hierarchies.
 
                                         To enable long path support in Windows:
 
