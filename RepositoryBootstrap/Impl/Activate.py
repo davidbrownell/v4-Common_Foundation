@@ -208,9 +208,6 @@ def Activate(
                 if force:
                     raise Exception("'force' cannot be used with mixin repositories.")
 
-                if mixins:
-                    raise Exception("A mixin repository cannot be activated with other mixins.")
-
                 LoadMixinLibrary(repository_root)
 
                 configuration_value = activation_data.configuration
