@@ -25,7 +25,7 @@ The following values may be customized by child templates:
 
 #>>
 
-<<% extends "_SetupAndActivate.template.yaml" %>>
+<<% extends "SetupAndActivate.template.yaml" %>>
 
 <<% block saa_name %>><<% block bat_name %>><<% endblock %>><<% endblock %>>
 
