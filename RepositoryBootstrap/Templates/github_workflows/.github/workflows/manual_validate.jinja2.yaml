@@ -11,7 +11,7 @@ on:
 jobs:
   _<<< guid() >>>:
     name: "Validate (${{ github.ref_name }})"
-    uses: <<< git_username >>>/<<< git_repo >>>/.github/workflows/validate.yaml@CI-latest
+    uses: <<< git_username >>>/<<< git_repo >>>/.github/workflows/validate.yaml@CI-v1
     with:
       repo_branch: ${{ github.ref_name }}
 
