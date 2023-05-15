@@ -42,13 +42,13 @@ concurrency: "on_push-${{ github.ref_name }}"
 jobs:
   _0166baf5-0ecf-4262-b29a-526c500f6d06:
     name: "Validate (${{ github.ref_name }})"
-    uses: davidbrownell/v4-Common_Foundation/.github/workflows/validate_with_dependencies.yaml@CI-latest
+    uses: davidbrownell/v4-Common_Foundation/.github/workflows/validate_with_dependencies.yaml@CI-v1
     with:
       repo_branch: ${{ github.ref_name }}
 
   _efaeb2d9-1508-4304-b3e7-ca2cd6377ff5:
     name: "Promote"
-    uses: davidbrownell/v4-Common_Foundation/.github/workflows/callable_promote.yaml@CI-latest
+    uses: davidbrownell/v4-Common_Foundation/.github/workflows/callable_promote.yaml@CI-v1
 
     needs:
       - _0166baf5-0ecf-4262-b29a-526c500f6d06
