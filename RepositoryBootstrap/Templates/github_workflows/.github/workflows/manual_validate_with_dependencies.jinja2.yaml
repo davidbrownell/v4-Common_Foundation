@@ -7,6 +7,6 @@ on:
 jobs:
   _<<< guid() >>>:
     name: "Validate (${{ github.ref_name }})"
-    uses: <<< git_username >>>/<<< git_repo >>>/.github/workflows/validate_with_dependencies.yaml@CI-latest
+    uses: <<< git_username >>>/<<< git_repo >>>/.github/workflows/validate_with_dependencies.yaml@CI-v1
     with:
       repo_branch: ${{ github.ref_name }}

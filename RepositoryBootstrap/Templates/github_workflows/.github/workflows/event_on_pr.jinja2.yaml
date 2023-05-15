@@ -25,13 +25,13 @@ on:
 jobs:
   _<<< guid() >>>:
     name: "Validate (target: ${{ github.base_ref }})"
-    uses: <<< git_username >>>/<<< git_repo >>>/.github/workflows/validate.yaml@CI-latest
+    uses: <<< git_username >>>/<<< git_repo >>>/.github/workflows/validate.yaml@CI-v1
     with:
       repo_branch: ${{ github.head_ref }}
 
   _<<< guid() >>>:
     name: "Validate Pull Request (target: ${{ github.base_ref }})"
-    uses: davidbrownell/v4-Common_Foundation/.github/workflows/callable_validate_pull_request.yaml@CI-latest
+    uses: davidbrownell/v4-Common_Foundation/.github/workflows/callable_validate_pull_request.yaml@CI-v1
     with:
       job_name_prefix: "<<< friendly_repo_name >>>"
       is_mixin_repository: <<< is_mixin_repository >>>

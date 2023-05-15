@@ -56,7 +56,7 @@ jobs:
           - python310
           # TODO: - python310_nolibs
 
-    uses: davidbrownell/v4-Common_Foundation/.github/workflows/callable_validate.yaml@CI-latest
+    uses: davidbrownell/v4-Common_Foundation/.github/workflows/callable_validate.yaml@CI-v1
     with:
       job_name_prefix: Common_Foundation
       repo_name: davidbrownell/v4-Common_Foundation

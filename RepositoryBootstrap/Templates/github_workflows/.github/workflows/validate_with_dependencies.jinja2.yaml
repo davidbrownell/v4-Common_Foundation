@@ -24,7 +24,7 @@ on:
 jobs:
   _<<< guid() >>>:
     name: "<<< friendly_repo_name >>>"
-    uses: <<< git_username >>>/<<< git_repo >>>/.github/workflows/validate.yaml@CI-latest
+    uses: <<< git_username >>>/<<< git_repo >>>/.github/workflows/validate.yaml@CI-v1
     with:
       repo_branch: ${{ inputs.repo_branch }}
       bootstrap_branch_overrides: "<<< friendly_repo_name >>>:${{ inputs.repo_branch }}"
