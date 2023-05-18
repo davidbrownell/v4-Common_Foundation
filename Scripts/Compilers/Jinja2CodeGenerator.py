@@ -277,6 +277,9 @@ class CodeGenerator(
             bool,                           # True to continue, false to terminate
         ],
     ) -> Optional[str]:                     # Optional short description that provides input about the result
+
+        env: Optional[Environment] = None
+
         # ----------------------------------------------------------------------
         class RelativeFileSystemLoader(FileSystemLoader):
             # ----------------------------------------------------------------------
@@ -301,18 +304,37 @@ class CodeGenerator(
             ) -> Tuple[str, str, Callable[[], bool]]:
                 method = super(RelativeFileSystemLoader, self).get_source
 
-                try:
-                    return method(environment, template)
+                first_exception: Optional[Exception] = None
 
-                except exceptions.TemplateNotFound:
-                    for searchpath in reversed(self.searchpath):
-                        potential_template = Path(searchpath) / template
-                        if potential_template.is_file():
-                            self.searchpath.append(str(potential_template.parent.resolve()))
+                # ----------------------------------------------------------------------
+                # Jinja2 does not populate variables in templates, so we need to do that for it here.
+                def RenderTemplate() -> str:
+                    assert env is not None
 
-                            return method(environment, potential_template.name)
+                    template_template = env.from_string(template)
+                    return template_template.render(**context["jinja2_context"])
 
-                    raise
+                # ----------------------------------------------------------------------
+
+                for template_decorator_func in [lambda: template, RenderTemplate]:
+                    this_template = template_decorator_func()
+
+                    try:
+                        return method(environment, this_template)
+
+                    except exceptions.TemplateNotFound as ex:
+                        if first_exception is None:
+                            first_exception = ex
+
+                        for searchpath in reversed(self.searchpath):
+                            potential_template = Path(searchpath) / this_template
+                            if potential_template.is_file():
+                                self.searchpath.append(str(potential_template.parent.resolve()))
+
+                                return method(environment, potential_template.name)
+
+                assert first_exception is not None
+                raise first_exception
 
         # ----------------------------------------------------------------------
 
@@ -439,7 +461,7 @@ class CodeGenerator(
 
                     content = template.render(**context["jinja2_context"])
                 except Exception as ex:
-                    this_dm.WriteError(str(ex))
+                    this_dm.WriteError("{}: {}".format(type(ex).__name__, str(ex)))
                     continue
 
                 output_filename.parent.mkdir(parents=True, exist_ok=True)
