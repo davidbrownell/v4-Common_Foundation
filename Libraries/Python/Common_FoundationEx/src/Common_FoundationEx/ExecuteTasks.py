@@ -51,7 +51,7 @@ from Common_FoundationEx.InflectEx import inflect
 CATASTROPHIC_TASK_FAILURE_RESULT            = -123
 
 DISPLAY_COLUMN_WIDTH                        = 110
-STATUS_COLUMN_WIDTH                         = 40
+STATUS_COLUMN_WIDTH                         = 50
 
 
 # ----------------------------------------------------------------------
@@ -652,8 +652,10 @@ def _GenerateProgressStatusInfo(
                     status = "({} of {}) {}".format(
                         self._current_step + 1,
                         self._num_steps,
-                        status or "",
+                        status,
                     )
+
+                status = TextwrapEx.BoundedLJust(status, STATUS_COLUMN_WIDTH)
 
                 progress_bar.update(
                     self._task_id,
