@@ -124,6 +124,12 @@ jobs:
       PYTHONIOENCODING: "UTF-8"
 
     steps:
+      # Ensure that windows machines support long paths
+      - name: git Long File Path Support on Windows
+        if: ${{ startsWith(inputs.os, 'windows') }}
+        run: |-
+          git config --system core.longpaths true
+
       - name: "[Impl] Dump Contexts"
         if: ${{ startsWith(inputs.os, 'ubuntu') }}
         uses: davidbrownell/v4-Common_Foundation/.github/actions/dump_contexts@CI-v1
