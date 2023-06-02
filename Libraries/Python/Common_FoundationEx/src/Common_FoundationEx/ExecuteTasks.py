@@ -27,7 +27,7 @@ from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Callable, cast, Iterator, List, Optional, Protocol, Tuple, TypeVar, Union
+from typing import Any, Callable, cast, Iterator, Optional, Protocol, TypeVar, Union
 from unittest.mock import MagicMock
 
 from rich.progress import Progress, TaskID, TimeElapsedColumn
@@ -82,6 +82,14 @@ class TaskData(object):
 class Status(ABC):
     # ----------------------------------------------------------------------
     @abstractmethod
+    def SetTitle(
+        self,
+        title: str,
+    ) -> None:
+        raise Exception("Abstract method")
+
+    # ----------------------------------------------------------------------
+    @abstractmethod
     def OnProgress(
         self,
         zero_based_step: Optional[int],
@@ -101,48 +109,72 @@ class Status(ABC):
 
 
 # ----------------------------------------------------------------------
-class ExecuteTasksStep3FuncType(Protocol):
-    def __call__(
-        self,
-        status: Status,
-    ) -> Tuple[
-        int,                                # Return code
-        Optional[str],                      # Final status message
-    ]:
-        ...
+class ExecuteTasksTypes(object):
+    """Types used by ExecuteTasks."""
 
+    # ----------------------------------------------------------------------
+    class Init1FuncType(Protocol):
+        """Initializes a task for execution"""
 
-class ExecuteTasksStep2FuncType(Protocol):
-    def __call__(
-        self,
-        on_simple_status_func: Callable[
-            [
-                str,                        # Status
+        def __call__(
+            self,
+            context: Any,                   # TaskData.context
+        ) -> tuple[
+            Path,                           # Log filename
+            "ExecuteTasksTypes.Init2FuncType",
+        ]:
+            ...
+
+    # ----------------------------------------------------------------------
+    class Init2FuncType(Protocol):
+        """Prepares a task for execution"""
+
+        def __call__(
+            self,
+            on_simple_status_func: Callable[
+                [
+                    str,                    # Status
+                ],
+                None,
             ],
-            None,
-        ],
-    ) -> Tuple[
-        Optional[int],                      # Number of steps
-        ExecuteTasksStep3FuncType,
-    ]:
-        ...
+        ) -> Union[
+            tuple[
+                Optional[int],              # Number of steps to execute
+                "ExecuteTasksTypes.FuncType",
+            ],
+            "ExecuteTasksTypes.FuncType",
+        ]:
+            ...
 
-class ExecuteTasksStep1FuncType(Protocol):
-    def __call__(
-        self,
-        context: Any,                       # TaskData.context
-    ) -> Tuple[
-        Path,                               # Log filename
-        ExecuteTasksStep2FuncType,
-    ]:
-        ...
+    # ----------------------------------------------------------------------
+    class FuncType(Protocol):
+        """Executes a single task"""
+
+        def __call__(
+            self,
+            status: Status,
+        ) -> Union[
+            tuple[
+                int,                        # Return code
+                Optional[str],              # Final status message
+            ],
+            int,                            # Return code
+        ]:
+            ...
 
 
+# Maintain these definitions for backwards compatibility
+ExecuteTasksStep1FuncType                   = ExecuteTasksTypes.Init1FuncType
+ExecuteTasksStep2FuncType                   = ExecuteTasksTypes.Init2FuncType
+ExecuteTasksStep3FuncType                   = ExecuteTasksTypes.FuncType
+
+
+# ----------------------------------------------------------------------
 def ExecuteTasks(
     dm: DoneManager,
     desc: str,
-    tasks: List[TaskData],
-    step1_func: ExecuteTasksStep1FuncType,
+    tasks: list[TaskData],
+    init_func: ExecuteTasksTypes.Init1FuncType,
     *,
     quiet: bool=False,
     max_num_threads: Optional[int]=None,
@@ -164,7 +196,7 @@ def ExecuteTasks(
                     _ExecuteTask(
                         desc,
                         task_data,
-                        step1_func,
+                        init_func,
                         status_factory,
                         on_task_complete_func,
                         is_debug=dm.is_debug,
@@ -184,7 +216,7 @@ def ExecuteTasks(
                     _ExecuteTask(
                         desc,
                         task_data,
-                        step1_func,
+                        init_func,
                         status_factory,
                         on_task_complete_func,
                         is_debug=dm.is_debug,
@@ -202,47 +234,73 @@ def ExecuteTasks(
 
 
 # ----------------------------------------------------------------------
-TransformedType                             = TypeVar("TransformedType", covariant=True)
+class TransformTypes(object):
+    """Types used by Transform"""
+
+    # ----------------------------------------------------------------------
+    TransformedType                             = TypeVar("TransformedType", covariant=True)
+
+    # ----------------------------------------------------------------------
+    class InitFuncType(Protocol[TransformedType]):
+        """Initializes a task for transformation"""
+
+        def __call__(
+            self,
+            context: Any,                   # TaskData.context
+            on_simple_status_func: Callable[
+                [
+                    str,                    # Status
+                ],
+                None,
+            ],
+        ) -> Union[
+            tuple[
+                Optional[int],              # Number of steps in the transformation process
+                "TransformTypes.FuncType[TransformedType]",
+            ],
+            "TransformTypes.FuncType[TransformedType]",
+        ]:
+            ...
+
+    # ----------------------------------------------------------------------
+    class FuncType(Protocol[TransformedType]):
+        """Transforms a single task"""
+
+        def __call__(
+            self,
+            status: Status,
+        ) -> Union[
+            tuple[
+                "TransformTypes.TransformedType",
+                Optional[str],
+            ],
+            "TransformTypes.TransformedType",
+        ]:
+            ...
 
 
-class TransformStep2FuncType(Protocol[TransformedType]):
-    def __call__(
-        self,
-        status: Status,
-    ) -> Tuple[
-        TransformedType,
-        Optional[str],                      # Final status message
-    ]:
-        ...
+# Maintain these definitions for backwards compatibility
+TransformedType                             = TransformTypes.TransformedType
+TransformStep1FuncType                      = TransformTypes.InitFuncType
+TransformStep2FuncType                      = TransformTypes.FuncType
 
 
-class TransformStep1FuncType(Protocol[TransformedType]):
-    def __call__(
-        self,
-        context: Any,                       # TaskData.context
-        on_simple_status_func: Callable[[str], None],
-    ) -> Tuple[
-        Optional[int],
-        TransformStep2FuncType[TransformedType],
-    ]:
-        ...
-
-
+# ----------------------------------------------------------------------
 def Transform(
     dm: DoneManager,
     desc: str,
-    tasks: List[TaskData],
-    step1_func: TransformStep1FuncType[TransformedType],
+    tasks: list[TaskData],
+    init_func: TransformTypes.InitFuncType[TransformTypes.TransformedType],
     *,
     quiet: bool=False,
     max_num_threads: Optional[int]=None,
     refresh_per_second: Optional[float]=None,
     no_compress_tasks: bool=False,
     return_exceptions: bool=False,
-) -> List[
+) -> list[
     Union[
         None,
-        TransformedType,
+        TransformTypes.TransformedType,
         Exception,                          # If 'return_exceptions' is True
     ],
 ]:
@@ -269,7 +327,7 @@ def Transform(
             dm,
             desc,
             tasks,
-            step1_func,
+            init_func,
             quiet=quiet,
             num_threads=num_threads,
             refresh_per_second=refresh_per_second,
@@ -278,23 +336,58 @@ def Transform(
 
 
 # ----------------------------------------------------------------------
-QueueStep2FuncType                          = Callable[
-    [Status],
-    Optional[str],                          # Final status message
-]
+class QueueExecutorTypes(object):
+    """Types used by the Queue Executor."""
+
+    # ----------------------------------------------------------------------
+    class InitFuncType(Protocol):
+        """Initializes a task for execution."""
+
+        def __call__(
+            self,
+            on_simple_status_func: Callable[
+                [
+                    str,                    # Status
+                ],
+                None,
+            ],
+        ) -> Union[
+            tuple[
+                Optional[int],              # Number of steps to execute
+                "QueueExecutorTypes.FuncType",
+            ],
+            "QueueExecutorTypes.FuncType",
+        ]:
+            ...
+
+    # ----------------------------------------------------------------------
+    class FuncType(Protocol):
+        """Single object within the queue"""
+
+        def __call__(
+            self,
+            status: Status,
+        ) -> Optional[str]:                 # Final status message
+            ...
+
+    # ----------------------------------------------------------------------
+    class EnqueueFuncType(Protocol):
+        """Enqueues a function to execute."""
+
+        def __call__(
+            self,
+            description: str,
+            init_func: "QueueExecutorTypes.InitFuncType",
+        ) -> None:
+            ...
 
 
-QueueStep1FuncType                          = Callable[
-    [
-        Callable[[str], None],
-    ],
-    Tuple[
-        Optional[int],                      # Num steps
-        QueueStep2FuncType,
-    ],
-]
+# Maintain these definitions for backwards compatibility
+QueueStep1FuncType                          = QueueExecutorTypes.InitFuncType
+QueueStep2FuncType                          = QueueExecutorTypes.FuncType
 
 
+# ----------------------------------------------------------------------
 @contextmanager
 def YieldQueueExecutor(
     dm: DoneManager,
@@ -303,15 +396,7 @@ def YieldQueueExecutor(
     quiet: bool=False,
     max_num_threads: Optional[int]=None,
     refresh_per_second: Optional[float]=None,
-) -> Iterator[
-    Callable[
-        [
-            str,                            # Task description
-            QueueStep1FuncType,
-        ],
-        None,
-    ]
-]:
+) -> Iterator[QueueExecutorTypes.EnqueueFuncType]:
     """Yields a callable that can be used to enqueue tasks executed by workers running across multiple threads"""
 
     with _YieldTemporaryDirectory(dm) as temp_directory:
@@ -328,19 +413,19 @@ def YieldQueueExecutor(
             quiet=quiet,
             refresh_per_second=refresh_per_second,
         ) as (status_factories, on_task_complete_func):
-            queue: List[Tuple[str, QueueStep1FuncType]] = []
+            queue: list[tuple[str, QueueExecutorTypes.InitFuncType]] = []
             queue_lock = threading.Lock()
 
             queue_semaphore = threading.Semaphore(0)
             quit_event = threading.Event()
 
             # ----------------------------------------------------------------------
-            def EnqueueFunc(
-                task_desc: str,
-                func: QueueStep1FuncType,
+            def Enqueue(
+                description: str,
+                init_func: QueueExecutorTypes.InitFuncType,
             ) -> None:
                 with queue_lock:
-                    queue.append((task_desc, func))
+                    queue.append((description, init_func))
                     queue_semaphore.release()
 
             # ----------------------------------------------------------------------
@@ -358,34 +443,44 @@ def YieldQueueExecutor(
                                     assert quit_event.is_set()
                                     break
 
-                                task_desc, step1_func = queue.pop(0)
+                                task_desc, init_func = queue.pop(0)
 
                             # ----------------------------------------------------------------------
-                            def ExecuteTasksStep1(*args, **kargs) -> Tuple[Path, ExecuteTasksStep2FuncType]:  # pylint: disable=unused-argument
-                                return log_filename, ExecuteTasksStep2
+                            def Init1(*args, **kwargs) -> tuple[Path, ExecuteTasksTypes.Init2FuncType]:  # pylint: disable=unused-argument
+                                return log_filename, Init2
 
                             # ----------------------------------------------------------------------
-                            def ExecuteTasksStep2(
+                            def Init2(
                                 on_simple_status_func: Callable[[str], None],
-                            ) -> Tuple[Optional[int], ExecuteTasksStep3FuncType]:
-                                num_steps, step2_func = step1_func(on_simple_status_func)
+                            ) -> tuple[Optional[int], ExecuteTasksTypes.FuncType]:
+                                init_result = init_func(on_simple_status_func)
+
+                                num_steps: Optional[int] = None
+                                execute_func: Optional[QueueExecutorTypes.FuncType] = None
+
+                                if isinstance(init_result, tuple):
+                                    num_steps, execute_func = init_result
+                                else:
+                                    execute_func = init_result
+
+                                assert execute_func is not None
 
                                 # ----------------------------------------------------------------------
-                                def ExecuteTasksStep3(
+                                def Execute(
                                     status: Status,
-                                ) -> Tuple[int, Optional[str]]:
-                                    return 0, step2_func(status)
+                                ) -> tuple[int, Optional[str]]:
+                                    return 0, execute_func(status)
 
                                 # ----------------------------------------------------------------------
 
-                                return num_steps, ExecuteTasksStep3
+                                return num_steps, Execute
 
                             # ----------------------------------------------------------------------
 
                             _ExecuteTask(
                                 desc,
                                 TaskData(task_desc, None),
-                                ExecuteTasksStep1,
+                                Init1,
                                 status_factory,
                                 on_task_complete_func,
                                 is_debug=dm.is_debug,
@@ -401,7 +496,7 @@ def YieldQueueExecutor(
                     for thread_index in range(num_threads)
                 ]
 
-                yield EnqueueFunc
+                yield Enqueue
 
                 quit_event.set()
                 queue_semaphore.release(num_threads)
@@ -452,13 +547,13 @@ def _GenerateStatusInfo(
     display_num_tasks: Optional[int],
     dm: DoneManager,
     desc: str,
-    tasks: List[TaskData],
+    tasks: list[TaskData],
     *,
     quiet: bool,
     refresh_per_second: Optional[float],
 ) -> Iterator[
-    Tuple[
-        List[_StatusFactory],
+    tuple[
+        list[_StatusFactory],
         Callable[[TaskData], None],         # on_task_complete_func
     ],
 ]:
@@ -495,7 +590,7 @@ def _GenerateStatusInfo(
         # ----------------------------------------------------------------------
         def OnTaskDataComplete(
             task_data: TaskData,
-        ) -> Tuple[int, int, int]:
+        ) -> tuple[int, int, int]:
             nonlocal success_count
             nonlocal error_count
             nonlocal warning_count
@@ -536,12 +631,12 @@ def _GenerateStatusInfo(
 def _GenerateProgressStatusInfo(
     display_num_tasks: Optional[int],
     dm: DoneManager,
-    tasks: List[TaskData],
-    on_task_data_complete_func: Callable[[TaskData], Tuple[int, int, int]],
+    tasks: list[TaskData],
+    on_task_data_complete_func: Callable[[TaskData], tuple[int, int, int]],
     *,
     quiet: bool,
     refresh_per_second: Optional[float],
-) -> Iterator[Tuple[List[_StatusFactory], Callable[[TaskData], None]]]:
+) -> Iterator[tuple[list[_StatusFactory], Callable[[TaskData], None]]]:
     with dm.YieldStdout() as stdout_context:
         stdout_context.persist_content = False
 
@@ -559,6 +654,21 @@ def _GenerateProgressStatusInfo(
             transient=True,
             refresh_per_second=refresh_per_second or 10,
         )
+
+        # ----------------------------------------------------------------------
+        def CreateDescription(
+            value: str,
+            *,
+            indent: bool=True,
+        ) -> str:
+            return TextwrapEx.BoundedLJust(
+                "{}{}{}".format(
+                    stdout_context.line_prefix,
+                    "  " if indent else "",
+                    value,
+                ),
+                DISPLAY_COLUMN_WIDTH,
+            )
 
         # ----------------------------------------------------------------------
         class StatusFactory(_StatusFactory):
@@ -579,10 +689,7 @@ def _GenerateProgressStatusInfo(
                 progress_bar.update(
                     self._task_id,
                     completed=0,
-                    description=TextwrapEx.BoundedLJust(
-                        "{}  {}".format(stdout_context.line_prefix, display),
-                        DISPLAY_COLUMN_WIDTH,
-                    ),
+                    description=CreateDescription(display),
                     refresh=False,
                     status="",
                     total=None,
@@ -631,6 +738,18 @@ def _GenerateProgressStatusInfo(
                     completed=self._current_step,
                     refresh=False,
                     total=self._num_steps,
+                )
+
+            # ----------------------------------------------------------------------
+            @overridemethod
+            def SetTitle(
+                self,
+                title: str,
+            ) -> None:
+                progress_bar.update(
+                    self._task_id,
+                    description=CreateDescription(title),
+                    refresh=False,
                 )
 
             # ----------------------------------------------------------------------
@@ -698,14 +817,10 @@ def _GenerateProgressStatusInfo(
         # ----------------------------------------------------------------------
 
         total_progress_id = progress_bar.add_task(
-            TextwrapEx.BoundedLJust(
-                "{}{}".format(
-                    stdout_context.line_prefix,
-                    "Working" if display_num_tasks is None else "Total Progress",
-                ),
-                DISPLAY_COLUMN_WIDTH,
+            CreateDescription(
+                "Working" if display_num_tasks is None else "Total Progress",
+                indent=False,
             ),
-            total=display_num_tasks,
             status="",
         )
 
@@ -770,16 +885,13 @@ def _GenerateProgressStatusInfo(
         stdout_context.stream.write(enqueueing_status)
         stdout_context.stream.flush()
 
-        status_factories: List[_StatusFactory] = []
+        status_factories: list[_StatusFactory] = []
 
         for task in tasks:
             status_factories.append(
                 StatusFactory(
                     progress_bar.add_task(
-                        TextwrapEx.BoundedLJust(
-                            "{}  {}".format(stdout_context.line_prefix, task.display),
-                            DISPLAY_COLUMN_WIDTH,
-                        ),
+                        CreateDescription(task.display),
                         start=False,
                         status="",
                         total=None,
@@ -801,12 +913,12 @@ def _GenerateProgressStatusInfo(
 def _GenerateNoopStatusInfo(
     display_num_tasks: Optional[int],                                       # pylint: disable=unused-argument
     dm: DoneManager,                                                        # pylint: disable=unused-argument
-    tasks: List[TaskData],
-    on_task_complete_func: Callable[[TaskData], Tuple[int, int, int]],
+    tasks: list[TaskData],
+    on_task_complete_func: Callable[[TaskData], tuple[int, int, int]],
     *,
     quiet: bool,
     refresh_per_second: Optional[float],                                    # pylint: disable=unused-argument
-) -> Iterator[Tuple[List[_StatusFactory], Callable[[TaskData], None]]]:
+) -> Iterator[tuple[list[_StatusFactory], Callable[[TaskData], None]]]:
     # ----------------------------------------------------------------------
     class StatusFactory(_StatusFactory):
         # ----------------------------------------------------------------------
@@ -825,6 +937,11 @@ def _GenerateNoopStatusInfo(
         # ----------------------------------------------------------------------
         @overridemethod
         def SetNumSteps(self, *args, **kwargs) -> None:  # pylint: disable=unused-argument
+            pass
+
+        # ----------------------------------------------------------------------
+        @overridemethod
+        def SetTitle(self, *args, **kwargs) -> None:  # pylint: disable=unused-argument
             pass
 
         # ----------------------------------------------------------------------
@@ -873,7 +990,7 @@ def _GenerateNoopStatusInfo(
     # ----------------------------------------------------------------------
 
     yield (
-        cast(List[_StatusFactory], [StatusFactory() for task in tasks]),
+        cast(list[_StatusFactory], [StatusFactory() for task in tasks]),
         OnTaskDataComplete,
     )
 
@@ -882,7 +999,7 @@ def _GenerateNoopStatusInfo(
 def _ExecuteTask(
     desc: str,
     task_data: TaskData,
-    step1_func: ExecuteTasksStep1FuncType,
+    init_func: ExecuteTasksTypes.Init1FuncType,
     status_factory: _StatusFactory,
     on_task_complete_func: Callable[[TaskData], None],
     *,
@@ -893,7 +1010,7 @@ def _ExecuteTask(
 
         try:
             with status_factory.CreateStatus(task_data.display) as status:
-                task_data.log_filename, step2_func = step1_func(task_data.context)
+                task_data.log_filename, init2_func = init_func(task_data.context)
 
                 # ----------------------------------------------------------------------
                 def OnSimpleStatus(
@@ -903,7 +1020,17 @@ def _ExecuteTask(
 
                 # ----------------------------------------------------------------------
 
-                num_steps, step3_func = step2_func(OnSimpleStatus)
+                init2_result = init2_func(OnSimpleStatus)
+
+                num_steps: Optional[int] = None
+                execute_func: Optional[ExecuteTasksTypes.FuncType] = None
+
+                if isinstance(init2_result, tuple):
+                    num_steps, execute_func = init2_result
+                else:
+                    execute_func = init2_result
+
+                assert execute_func is not None
 
                 # ----------------------------------------------------------------------
                 @contextmanager
@@ -923,7 +1050,13 @@ def _ExecuteTask(
                         assert num_steps >= 0, num_steps
                         status.SetNumSteps(num_steps)
 
-                    task_data.result, task_data.short_desc = step3_func(status)
+                    execute_result = execute_func(status)
+
+                    if isinstance(execute_result, tuple):
+                        task_data.result, task_data.short_desc = execute_result
+                    else:
+                        task_data.result = execute_result
+                        task_data.short_desc = None
 
         except KeyboardInterrupt:  # pylint: disable=try-except-raise
             raise
@@ -973,21 +1106,27 @@ def _TransformStandard(
     temp_directory: Path,
     dm: DoneManager,
     desc: str,
-    tasks: List[TaskData],
-    step1_func: TransformStep1FuncType[TransformedType],
+    tasks: list[TaskData],
+    init_func: TransformTypes.InitFuncType[TransformTypes.TransformedType],
     *,
     quiet: bool,
     num_threads: int,
     refresh_per_second: Optional[float],
     return_exceptions: bool,
-) -> List[
+) -> list[
     Union[
         None,
-        TransformedType,
+        TransformTypes.TransformedType,
         Exception,                          # If 'return_exceptions' is True
     ],
 ]:
-    all_results: List[Union[None, TransformedType, Exception]] = [None for _ in range(len(tasks))]
+    all_results: list[
+        Union[
+            None,
+            TransformTypes.TransformedType,
+            Exception,
+        ],
+    ] = [None for _ in range(len(tasks))]
 
     # Update the task context with task index
     for task_index, task in enumerate(tasks):
@@ -1002,25 +1141,43 @@ def _TransformStandard(
 
     with ExitStack(RestoreTaskContexts):
         # ----------------------------------------------------------------------
-        def ExecuteTasksStep1(
-            context_info: Tuple[int, Any],
-        ) -> Tuple[Path, ExecuteTasksStep2FuncType]:
+        def Init1(
+            context_info: tuple[int, Any],
+        ) -> tuple[Path, ExecuteTasksTypes.Init2FuncType]:
             task_index, context = context_info
 
             log_filename = temp_directory / "{:06}.log".format(task_index)
 
             # ----------------------------------------------------------------------
-            def ExecuteTasksStep2(
+            def Init2(
                 on_simple_status_func: Callable[[str], None],
-            ) -> Tuple[Optional[int], ExecuteTasksStep3FuncType]:
-                num_steps, step3_func = step1_func(context, on_simple_status_func)
+            ) -> tuple[Optional[int], ExecuteTasksTypes.FuncType]:
+                init_result = init_func(context, on_simple_status_func)
+
+                num_steps: Optional[int] = None
+                transform_func: Optional[TransformTypes.FuncType] = None
+
+                if isinstance(init_result, tuple):
+                    num_steps, transform_func = init_result
+                else:
+                    transform_func = init_result
+
+                assert transform_func is not None
 
                 # ----------------------------------------------------------------------
-                def ExecuteTasksStep3(
+                def Execute(
                     status: Status,
-                ) -> Tuple[int, Optional[str]]:
+                ) -> tuple[int, Optional[str]]:
                     try:
-                        result, short_desc = step3_func(status)
+                        transform_result = transform_func(status)
+
+                        result: Any = None
+                        short_desc: Optional[str] = None
+
+                        if isinstance(transform_result, tuple):
+                            result, short_desc = transform_result
+                        else:
+                            result = transform_result
 
                         all_results[task_index] = result
                         return 0, short_desc
@@ -1033,11 +1190,11 @@ def _TransformStandard(
 
                 # ----------------------------------------------------------------------
 
-                return num_steps, ExecuteTasksStep3
+                return num_steps, Execute
 
             # ----------------------------------------------------------------------
 
-            return log_filename, ExecuteTasksStep2
+            return log_filename, Init2
 
         # ----------------------------------------------------------------------
 
@@ -1045,7 +1202,7 @@ def _TransformStandard(
             dm,
             desc,
             tasks,
-            ExecuteTasksStep1,  # type: ignore
+            Init1,  # type: ignore
             quiet=quiet,
             max_num_threads=num_threads,
             refresh_per_second=refresh_per_second,
@@ -1059,23 +1216,29 @@ def _TransformCompressed(
     temp_directory: Path,
     dm: DoneManager,
     desc: str,
-    tasks: List[TaskData],
-    step1_func: TransformStep1FuncType[TransformedType],
+    tasks: list[TaskData],
+    init_func: TransformTypes.InitFuncType[TransformTypes.TransformedType],
     *,
     quiet: bool,
     num_threads: int,
     refresh_per_second: Optional[float],
     return_exceptions: bool,
-) -> List[
+) -> list[
     Union[
         None,
-        TransformedType,
+        TransformTypes.TransformedType,
         Exception,                          # If 'return_exceptions' is True
     ],
 ]:
     assert num_threads != 1
 
-    all_results: List[Union[None, TransformedType, Exception]] = [None for _ in range(len(tasks))]
+    all_results: list[
+        Union[
+            None,
+            TransformTypes.TransformedType,
+            Exception,
+        ],
+    ] = [None for _ in range(len(tasks))]
 
     with _GenerateStatusInfo(
         len(tasks),
@@ -1112,24 +1275,42 @@ def _TransformCompressed(
                     task_data = tasks[this_task_index]
 
                     # ----------------------------------------------------------------------
-                    def ExecuteTasksStep1(*args, **kwargs) -> Tuple[Path, ExecuteTasksStep2FuncType]:  # pylint: disable=unused-argument
-                        return log_filename, ExecuteTasksStep2
+                    def Init1(*args, **kwargs) -> tuple[Path, ExecuteTasksTypes.Init2FuncType]:  # pylint: disable=unused-argument
+                        return log_filename, Init2
 
                     # ----------------------------------------------------------------------
-                    def ExecuteTasksStep2(
+                    def Init2(
                         on_simple_status_func: Callable[[str], None],
-                    ) -> Tuple[Optional[int], ExecuteTasksStep3FuncType]:
-                        num_steps, step2_func = step1_func(
+                    ) -> tuple[Optional[int], ExecuteTasksTypes.FuncType]:
+                        init_result = init_func(
                             task_data.context,
                             on_simple_status_func,
                         )
 
+                        num_steps: Optional[int] = None
+                        transform_func: Optional[TransformTypes.FuncType] = None
+
+                        if isinstance(init_result, tuple):
+                            num_steps, transform_func = init_result
+                        else:
+                            transform_func = init_result
+
+                        assert transform_func is not None
+
                         # ----------------------------------------------------------------------
-                        def ExecuteTasksStep3(
+                        def Execute(
                             status: Status,
-                        ) -> Tuple[int, Optional[str]]:
+                        ) -> tuple[int, Optional[str]]:
                             try:
-                                result, short_desc = step2_func(status)
+                                transform_result = transform_func(status)
+
+                                result: Any = None
+                                short_desc: Optional[str] = None
+
+                                if isinstance(transform_result, tuple):
+                                    result, short_desc = transform_result
+                                else:
+                                    result = transform_result
 
                                 all_results[this_task_index] = result
                                 return 0, short_desc
@@ -1142,14 +1323,14 @@ def _TransformCompressed(
 
                         # ----------------------------------------------------------------------
 
-                        return num_steps, ExecuteTasksStep3
+                        return num_steps, Execute
 
                     # ----------------------------------------------------------------------
 
                     _ExecuteTask(
                         desc,
                         task_data,
-                        ExecuteTasksStep1,
+                        Init1,
                         status_factory,
                         on_task_complete_func,
                         is_debug=dm.is_debug,

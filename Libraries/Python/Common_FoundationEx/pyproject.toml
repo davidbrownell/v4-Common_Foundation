@@ -4,6 +4,9 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "Common_FoundationEx"
+dependencies = [
+    "Common_Foundation",
+]
 description = "Functionality used in the implementation of the Common_Foundation repository (has external dependencies outside of python)."
 dynamic = ["version"]
 
