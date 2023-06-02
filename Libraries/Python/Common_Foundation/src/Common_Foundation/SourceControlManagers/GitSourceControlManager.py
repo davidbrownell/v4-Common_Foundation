@@ -433,9 +433,11 @@ class Repository(DistributedRepositoryBase):
             match = regex.match(line)
             if match:
                 branch = match.group("name")
+                if branch == "HEAD":
+                    continue
 
                 if branch not in encountered:
-                    yield match.group("name")
+                    yield branch
                     encountered.add(branch)
 
     # ----------------------------------------------------------------------
