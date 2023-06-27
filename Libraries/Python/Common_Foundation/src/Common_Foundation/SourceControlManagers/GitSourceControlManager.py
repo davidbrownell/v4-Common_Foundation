@@ -397,6 +397,12 @@ class Repository(DistributedRepositoryBase):
     # ----------------------------------------------------------------------
     def Who(self) -> str:
         result = GitSourceControlManager.Execute(self.GetWhoCommandLine(), strip=True)
+
+        # Treat an empty result as unknown
+        if not result.output and result.returncode != 0:
+            result.output = "Unknown"
+            result.returncode = 0
+
         assert result.returncode == 0, result.output
 
         output = result.output.split("\n")
