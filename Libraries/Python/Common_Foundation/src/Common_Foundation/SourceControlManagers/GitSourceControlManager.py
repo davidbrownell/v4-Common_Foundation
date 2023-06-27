@@ -400,8 +400,7 @@ class Repository(DistributedRepositoryBase):
 
         # Treat an empty result as unknown
         if not result.output and result.returncode != 0:
-            result.output = "Unknown"
-            result.returncode = 0
+            return "Unknown"
 
         assert result.returncode == 0, result.output
 
