@@ -173,12 +173,16 @@ def EntryPoint(
 
         # Install the libraries
         with dm.Nested("Installing libraries...") as install_dm:
-            for library_index, library in enumerate(libraries_to_install):
+            # Ensure that the libraries are installed in a consistent order
+            sorted_libraries_to_install = list(libraries_to_install)
+            sorted_libraries_to_install.sort()
+
+            for library_index, library in enumerate(sorted_libraries_to_install):
                 with install_dm.Nested(
                     "'{}' ({} of {})...".format(
                         library,
                         library_index + 1,
-                        len(libraries_to_install),
+                        len(sorted_libraries_to_install),
                     ),
                     suffix="\n" if install_dm.is_verbose else "",
                 ) as this_install_dm:
