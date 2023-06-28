@@ -39,11 +39,7 @@ DISPLAYED_EXCEPTION_ATTRIBUTE_NAME          = "_displayed_exception___"
 # ----------------------------------------------------------------------
 # Optional functionality to use if Typer is installed
 try:
-    # Note that the following code must be defined BEFORE typer is imported.
-
-    # Intercept exceptions so that they are only displayed if they haven't been
-    # displayed before.
-    _original_exception_hook = sys.excepthook
+    _original_exception_hook = None
 
     # ----------------------------------------------------------------------
     def _ExceptionHook(
@@ -54,16 +50,26 @@ try:
         if getattr(exc_value, DISPLAYED_EXCEPTION_ATTRIBUTE_NAME, False):
             return
 
+        assert _original_exception_hook is not None
         _original_exception_hook(exc_type, exc_value, tb)
 
     # ----------------------------------------------------------------------
-    sys.excepthook = _ExceptionHook
 
+    # This environment name is defined by typer. Setting it signals that typer should
+    # not inject its own exception hook.
     os.environ["_TYPER_STANDARD_TRACEBACK"] = "1"
 
+    # Monkey-patch typer's _original_except_hook if typer has already been installed
+    if "typer" in sys.modules:
+        typer = sys.modules["typer"]
 
-    # ----------------------------------------------------------------------
-    import typer
+        _original_exception_hook = typer.main._original_except_hook
+        typer.main._original_except_hook = _ExceptionHook
+    else:
+        _original_exception_hook = sys.excepthook
+        sys.excepthook = _ExceptionHook
+
+        import typer
 
     from click.exceptions import ClickException
 
