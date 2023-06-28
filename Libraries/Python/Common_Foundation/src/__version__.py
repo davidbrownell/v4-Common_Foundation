@@ -15,4 +15,4 @@
 # ----------------------------------------------------------------------
 # pylint: disable=invalid-name,missing-module-docstring
 #
-VERSION = "0.5.4"
+VERSION = "0.5.5"

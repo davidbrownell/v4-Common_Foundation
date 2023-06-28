@@ -76,13 +76,20 @@ else:
 # ----------------------------------------------------------------------
 include_files: list[tuple[str, str]] = []
 
-for child in Path("src/Configuration/GeneratedCode").iterdir():
-    include_files.append(
-        (
-            str(child),
-            str(Path(*child.parts[1:])),
-        ),
-    )
+for subdir in [
+    "src",
+    "src/Configuration/GeneratedCode",
+]:
+    for child in Path(subdir).iterdir():
+        if not child.is_file():
+            continue
+
+        include_files.append(
+            (
+                str(child),
+                str(Path(*child.parts[1:])),
+            ),
+        )
 
 
 # ----------------------------------------------------------------------
