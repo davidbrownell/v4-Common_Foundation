@@ -15,7 +15,7 @@
 # ----------------------------------------------------------------------
 """Builds AutoSemVer"""
 
-import os
+import re
 import textwrap
 import uuid
 
@@ -169,20 +169,6 @@ def CreateBinary(
     with DoneManager.CreateCommandLine(
         output_flags=DoneManagerFlags.Create(verbose=verbose, debug=debug),
     ) as dm:
-        if not os.getenv("DEVELOPMENT_ENVIRONMENT_DOCKER_DEVELOPMENT_MIXIN_ACTIVE"):
-            dm.WriteError(
-                textwrap.dedent(
-                    """\
-                    This build relies on the repository 'Common_DockerDevelopmentMixin', which does
-                    not appear to be activated.
-
-                    This repository is available at: https://github.com/davidbrownell/v4-Common_DockerDevelopmentMixin
-                    """,
-                ),
-            )
-
-            return dm.result
-
         source_root = PathEx.EnsureDir(Path(__file__).parent.parent)
 
         working_dir = CurrentShell.CreateTempDirectory()
@@ -197,7 +183,7 @@ def CreateBinary(
                 lambda: version,
             ):
                 result = SubprocessEx.Run(
-                    "AutoSemVer{} --quiet".format(CurrentShell.script_extensions[0]),
+                    "AutoSemVer{} --no-metadata --quiet".format(CurrentShell.script_extensions[0]),
                     cwd=source_root,
                 )
 
@@ -256,7 +242,7 @@ def CreateBinary(
                     )
 
                     if build_dm.result != 0:
-                        if build_dm.is_verbose:
+                        if not build_dm.is_verbose:
                             build_dm.WriteError(sink.getvalue())
 
                         return build_dm.result
@@ -291,6 +277,109 @@ def CreateBinary(
                             remove_dm.WriteError(sink.getvalue())
 
                         return remove_dm.result
+
+            return 0
+
+
+# ----------------------------------------------------------------------
+def CreateDockerImage(
+    docker_image_name: str=TyperEx.typer.Argument(..., help="Name of the docker image to create."),
+    binary_filename: Path=TyperEx.typer.Argument(..., file_okay=True, dir_okay=False, exists=True, help="Path to the binary file produced by calls to 'CreateBinary'."),
+    docker_base_image: Optional[str]=TyperEx.typer.Option(None, "--base-image", help="Name of the docker image used as a base for the created image; the value will be extracted from the binary name if not provided on the command line."),
+    force: bool=TyperEx.typer.Option(False, "--force", help="Force the (re)generation of layers within the image."),
+    no_squash: bool=TyperEx.typer.Option(False, "--no-squash", help="Do not squash layers within the image."),
+    verbose: bool=TyperEx.typer.Option(False, "--verbose", help="Write verbose information to the terminal."),
+    debug: bool=TyperEx.typer.Option(False, "--verbose", help="Write debug information to the terminal."),
+) -> int:
+    """Create a docker image capable of executing a binary produced by `CreateBinary`."""
+
+    with DoneManager.CreateCommandLine(
+        output_flags=DoneManagerFlags.Create(verbose=verbose, debug=debug),
+    ) as dm:
+        match = re.match(r"^AutoSemVer-(?P<version>[^-]+)-(?P<image_name>[^\.]+)\.tgz$", binary_filename.name)
+        if not match:
+            dm.WriteError("The filename '{}' is not in the expected format.".format(binary_filename.name))
+            return dm.result
+
+        if docker_base_image is None:
+            docker_base_image = "{}:latest".format(match.group("image_name"))
+
+        binary_version = match.group("version").lstrip("v")
+
+        working_dir = CurrentShell.CreateTempDirectory()
+        with ExitStack(lambda: PathEx.RemoveTree(working_dir)):
+            docker_filename = working_dir / "Dockerfile"
+
+            with dm.Nested("Creating dockerfile..."):
+                with docker_filename.open("w") as f:
+                    f.write(
+                        textwrap.dedent(
+                            """\
+                            FROM {base_image}
+
+                            # Note that these instructions assume a debian-based distribution.
+
+                            RUN apt update \\
+                                && apt install -y git mercurial \\
+                                && rm -rf /var/lib/apt/lists/*
+
+                            RUN mkdir AutoSemVer
+                            WORKDIR AutoSemVer
+
+                            COPY . .
+                            RUN bash -c "tar -xvf {name} && rm {name}"
+
+                            ENTRYPOINT ["./AutoSemVer"]
+                            """,
+                        ).format(
+                            base_image=docker_base_image,
+                            name=binary_filename.name,
+                        ),
+                    )
+
+            with dm.Nested("Building image...") as build_dm:
+                command_line = 'docker build --tag {image_name} -f {dockerfile}{squash}{no_cache} .'.format(
+                    image_name=docker_image_name,
+                    dockerfile=docker_filename,
+                    squash="" if no_squash else " --squash",
+                    no_cache="" if not force else " --no-cache",
+                )
+
+                build_dm.WriteVerbose("Command line: {}\n\n".format(command_line))
+
+                with _GenerateStreamAndSink(build_dm) as (stream, sink):
+                    build_dm.result = SubprocessEx.Stream(
+                        command_line,
+                        stream,
+                        cwd=binary_filename.parent,
+                    )
+
+                    if build_dm.result != 0:
+                        if not build_dm.is_verbose:
+                            build_dm.WriteError(sink.getvalue())
+
+                        return build_dm.result
+
+            with dm.Nested("Tagging image...") as tag_dm:
+                command_line = 'docker tag {image_name}:latest {image_name}:{binary_version}'.format(
+                    image_name=docker_image_name,
+                    binary_version=binary_version,
+                )
+
+                tag_dm.WriteVerbose("Command line: {}\n\n".format(command_line))
+
+                with _GenerateStreamAndSink(tag_dm) as (stream, sink):
+                    tag_dm.result = SubprocessEx.Stream(
+                        command_line,
+                        stream,
+                        cwd=binary_filename.parent,
+                    )
+
+                    if tag_dm.result != 0:
+                        if not tag_dm.is_verbose:
+                            tag_dm.WriteError(sink.getvalue())
+
+                        return tag_dm.result
 
             return 0
 
