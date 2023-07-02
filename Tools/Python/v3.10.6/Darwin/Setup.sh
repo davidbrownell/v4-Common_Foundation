@@ -44,16 +44,17 @@ fi
 setup_python_binary=/Library/Frameworks/Python.framework/Versions/3.10/bin/python3
 
 /Library/Frameworks/Python.framework/Versions/3.10/bin/pip3 install --disable-pip-version-check \
-    setuptools==63.2.0 \
-    virtualenv==20.16.3 \
-    wheel==0.37.1 \
-    colorama==0.4.5 \
-    distro==1.7.0 \
-    inflect==6.0.0 \
-    requests==2.28.1 \
-    rich==12.6.0 \
-    semantic_version==2.10.0 \
-    typer==0.6.1 \
-    wrapt==1.14.1
+    setuptools~=63.2 \
+    virtualenv~=20.16 \
+    wheel~=0.37 \
+    colorama~=0.4 \
+    distro~=1.7 \
+    inflect~=6.0 \
+    pydantic~=1.10 \
+    requests~=2.28 \
+    rich~=12.6 \
+    semantic_version~=2.10 \
+    typer~=0.6 \
+    wrapt~=1.14
 
 popd > /dev/null                            # -dir

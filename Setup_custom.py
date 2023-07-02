@@ -52,6 +52,12 @@ def GetConfigurations() -> Union[Configuration.Configuration, Dict[str, Configur
         Configuration.VersionInfo("jinja2", SemVer("3.1.2")),
         Configuration.VersionInfo("jsonschema", SemVer.coerce("4.17.3")),
         Configuration.VersionInfo("rtyaml", SemVer("1.0.0")),
+
+        # Libraries required to work around build breaks
+
+        # inflect requires pydantic, but does so with ">=". Pydantic 2.0 introduces breaking changes,
+        # which cause inflect to fail. Pin pydantic to a pre 2.0 version.
+        Configuration.VersionInfo("pydantic", SemVer("1.10.10")),
     ]
 
     if CurrentShell.family_name == "Windows":
