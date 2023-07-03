@@ -4,7 +4,7 @@
 # |  Enlists and setups a repository and its dependencies.
 # |
 # |  Run as:
-# |      Bootstrap.cmd <common code dir> [--name <unique_environment_name>] [Optional Setup.cmd args]*
+# |      Bootstrap.sh <common code dir> [--name <unique_environment_name>] [Optional Setup.cmd args]*
 # |
 # |      Where:
 # |          <common code dir>                : Name of the directory in which common dependencies are enlisted.
@@ -39,7 +39,7 @@ fi
 
 if [[ ${should_continue} == 1 && ${DEVELOPMENT_ENVIRONMENT_REPOSITORY_ACTIVATED_KEY} ]]; then
     echo ""
-    echo "[31m[1mERROR:[0m ERROR: Please run this script for a standard (non-activated) command prompt."
+    echo "[31m[1mERROR:[0m ERROR: Please run this script from a standard (non-activated) command prompt."
     echo "[31m[1mERROR:[0m"
     echo ""
 
