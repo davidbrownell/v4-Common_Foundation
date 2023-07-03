@@ -59,4 +59,4 @@ jobs:
     if: ${{ github.repository != 'davidbrownell/v4-Common_Foundation' }}
     runs-on: ubuntu-latest
     steps:
-      - run: echo "This job will only run on 'davidbrownell/v4-Common_Foundation' }}
+      - run: echo "This job will only run on 'davidbrownell/v4-Common_Foundation'." }}

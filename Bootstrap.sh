@@ -25,18 +25,6 @@ set +v                                      # Disable output
 
 should_continue=1
 
-if [[ ${should_continue} == 1 && "$1" == "" ]]; then
-    echo ""
-    echo "[31m[1mERROR:[0m This script bootstraps enlistment and setup activities for a repository and its dependencies."
-    echo "[31m[1mERROR:[0m"
-    echo "[31m[1mERROR:[0m Usage:"
-    echo "[31m[1mERROR:[0m     $0 <common code dir> [--name <custom Setup.cmd environment name>] [Optional Setup.cmd args]*"
-    echo "[31m[1mERROR:[0m"
-    echo ""
-
-    should_continue=0
-fi
-
 if [[ ${should_continue} == 1 && ${DEVELOPMENT_ENVIRONMENT_REPOSITORY_ACTIVATED_KEY} ]]; then
     echo ""
     echo "[31m[1mERROR:[0m ERROR: Please run this script from a standard (non-activated) command prompt."
@@ -87,66 +75,5 @@ if [[ ${should_continue} == 1 ]]; then
 fi
 
 if [[ ${should_continue} == 1 ]]; then
-    # Enlist and setup Common_Foundation
-    if [[ ! -e "$1/Common/Foundation" ]]; then
-        echo "Enlisting in Common_Foundation..."
-        echo ""
-
-        git clone https://github.com/davidbrownell/v4-Common_Foundation.git "$1/Common/Foundation.tmp"
-
-        pushd "$1/Common/Foundation.tmp" > /dev/null
-        git checkout tags/main_stable
-        popd > /dev/null
-
-        mv "$1/Common/Foundation.tmp" "$1/Common/Foundation"
-
-        echo ""
-        echo "DONE!"
-        echo ""
-
-    else
-        echo "Updating Common_Foundation..."
-        echo ""
-
-        pushd "$1/Common/Foundation" > /dev/null
-        git fetch origin main_stable
-        popd > /dev/null
-
-        echo ""
-        echo "DONE!"
-        echo ""
-    fi
-
-    "$1/Common/Foundation/Setup.sh" ${name_arg} ${no_hooks_arg} ${force_arg} ${verbose_arg} ${debug_arg}
-
-    # Write the environment activation and python execution statements to a temporary file
-    # so that this environment remains unactivated. By doing this, the current script can be
-    # invoked repeatedly from the same environment.
-    if [[ ! -z ${name} ]]; then
-        activate_cmd="Activate.${name}.sh"
-    else
-        activate_cmd="Activate.sh"
-    fi
-
-    this_dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-
-    cat >../bootstrap_tmp.sh << EOF
-#!/bin/bash
-set -e
-
-source "$1/Common/Foundation/${activate_cmd}" python310 ${force_arg} ${verbose_arg} ${debug_arg}
-Enlist.sh EnlistAndSetup "${this_dir}" "$1" ${no_hooks_arg} ${force_arg} ${verbose_arg} ${debug_arg} ${ARGS[@]}
-EOF
-
-    chmod +x ../bootstrap_tmp.sh
-    ../bootstrap_tmp.sh
-    error_code=${error_code}
-
-    rm ../bootstrap_tmp.sh
-
-    if [[ ${error_code} -ne 0 ]]; then
-        should_continue=0
-    fi
-
-    chown -R ${SUDO_UID}:${SUDO_GID} "$1"
+    "./Setup.sh" ${name_arg} ${no_hooks_arg} ${force_arg} ${verbose_arg} ${debug_arg}
 fi

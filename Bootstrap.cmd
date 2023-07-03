@@ -21,21 +21,6 @@
 @REM |
 @REM ----------------------------------------------------------------------
 
-if "%~1"=="" (
-    @echo.
-    @echo [31m[1mERROR:[0m This script bootstraps enlistment and setup activities for a repository and its dependencies.
-    @echo [31m[1mERROR:[0m
-    @echo [31m[1mERROR:[0m Usage:
-    @echo [31m[1mERROR:[0m     %0 ^<common code dir^> [--name ^<custom Setup.cmd environment name^>] [Optional Setup.cmd args]*
-    @echo [31m[1mERROR:[0m
-    @echo.
-
-    exit /B -1
-)
-
-set _COMMON_CODE_DIR=%~1
-shift /1
-
 if "%DEVELOPMENT_ENVIRONMENT_REPOSITORY_ACTIVATED_KEY%" NEQ "" (
     @echo.
     @echo [31m[1mERROR:[0m ERROR: Please run this script from a standard ^(non-activated^) command prompt.
@@ -104,107 +89,12 @@ if "%_BOOTSTRAP_NAME%" NEQ "" (
     set _BOOTSTRAP_NAME_ARG=--name "%_BOOTSTRAP_NAME%"
 )
 
-REM This works around a strange problem when attempting to invoke a command file using
-REM a relative path.
-if not exist "%_COMMON_CODE_DIR%" (
-    mkdir "%_COMMON_CODE_DIR%"
-)
-
-pushd "%_COMMON_CODE_DIR%"
-set _COMMON_CODE_ABSOLUTE_DIR=%CD%
-popd
-
 @REM ----------------------------------------------------------------------
-REM Enlist in Common_Foundation
-if not exist "%_COMMON_CODE_ABSOLUTE_DIR%\Common\Foundation" (
-    echo Enlisting in Common_Fundation...
-    echo.
-
-    git clone https://github.com/davidbrownell/v4-Common_Foundation.git "%_COMMON_CODE_ABSOLUTE_DIR%\Common\Foundation.tmp"
-    if %ERRORLEVEL% NEQ 0 (
-        set _ERRORLEVEL=%ERRORLEVEL%
-        goto Exit
-    )
-
-    pushd "%_COMMON_CODE_ABSOLUTE_DIR%\Common\Foundation.tmp"
-
-    git checkout tags/main_stable
-    if %ERRORLEVEL% NEQ 0 (
-        popd
-        set _ERRORLEVEL=%ERRORLEVEL%
-        goto Exit
-    )
-
-    popd
-
-    move "%_COMMON_CODE_ABSOLUTE_DIR%\Common\Foundation.tmp" "%_COMMON_CODE_ABSOLUTE_DIR%\Common\Foundation"
-    if %ERRORLEVEL% NEQ 0 (
-        set _ERRORLEVEL=%ERRORLEVEL%
-        goto Exit
-    )
-
-    echo.
-    echo DONE!
-    echo.
-
-    goto EnlistInCommonFoundation_End
-)
-
-REM Update Common_Foundation
-echo Updating Common_Foundation...
-echo.
-
-pushd "%_COMMON_CODE_ABSOLUTE_DIR%\Common\Foundation"
-
-git fetch origin main_stable
-if %ERRORLEVEL% NEQ 0 (
-    popd
-    set _ERRORLEVEL=%ERRORLEVEL%
-    goto Exit
-)
-
-popd
-
-echo.
-echo DONE!
-echo.
-
-:EnlistInCommonFoundation_End
-
-@REM ----------------------------------------------------------------------
-call "%_COMMON_CODE_ABSOLUTE_DIR%\Common\Foundation\Setup.cmd" %_BOOTSTRAP_NAME_ARG% %_NO_HOOKS_ARG% %_FORCE_ARG% %_VERBOSE_ARG% %_DEBUG_ARG%
+call %~dp0\Setup.cmd %_BOOTSTRAP_NAME_ARG% %_NO_HOOKS_ARG% %_FORCE_ARG% %_VERBOSE_ARG% %_DEBUG_ARG%
 if %ERRORLEVEL% NEQ 0 (
     set _ERRORLEVEL=%ERRORLEVEL%
     goto Exit
 )
-
-REM Write the environment activation and python execution statements to a temporary file
-REM so that this environment remains unactivated. By doing this, the current script can be
-REM invoked repeatedly from the same environment.
-set _BOOTSTRAP_ACTIVATE_CMD=Activate.cmd
-
-if "%_BOOTSTRAP_NAME%" NEQ "" (
-    set _BOOTSTRAP_ACTIVATE_CMD=Activate.%_BOOTSTRAP_NAME%.cmd
-)
-
-REM Get the current dir and remove the trailing slash
-set _BOOTSTRAP_THIS_DIR=%~dp0
-set _BOOTSTRAP_THIS_DIR=%_BOOTSTRAP_THIS_DIR:~0,-1%
-
-(
-    echo @echo off
-    echo.
-    echo call "%_COMMON_CODE_ABSOLUTE_DIR%\Common\Foundation\%_BOOTSTRAP_ACTIVATE_CMD%" python310 %_FORCE_ARG% %_VERBOSE_ARG% %_DEBUG_ARG%
-    echo if %%ERRORLEVEL%% NEQ 0 exit /B %%ERRORLEVEL%%
-    echo.
-    echo call Enlist.cmd EnlistAndSetup "%_BOOTSTRAP_THIS_DIR%" "%_COMMON_CODE_ABSOLUTE_DIR%" %_NO_HOOKS_ARG% %_FORCE_ARG% %_VERBOSE_ARG% %_DEBUG_ARG% %_BOOTSTRAP_CLA%
-    echo if %%ERRORLEVEL%% NEQ 0 exit /B %%ERRORLEVEL%%
-    echo.
-) >..\Bootstrap.tmp.cmd
-
-cmd /C ..\Bootstrap.tmp.cmd
-set _ERRORLEVEL=%ERRORLEVEL%
-del ..\Bootstrap.tmp.cmd
 
 @REM ----------------------------------------------------------------------
 :Exit
@@ -216,9 +106,5 @@ set _NO_HOOKS_ARG=
 set _BOOTSTRAP_CLA=
 set _BOOTSTRAP_NAME=
 set _BOOTSTRAP_NAME_ARG=
-set _BOOTSTRAP_THIS_DIR=
-set _BOOTSTRAP_ACTIVATE_CMD=
-set _COMMON_CODE_ABSOLUTE_DIR=
-set _COMMON_CODE_DIR=
 
 exit /B %_ERRORLEVEL%
