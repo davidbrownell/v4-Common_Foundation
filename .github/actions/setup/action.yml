@@ -57,48 +57,40 @@ runs:
       with:
         result-encoding: string
         script: |
-          var setup_statement = "pushd \"" + String.raw`${{ inputs.repo_dir }}` + "\" && ";
+          var bootstrap_statement = "pushd \"" + String.raw`${{ inputs.repo_dir }}` + "\" && ";
+          var forced_foundation_branch = false;
 
-          if("${{ inputs.repo_name }}" === "davidbrownell/v4-Common_Foundation") {
+          if("${{ inputs.repo_name }}".endsWith("Common_Foundation") && "${{ inputs.branch_overrides }}" !== "") {
+            forced_foundation_branch = true;
 
-            // Handle the case where the repo under test is v4-Common_Foundation and the request is for
-            // a branch/tag. In all other cases, this scenario is handled by Bootstrap/Enlist.
-            if("${{ inputs.branch_overrides }}" !== "") {
-              // In this scenario, the repo will be associated with the 'main_stable' branch. Switch
-              // to the desired branch since this repo is the repo under test.
-              var elements;
+            // Checkout the specified branch
+            var elements;
 
-              elements = "${{ inputs.branch_overrides }}".split(";");
-              console.assert(elements.length === 1, "%o", {elements});
+            elements = "${{ inputs.branch_overrides }}".split(";");
+            console.assert(elements.length === 1, "%o", {elements});
 
-              elements = elements[0].split(":");
-              console.assert(elements.length === 2, "%o", {elements});
-              console.assert(elements[0] === "Common_Foundation", "%o", {elements});
+            elements = elements[0].split(":");
+            console.assert(elements.length === 2, "%o", {elements});
+            console.assert(elements[0] === "Common_Foundation", "%o", {elements});
 
-              setup_statement += `git checkout "${elements[1]}" && `;
-            }
-
-            setup_statement += "${{ inputs.sudo_command }}${{ inputs.local_script_prefix }}Setup${{ inputs.script_extension }}";
-          } else {
-            var path = require("path");
-
-            setup_statement += "${{ inputs.sudo_command }}${{ inputs.local_script_prefix }}Bootstrap${{ inputs.script_extension }} \"" + String.raw`${{ inputs.repo_dependencies_dir }}` + "\"";
-
-            if("${{ inputs.branch_overrides }}" !== "") {
-              setup_statement += " --branch-overrides \"${{ inputs.branch_overrides }}\"";
-            }
+            bootstrap_statement += `git checkout "${elements[1]}" && `;
           }
 
-          setup_statement += " --no-interactive --no-hooks --debug";
+          bootstrap_statement += "${{ inputs.sudo_command }}${{ inputs.local_script_prefix }}Bootstrap${{ inputs.script_extension }} \"" + String.raw`${{ inputs.repo_dependencies_dir }}` + "\"";
+
+          if("${{ inputs.branch_overrides }}" !== "" && !forced_foundation_branch)
+              bootstrap_statement += " --branch-overrides \"${{ inputs.branch_overrides }}\"";
+
+          bootstrap_statement += " --no-interactive --no-hooks --debug";
 
           if("${{ inputs.force }}".toLowerCase() === "true")
-            setup_statement += " --force";
+            bootstrap_statement += " --force";
 
           if("${{ inputs.configuration }}" !== "None") {
-            setup_statement += " --configuration \"${{ inputs.configuration }}\"";
+            bootstrap_statement += " --configuration \"${{ inputs.configuration }}\"";
           }
 
-          return setup_statement;
+          return bootstrap_statement;
 
     - name: Results
       shell: ${{ inputs.shell_name }}
