@@ -37,12 +37,12 @@ on:
       repo_branch:                          {type: string, required: true}
 
 jobs:
-  # _1757731e-3dcd-4df9-8a3b-b008dd7301c6:
-  #   name: "Common_EmailMixin"
-  #   uses: davidbrownell/v4-Common_EmailMixin/.github/workflows/validate.yaml@CI-v1
-  #   with:
-  #     repo_branch: main_stable
-  #     bootstrap_branch_overrides: "Common_Foundation:${{ inputs.repo_branch }}"
+  _1757731e-3dcd-4df9-8a3b-b008dd7301c6:
+    name: "Common_EmailMixin"
+    uses: davidbrownell/v4-Common_EmailMixin/.github/workflows/validate.yaml@CI-v1
+    with:
+      repo_branch: main_stable
+      bootstrap_branch_overrides: "Common_Foundation:${{ inputs.repo_branch }}"
 
   _8a2a6711-9a4a-4b7e-9a9b-6d624bb23e81:
     name: "Common_Foundation"
@@ -51,37 +51,37 @@ jobs:
       repo_branch: ${{ inputs.repo_branch }}
       bootstrap_branch_overrides: "Common_Foundation:${{ inputs.repo_branch }}"
 
-  # _89c7e24c-2521-4034-82c6-be19689eb419:
-  #   name: "Common_MarkdownModifier"
-  #   uses: davidbrownell/v4-Common_MarkdownModifier/.github/workflows/validate.yaml@CI-v1
-  #   with:
-  #     repo_branch: ${{ inputs.repo_branch }}
-  #     bootstrap_branch_overrides: "Common_Foundation:${{ inputs.repo_branch }}"
-  #
-  # _81490203-4a3f-4fd4-8944-310e1f4e8cd1:
-  #   name: "Common_PythonDevelopment"
-  #   uses: davidbrownell/v4-Common_PythonDevelopment/.github/workflows/validate.yaml@CI-v1
-  #   with:
-  #     repo_branch: main_stable
-  #     bootstrap_branch_overrides: "Common_Foundation:${{ inputs.repo_branch }}"
-  #
-  # _a50537f9-ac13-4478-806f-b156ddf69089:
-  #   name: "Common_SimpleSchema"
-  #   uses: davidbrownell/v4-Common_SimpleSchema/.github/workflows/validate.yaml@CI-v1
-  #   with:
-  #     repo_branch: main_stable
-  #     bootstrap_branch_overrides: "Common_Foundation:${{ inputs.repo_branch }}"
-  #
-  # _32e0298e-2734-41c6-ad77-c99c37c058f7:
-  #   name: "Common_VSCodeMixin"
-  #   uses: davidbrownell/v4-Common_VSCodeMixin/.github/workflows/validate.yaml@CI-v1
-  #   with:
-  #     repo_branch: main_stable
-  #     bootstrap_branch_overrides: "Common_Foundation:${{ inputs.repo_branch }}"
-  #
-  # _ad93907a-f916-4560-8624-c415efbb51b9:
-  #   name: "DavidBrownell_Backup"
-  #   uses: davidbrownell/v4-DavidBrownell_Backup/.github/workflows/validate.yaml@CI-v1
-  #   with:
-  #     repo_branch: main_stable
-  #     bootstrap_branch_overrides: "Common_Foundation:${{ inputs.repo_branch }}"
+  _89c7e24c-2521-4034-82c6-be19689eb419:
+    name: "Common_MarkdownModifier"
+    uses: davidbrownell/v4-Common_MarkdownModifier/.github/workflows/validate.yaml@CI-v1
+    with:
+      repo_branch: ${{ inputs.repo_branch }}
+      bootstrap_branch_overrides: "Common_Foundation:${{ inputs.repo_branch }}"
+
+  _81490203-4a3f-4fd4-8944-310e1f4e8cd1:
+    name: "Common_PythonDevelopment"
+    uses: davidbrownell/v4-Common_PythonDevelopment/.github/workflows/validate.yaml@CI-v1
+    with:
+      repo_branch: main_stable
+      bootstrap_branch_overrides: "Common_Foundation:${{ inputs.repo_branch }}"
+
+  _a50537f9-ac13-4478-806f-b156ddf69089:
+    name: "Common_SimpleSchema"
+    uses: davidbrownell/v4-Common_SimpleSchema/.github/workflows/validate.yaml@CI-v1
+    with:
+      repo_branch: main_stable
+      bootstrap_branch_overrides: "Common_Foundation:${{ inputs.repo_branch }}"
+
+  _32e0298e-2734-41c6-ad77-c99c37c058f7:
+    name: "Common_VSCodeMixin"
+    uses: davidbrownell/v4-Common_VSCodeMixin/.github/workflows/validate.yaml@CI-v1
+    with:
+      repo_branch: main_stable
+      bootstrap_branch_overrides: "Common_Foundation:${{ inputs.repo_branch }}"
+
+  _ad93907a-f916-4560-8624-c415efbb51b9:
+    name: "DavidBrownell_Backup"
+    uses: davidbrownell/v4-DavidBrownell_Backup/.github/workflows/validate.yaml@CI-v1
+    with:
+      repo_branch: main_stable
+      bootstrap_branch_overrides: "Common_Foundation:${{ inputs.repo_branch }}"
