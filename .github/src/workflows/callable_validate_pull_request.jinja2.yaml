@@ -21,7 +21,7 @@
 <<% block saa_steps %>>
 
       - name: PullRequestValidator
-        uses: davidbrownell/v4-Common_Foundation/.github/actions/pull_request_validator@CI-v1
+        uses: ./../actions/pull_request_validator
         with:
           shell_name: ${{ steps.initialize.outputs.shell_name }}
           script_extension: ${{ steps.initialize.outputs.script_extensions }}
