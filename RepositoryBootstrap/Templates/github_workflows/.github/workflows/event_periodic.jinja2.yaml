@@ -8,24 +8,15 @@ on:
 jobs:
   _<<< guid("validate") >>>:
     name: "Validate (${{ github.ref_name }})"
-    if: ${{ github.repository == '<<< git_username >>>/<<< git_repo >>>' }}
     uses: <<< git_username >>>/<<< git_repo >>>/.github/workflows/validate.yaml@CI-v1
     with:
       repo_branch: ${{ github.ref_name }}
 
   _<<< guid() >>>:
     name: "Validate with Dependencies (${{ github.ref_name }})"
-    if: ${{ github.repository == '<<< git_username >>>/<<< git_repo >>>' }}
     uses: <<< git_username >>>/<<< git_repo >>>/.github/workflows/validate_with_dependencies.yaml@CI-v1
     with:
       repo_branch: ${{ github.ref_name }}
 
     needs:
       - _<<< guid("validate") >>>
-
-  _<<< guid() >>>:
-    name: Status Message
-    if: ${{ github.repository != '<<< git_username >>>/<<< git_repo >>>' }}
-    runs-on: ubuntu-latest
-    steps:
-      - run: echo "This job will only run on '<<< git_username >>>/<<< git_repo >>>'."

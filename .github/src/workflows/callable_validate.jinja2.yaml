@@ -13,6 +13,6 @@
 # |  http://www.boost.org/LICENSE_1_0.txt.
 # |
 # ----------------------------------------------------------------------
-<<% extends "../_BuildAndTest.template.yaml" %>>
+<<% extends "../templates/BuildAndTest.template.yaml" %>>
 
 <<% block bat_name %>>"[impl] Common_Foundation-based Repository Validation"<<% endblock %>>
