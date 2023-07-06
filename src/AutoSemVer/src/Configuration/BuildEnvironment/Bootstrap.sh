@@ -15,7 +15,7 @@
 # |                                             creation of side-by-side environments that are otherwise identical.
 # |                                             It is very rare to setup an environment with a unique name.
 # |
-# |          [Optional Setup.cmd args]        : Any additional args passed to Setup.cmd for the respository
+# |          [Optional Setup.sh args]         : Any additional args passed to Setup.cmd for the respository
 # |                                             and its dependencies. See Setup.cmd for more information on
 # |                                             the possible arguments and their use.
 # |
