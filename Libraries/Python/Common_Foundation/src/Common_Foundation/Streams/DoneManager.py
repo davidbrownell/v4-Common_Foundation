@@ -302,17 +302,26 @@ class DoneManager(object):
         stream: Union[StreamDecorator, TextIO, TextWriter]=sys.stdout,
         *,
         output_flags: DoneManagerFlags=DoneManagerFlags.Standard,
+        display: bool=True,
         **kwargs,
     ) -> Iterator["DoneManager"]:
         """Creates a DoneManager suitable for use with a command-line application"""
+
+        if display:
+            prefix="\nResults: "
+            suffix = "\n"
+        else:
+            prefix = ""
+            suffix = ""
 
         with cls.Create(
             stream,
             "\n",
             line_prefix="",
-            prefix="\nResults: ",
-            suffix="\n",
+            prefix=prefix,
+            suffix=suffix,
             output_flags=output_flags,
+            display=display,
             **kwargs,
         ) as dm:
             is_exceptional = False
