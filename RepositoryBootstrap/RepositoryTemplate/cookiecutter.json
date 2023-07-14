@@ -1,0 +1,42 @@
+{
+    "name": "",
+    "repo_friendly_name": "",
+
+    "is_mixin": false,
+
+    "repository_type": ["git", "mercurial", "None"],
+    "license": ["MIT", "boost", "None"],
+
+    "readme_format": ["Markdown", "reStructuredText", "None"],
+    "development_readme_format": ["Markdown", "reStructuredText", "None"],
+
+    "support_windows": true,
+    "support_linux": true,
+
+    "include_bootstrap_scripts": true,
+    "include_scm_plugin_script": false,
+    "include_root_pyright_config": true,
+
+    "github_username_and_repo": "",
+
+    "__prompts__": {
+        "name": "Enter your name",
+        "repo_friendly_name": "Enter a short friendly name used when describing the repository (this value will be used in error messages generated during the setup process and as a prefix in generated CI workflows)",
+
+        "is_mixin": "This repository is a mixin repository (only specify true if you are absolutely certain that it is)",
+
+        "repository_type": "Specify the source control manager associated with the repository",
+        "license": "Specify the license for this repository",
+
+        "support_windows": "Support development on Windows",
+        "support_linux": "Support development on Linux and/or MacOS",
+
+        "include_bootstrap_scripts": "Include bootstrap scripts that can be used to enlist and setup this repository and its dependencies",
+        "include_scm_plugin_script": "Include scripts that can customize functionality invoked during source control manager events",
+        "include_root_pyright_config": "Include a pyright config file in the root of this repository",
+
+        "github_username_and_repo": "GitHub username and repository (e.g. 'davidbrownell/v4-Common_Foundation'); leave this value blank if your repository is not hosted on GitHub or you do not want to include GitHub workflows"
+    },
+
+    "_empty": ""
+}
