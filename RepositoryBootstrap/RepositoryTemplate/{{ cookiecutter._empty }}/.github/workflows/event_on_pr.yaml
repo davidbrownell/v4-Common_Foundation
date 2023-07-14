@@ -15,7 +15,7 @@
 #
 # ----------------------------------------------------------------------
 name: "on pull request"
-run-name: "${{ github.run_number }} [${{ github.actor }}] ${{ github.head_ref }} -> ${{ github.base_ref }}"
+run-name: {{ '"${{ github.run_number }} [${{ github.actor }}] ${{ github.head_ref }} -> ${{ github.base_ref }}"' }}
 
 on:
   pull_request:
@@ -23,20 +23,20 @@ on:
       - main
 
 jobs:
-  _<<< guid() >>>:
-    name: "Validate (target: ${{ github.base_ref }})"
-    uses: <<< git_username >>>/<<< git_repo >>>/.github/workflows/validate.yaml@CI-v1
+  _8ea281cc-b869-4078-bda0-f6cada2a57df:
+    name: {{ '"Validate (target: ${{ github.base_ref }})"' }}
+    uses: {{ cookiecutter.github_username_and_repo }}/.github/workflows/validate.yaml@CI-v1
     with:
-      repo_branch: ${{ github.head_ref }}
+      repo_branch: {{ '"${{ github.head_ref }}"' }}
 
-  _<<< guid() >>>:
-    name: "Validate Pull Request (target: ${{ github.base_ref }})"
+  _f69eb16e-940a-41fb-ae7a-32e2425bdfb8:
+    name: {{ '"Validate Pull Request (target: ${{ github.base_ref }})"' }}
     uses: davidbrownell/v4-Common_Foundation/.github/workflows/callable_validate_pull_request.yaml@CI-v1
     with:
-      job_name_prefix: "<<< friendly_repo_name >>>"
-      is_mixin_repository: <<< is_mixin_repository >>>
-      repo_name: <<< git_username >>>/<<< git_repo >>>
-      repo_branch: ${{ github.head_ref }}
+      job_name_prefix: "{{ cookiecutter.repo_friendly_name }}"
+      is_mixin_repository: {{ cookiecutter.is_mixin }}
+      repo_name: {{ cookiecutter.github_username_and_repo }}
+      repo_branch: {{ '"${{ github.head_ref }}"' }}
 
       # ----------------------------------------------------------------------
       #operating-system

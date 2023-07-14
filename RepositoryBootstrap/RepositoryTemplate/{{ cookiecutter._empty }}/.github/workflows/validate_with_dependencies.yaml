@@ -14,7 +14,7 @@
 #      See the notes in this file under "#dependents"
 #
 # ----------------------------------------------------------------------
-name: "[callable] Validates <<< friendly_repo_name >>> (and its dependencies)"
+name: "[callable] Validates {{ cookiecutter.repo_friendly_name }} (and its dependencies)"
 
 on:
   workflow_call:
@@ -22,12 +22,12 @@ on:
       repo_branch:                          {type: string, required: true}
 
 jobs:
-  _<<< guid() >>>:
-    name: "<<< friendly_repo_name >>>"
-    uses: <<< git_username >>>/<<< git_repo >>>/.github/workflows/validate.yaml@CI-v1
+  _8f219c22-365c-420a-b624-52732e10a76e:
+    name: "{{ cookiecutter.repo_friendly_name }}"
+    uses: {{ cookiecutter.github_username_and_repo }}/.github/workflows/validate.yaml@CI-v1
     with:
-      repo_branch: ${{ inputs.repo_branch }}
-      bootstrap_branch_overrides: "<<< friendly_repo_name >>>:${{ inputs.repo_branch }}"
+      repo_branch: {{ '"${{ inputs.repo_branch }}"' }}
+      bootstrap_branch_overrides: "{{ cookiecutter.repo_friendly_name }}{{ ':${{ inputs.repo_branch }}' }}"
 
   # ----------------------------------------------------------------------
   #dependents

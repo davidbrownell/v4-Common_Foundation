@@ -251,11 +251,11 @@ To create a new repository:
 
 1. Clone an empty repository to your local machine.
 2. Within an [activated](#activated) environment, navigate to the directory created in the previous step.
-3. Run `InitializeRepository.py`:
+3. Run `cookiecutter`:
 
-    - **Linux:** `python ${DEVELOPMENT_ENVIRONMENT_FOUNDATION}/RepositoryBootstrap/InitializeRepository.py`
-    - **Windows:** `python %DEVELOPMENT_ENVIRONMENT_FOUNDATION%\RepositoryBootstrap\InitializeRepository.py`
+    - **Linux:** `cookiecutter ${DEVELOPMENT_ENVIRONMENT_FOUNDATION}/RepositoryBootstrap/RepositoryTemplate -o .`
+    - **Windows:** `cookiecutter %DEVELOPMENT_ENVIRONMENT_FOUNDATION%\RepositoryBootstrap\RepositoryTemplate -o .`
 
 4. Follow the interactive prompts to determine the initial files within the repository.
-5. Follow the instructions displayed by the `InitializeRepository.py` script.
+5. Follow the instructions displayed by the `cookiecutter` script.
 6. Add [scripts](#scripts), [tools](#tools), and [libraries](#libraries) to your repository.

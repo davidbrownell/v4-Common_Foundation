@@ -1,0 +1,12 @@
+name: "Validate (including dependencies)"
+run-name: {{ '"${{ github.run_number }} [${{ github.actor }}] on ${{ github.ref_name }}"' }}
+
+on:
+  workflow_dispatch:
+
+jobs:
+  _2dfa3c47-3baa-4c04-a253-bcd25d2294f8:
+    name: {{ '"Validate (${{ github.ref_name }})"' }}
+    uses: {{ cookiecutter.github_username_and_repo }}/.github/workflows/validate_with_dependencies.yaml@CI-v1
+    with:
+      repo_branch: {{ '"${{ github.ref_name }}"' }}

@@ -19,7 +19,7 @@
 #   4) If you need to customize the test types, see the notes in this file under "#test-types"
 #
 # ----------------------------------------------------------------------
-name: "[callable] Validates <<< friendly_repo_name >>>"
+name: "[callable] Validates {{ cookiecutter.repo_friendly_name }}"
 
 on:
   workflow_call:
@@ -32,7 +32,7 @@ on:
       bootstrap_branch_overrides:           {type: string, required: false}
 
 jobs:
-  _<<< guid() >>>:
+  _46f3c68f-5db7-469b-9b86-05592fcea3d5:
     name: "Build and Test"
 
     strategy:
@@ -120,21 +120,21 @@ jobs:
     # ----------------------------------------------------------------------
     uses: davidbrownell/v4-Common_Foundation/.github/workflows/callable_validate.yaml@CI-v1
     with:
-      job_name_prefix: "<<< friendly_repo_name >>>"
-      is_mixin_repository: <<< is_mixin_repository >>>
-      repo_name: <<< git_username >>>/<<< git_repo >>>
-      repo_branch: ${{ inputs.repo_branch }}
-      bootstrap_branch_overrides: ${{ inputs.bootstrap_branch_overrides }}
+      job_name_prefix: "{{ cookiecutter.repo_friendly_name }}"
+      is_mixin_repository: {{ cookiecutter.is_mixin }}
+      repo_name: "{{ cookiecutter.github_username_and_repo }}"
+      repo_branch: {{ '"${{ inputs.repo_branch }}"' }}
+      bootstrap_branch_overrides: {{ '"${{ inputs.bootstrap_branch_overrides }}"' }}
 
-      os: ${{ matrix.os }}
-      configuration: ${{ matrix.configuration }}
+      os: {{ '${{ matrix.os }}' }}
+      configuration: {{ '${{ matrix.configuration }}' }}
 
       run_Builder: true
       run_MatchTests: true
 
-      force_setup: ${{ inputs.force_setup }}
-      force_activate: ${{ inputs.force_activate }}
-      no_cache: ${{ inputs.no_cache }}
+      force_setup: {{ '${{ inputs.force_setup }}' }}
+      force_activate: {{ '${{ inputs.force_activate }}' }}
+      no_cache: {{ '${{ inputs.no_cache }}' }}
 
       # ----------------------------------------------------------------------
       #test-types

@@ -1,5 +1,5 @@
 name: "Validate"
-run-name: ${{ github.run_number }} [${{ github.actor }}] on ${{ github.ref_name }}
+run-name: {{ '"${{ github.run_number }} [${{ github.actor }}] on ${{ github.ref_name }}"' }}
 
 on:
   workflow_dispatch:
@@ -9,12 +9,12 @@ on:
       no_cache:                             {type: boolean, required: false, default: false, description: "Do not use the GitHub action cache for this build."}
 
 jobs:
-  _<<< guid() >>>:
-    name: "Validate (${{ github.ref_name }})"
-    uses: <<< git_username >>>/<<< git_repo >>>/.github/workflows/validate.yaml@CI-v1
+  _6d4e001d-a366-4e8f-8c31-a8545fada974:
+    name: {{ '"Validate (${{ github.ref_name }})"' }}
+    uses: {{ cookiecutter.github_username_and_repo }}/.github/workflows/validate.yaml@CI-v1
     with:
-      repo_branch: ${{ github.ref_name }}
+      repo_branch: {{ '"${{ github.ref_name }}"' }}
 
-      force_setup: ${{ inputs.force_setup }}
-      force_activate: ${{ inputs.force_activate }}
-      no_cache: ${{ inputs.no_cache }}
+      force_setup: {{ '${{ inputs.force_setup }}' }}
+      force_activate: {{ '${{ inputs.force_activate }}' }}
+      no_cache: {{ '${{ inputs.no_cache }}' }}
