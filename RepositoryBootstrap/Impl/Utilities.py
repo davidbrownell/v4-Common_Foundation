@@ -105,7 +105,15 @@ def GetRepoData(
 
         return None
 
-    return DataTypes.RepoData(match.group("name"), uuid.UUID(match.group("id")))
+    name = match.group("name")
+
+    try:
+        id = match.group("id")
+        id = uuid.UUID(match.group("id"))
+    except ValueError:
+        raise Exception("'{}' is not a valid uuid.".format(id))
+
+    return DataTypes.RepoData(name, id)
 
 
 # ----------------------------------------------------------------------
