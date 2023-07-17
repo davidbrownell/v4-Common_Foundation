@@ -106,9 +106,9 @@ def GetRepoData(
         return None
 
     name = match.group("name")
+    id = match.group("id")
 
     try:
-        id = match.group("id")
         id = uuid.UUID(match.group("id"))
     except ValueError:
         raise Exception("'{}' is not a valid uuid.".format(id))

@@ -1,0 +1,3 @@
+Do not search this directory when looking for repo dependencies. Without this file, directory
+enumeration will raise an exception when attempting to parse the invalid uuid in
+./{{ cookiecutter._empty }}/__RepositoryId__.json.
