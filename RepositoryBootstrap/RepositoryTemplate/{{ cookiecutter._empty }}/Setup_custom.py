@@ -1,8 +1,9 @@
+# pylint: disable=invalid-name
 # pylint: disable=missing-module-docstring
 
 import uuid                                             # pylint: disable=unused-import
 
-from typing import Dict, List, Optional, Union
+from typing import Optional, Union
 
 from semantic_version import Version as SemVer          # pylint: disable=unused-import
 
@@ -23,7 +24,7 @@ from RepositoryBootstrap import Constants                                   # ty
 # @Configuration.MixinRepository
 def GetConfigurations() -> Union[
     Configuration.Configuration,
-    Dict[
+    dict[
         str,                                # configuration name
         Configuration.Configuration,
     ],
@@ -57,10 +58,10 @@ def GetConfigurations() -> Union[
 def GetCustomActions(
     # Note that it is safe to remove any parameters that are not used
     dm: DoneManager,                                    # pylint: disable=unused-argument
-    explicit_configurations: Optional[List[str]],       # pylint: disable=unused-argument
+    explicit_configurations: Optional[list[str]],       # pylint: disable=unused-argument
     force: bool,                                        # pylint: disable=unused-argument
     interactive: Optional[bool],                        # pylint: disable=unused-argument
-) -> List[Commands.Command]:
+) -> list[Commands.Command]:
     """Return custom actions invoked as part of the setup process for this repository"""
 
     return []
