@@ -449,8 +449,10 @@ def _ParseGitOutput(
     result = GitSourceControlManager.Execute(
         command_line,
         cwd=repository_root,
-        strip=True,
+        strip=False,
     )
+
+    result.output = result.output.rstrip()
 
     dm.result = result.returncode
 
