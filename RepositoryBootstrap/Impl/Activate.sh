@@ -20,24 +20,37 @@ set +v                                      # Disable output
 # repo's root. Because of this, we use the ugly 'should_continue' hack.
 should_continue=1
 
-this_dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
-source ${this_dir}/CommonFunctions.sh
-
-if [[ ${is_darwin} -eq 1 ]]
-then
-    os_name=BSD
-else
-    os_name=Linux
-fi
-
 # The following environment variables are used by this script and must be populated
 # prior to its invocation:
 #
 #    DEVELOPMENT_ENVIRONMENT_ENVIRONMENT_NAME
 #
 
-previous_foundation=${DEVELOPMENT_ENVIRONMENT_FOUNDATION}
-previous_path=${PATH}
+if [[ "${BASH_VERSINFO}" == "" ]]; then
+    echo ""
+    echo "[31m[1mERROR:[0m Activation is only supported within a bash shell at this time."
+    echo "[31m[1mERROR:[0m"
+    echo "[31m[1mERROR:[0m     [\${BASH_VERSINFO} is not defined]"
+    echo "[31m[1mERROR:[0m"
+    echo ""
+
+    should_continue=0
+fi
+
+if [[ ${should_continue} == 1 ]]; then
+    previous_foundation=${DEVELOPMENT_ENVIRONMENT_FOUNDATION}
+    previous_path=${PATH}
+
+    this_dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+    source ${this_dir}/CommonFunctions.sh
+
+    if [[ ${is_darwin} -eq 1 ]]
+    then
+        os_name=BSD
+    else
+        os_name=Linux
+    fi
+fi
 
 # Read the bootstrap data
 if [[ ${should_continue} == 1 && ! -e `pwd`/Generated/${os_name}/${DEVELOPMENT_ENVIRONMENT_ENVIRONMENT_NAME}/EnvironmentBootstrap.data ]]
