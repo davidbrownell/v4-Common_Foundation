@@ -323,6 +323,11 @@ def CreateDockerImage(
                                 && apt install -y git mercurial \\
                                 && rm -rf /var/lib/apt/lists/*
 
+                            # Prevent git from generating errors about permission differences on directories, especially
+                            # when those directories will be mounted via docker volumes. It would be unwise to set this
+                            # configuration value in most other scenarios.
+                            RUN git config --global --add safe.directory '*'
+
                             RUN mkdir AutoSemVer
                             WORKDIR AutoSemVer
 
