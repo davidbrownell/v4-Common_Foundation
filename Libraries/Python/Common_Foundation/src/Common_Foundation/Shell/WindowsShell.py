@@ -17,6 +17,7 @@
 
 import os
 import shlex
+import shutil
 import textwrap
 import uuid
 
@@ -171,7 +172,7 @@ class WindowsShell(Shell):
         path: Path,
     ) -> None:
         if path.is_dir():
-            os.system('rmdir /S /Q "{}"'.format(str(path)))
+            shutil.rmtree(path)
 
     # ----------------------------------------------------------------------
     @overridemethod
