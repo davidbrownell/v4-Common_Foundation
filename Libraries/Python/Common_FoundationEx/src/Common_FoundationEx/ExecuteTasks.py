@@ -822,6 +822,7 @@ def _GenerateProgressStatusInfo(
                 indent=False,
             ),
             status="",
+            total=display_num_tasks,
         )
 
         # ----------------------------------------------------------------------
