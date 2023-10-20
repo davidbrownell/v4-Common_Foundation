@@ -154,6 +154,7 @@ disable=raw-checker-failed,
         use-symbolic-message-instead,
         assignment-from-no-return,          # added
         broad-except,                       # added
+        broad-exception-raised,             # added
         cell-var-from-loop,                 # added
         consider-using-f-string,            # added
         import-outside-toplevel,            # added
