@@ -367,6 +367,9 @@ def GetSemanticVersion(
             if configuration.include_branch_name_when_necessary and include_branch_name_when_necessary:
                 current_branch = repository.GetCurrentNormalizedBranch()
 
+                # Remove any path parts from the branch name
+                current_branch = current_branch.split("/")[-1]
+
                 if current_branch not in configuration.main_branch_names:
                     prerelease_components.append(current_branch)
 
