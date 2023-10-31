@@ -1295,9 +1295,19 @@ class Repository(DistributedRepositoryBase):
             if not match:
                 continue
 
+            # I can't remember why I originally added this code that splits the first path part before '/',
+            # but that logic is breaking now that I have encountered branches that have a valid part before
+            # '/'. I *think* the logic was to remove "remotes" as the first part, but I am not entirely sure.
+            # I wouldn't be surprised if this new change doesn't work in all scenarios.
+            branch_name = match.group("name")
+
+            branch_parts = branch_name.split("/")
+            if branch_parts[0] == "remotes":
+                branch_name = "/".join(branch_parts)[1:]
+
             branch_infos.append(
                 BranchInfo(
-                    match.group("name").split("/")[-1],
+                    branch_name,
                     match.group("commit_id"),
                     match.group("description"),
                     is_selected=bool(match.group("header")),
