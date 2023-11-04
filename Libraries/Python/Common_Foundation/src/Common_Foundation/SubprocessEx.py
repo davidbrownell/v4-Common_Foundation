@@ -90,6 +90,7 @@ def Run(
 
     result = subprocess.run(
         command_line,
+        check=False,
         shell=True,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,

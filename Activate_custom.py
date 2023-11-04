@@ -328,6 +328,15 @@ def GetCustomScriptExtractors() -> ExtractorMap:
         path: Path,
     ) -> str:
         if path.name == "__main__.py":
+            # Handle the special scenario where the script is nested in a hierarchy intended to support
+            # plugins when run as a script and when frozen.
+            if (
+                len(path.parent.parts) >= 3
+                and path.parent.parts[-1] == "EntryPoint"
+                and path.parent.parts[-2] == "src"
+            ):
+                return path.parent.parts[-3]
+
             return path.parent.parts[-1]
 
         return path.stem
