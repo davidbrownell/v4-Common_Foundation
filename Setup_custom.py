@@ -46,6 +46,7 @@ def GetConfigurations() -> Union[Configuration.Configuration, Dict[str, Configur
         Configuration.VersionInfo("rich", SemVer("12.6.0")),
         Configuration.VersionInfo("semantic_version", SemVer("2.10.0")),
         Configuration.VersionInfo("typer", SemVer("0.6.1")),
+        Configuration.VersionInfo("typer-config", SemVer("1.2.1")),
         Configuration.VersionInfo("wrapt", SemVer("1.14.1")),
 
         # Libraries not required for Setup activities
