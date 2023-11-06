@@ -102,7 +102,7 @@ class DynamicPythonCode(object):
             "custom_types_name",
         )
 
-        # Note that the following var name MUST match the valid provided to
+        # Note that the following var name MUST match the value provided to
         # TypeDefinitionToPythonFuncArguments.
 
         custom_types_name = dynamic_python_code.types
@@ -448,27 +448,36 @@ def ResolveTypeDefinitions(
     *,
     assume_optional: bool,
 ) -> dict[str, TypeDefinitionItem]:
+    # ----------------------------------------------------------------------
+    def CreateTypeDefinitionItem(
+        item: TypeDefinitionItemType,
+    ) -> TypeDefinitionItem:
+        if isinstance(item, TypeDefinitionItem):
+            return item
+
+        if isinstance(v, tuple):
+            python_type, arg = v
+
+            if isinstance(arg, typer.models.OptionInfo):
+                return TypeDefinitionItem(python_type, arg)
+
+            kwargs = arg
+        else:
+            python_type = v
+            kwargs = {}
+
+        return TypeDefinitionItem.Create(
+            python_type,
+            **cast(dict[str, Any], kwargs),
+            assume_optional=assume_optional,
+        )
+
+    # ----------------------------------------------------------------------
+
     results: dict[str, TypeDefinitionItem] = {}
 
     for k, v in type_definitions.items():
-        if isinstance(v, TypeDefinitionItem):
-            # No conversion is necessary
-            pass
-
-        else:
-            if isinstance(v, tuple):
-                python_type, option_info_kwargs = v
-            else:
-                python_type = v
-                option_info_kwargs = {}
-
-            v = TypeDefinitionItem.Create(
-                python_type,
-                **cast(dict[str, Any], option_info_kwargs),
-                assume_optional=assume_optional,
-            )
-
-        results[k] = v
+        results[k] = CreateTypeDefinitionItem(v)
 
     return results
 
