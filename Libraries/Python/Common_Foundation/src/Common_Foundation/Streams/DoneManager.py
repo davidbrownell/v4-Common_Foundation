@@ -594,7 +594,7 @@ class DoneManager(object):
 
         yield stream
 
-        if stream._write_content:
+        if stream.wrote_content:
             self._wrote_content = True
             stream.flush()
 
