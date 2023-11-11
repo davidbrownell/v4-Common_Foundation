@@ -216,7 +216,7 @@ def CreateBinary(
 
                             RUN bash -c "mkdir /tmp/AutoSemVer_binary \\
                                 && cd /tmp/AutoSemVer \\
-                                && tar -czvf /tmp/AutoSemVer_binary/{version}-{os}.tgz *"
+                                && tar -czvf /tmp/AutoSemVer_binary/AutoSemVer-{version}-{os}.tgz *"
                             """,
                         ).format(
                             base_image=docker_base_image,
