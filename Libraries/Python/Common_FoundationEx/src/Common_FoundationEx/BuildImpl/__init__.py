@@ -709,20 +709,24 @@ class BuildInfoBase(ABC):
                         is_headless=True,
                     )
 
-                    result = execute_func(
-                        configuration,
-                        output_dir,
-                        sink,
-                        OnProgress,
-                        is_verbose=dm.is_verbose,
-                        is_debug=dm.is_debug,
-                    )
+                    try:
+                        result = execute_func(
+                            configuration,
+                            output_dir,
+                            sink,
+                            OnProgress,
+                            is_verbose=dm.is_verbose,
+                            is_debug=dm.is_debug,
+                        )
+
+
+                        if isinstance(result, tuple):
+                            result = result[0]
+
+                    except:
+                        result = -1
 
                     output = sink.getvalue()
-
-                    if isinstance(result, tuple):
-                        result = result[0]
-
                     execute_dm.result = result
 
             assert output is not None
