@@ -15,22 +15,17 @@
 # ----------------------------------------------------------------------
 """Builds AutoSemVer"""
 
-import re
 import textwrap
 import uuid
 
-from contextlib import contextmanager
-from io import StringIO
 from pathlib import Path
-from typing import Any, Callable, Iterator, Optional, TextIO, Tuple, Union
+from typing import Callable, Optional, TextIO, Tuple, Union
 
 from Common_Foundation.ContextlibEx import ExitStack
 from Common_Foundation import PathEx
 from Common_Foundation.Shell.All import CurrentShell
 from Common_Foundation.Streams.DoneManager import DoneManager, DoneManagerFlags
-from Common_Foundation.Streams.StreamDecorator import StreamDecorator
 from Common_Foundation import SubprocessEx
-from Common_Foundation import Types
 from Common_Foundation.Types import overridemethod
 
 from Common_FoundationEx.BuildImpl import BuildInfoBase
@@ -185,7 +180,7 @@ def CreateDockerImage(
                 lambda: version,
             ):
                 result = SubprocessEx.Run(
-                    "AutoSemVer{} --no-metadata --no-branch-name --quiet".format(CurrentShell.script_extensions[0]),
+                    "AutoSemVer{} --no-branch-name --no-metadata --no-prefix --quiet".format(CurrentShell.script_extensions[0]),
                     cwd=source_root,
                 )
 
