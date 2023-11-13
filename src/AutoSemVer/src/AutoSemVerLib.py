@@ -319,22 +319,16 @@ def GetSemanticVersion(
                 Types.EnsureValid(configuration.initial_version.patch),
             ]
 
-        # If we have seen changes to a significant version number, don't less-significant
-        # baseline values impact the resulting version..
-        if major_delta:
-            baseline_version[1] = 0
-            baseline_version[2] = 0
-        elif minor_delta:
-            baseline_version[2] = 0
-
         # A version in the form "0.0.x" is not valid, so make sure that there is at least
         # a minor version when the major version is 0.
         if baseline_version[0] == 0 and baseline_version[1] == 0:
             baseline_version[1] = 1
 
-            # If we have altered the minor version, the first version will be "0.1.0", so update
-            # patch value to account for this potential modification.
-            if baseline_version[2] == 0 and patch_delta > 0:
+            # If we have only seen patch updates, apply one of those changes as a minor change so that
+            # we don't end up with versions that look like 0.0.N; in this case the version should be
+            # 0.1.N-1.
+            if major_delta == 0 and minor_delta == 0:
+                assert patch_delta > 0, patch_delta
                 patch_delta -= 1
 
         semantic_version = SemVer(
