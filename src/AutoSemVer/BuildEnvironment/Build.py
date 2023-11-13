@@ -158,13 +158,15 @@ class BuildInfo(BuildInfoBase):
 
 
 # ----------------------------------------------------------------------
-def CreateBinary(
-    output_dir: Path=TyperEx.typer.Argument(..., file_okay=False, help="Binary output directory."),
-    docker_base_image: str=TyperEx.typer.Option("ubuntu:latest", "--base-image", help="Name of the docker image used to build the binary."),
+def CreateDockerImage(
+    docker_image_name: str=TyperEx.typer.Argument(..., help="Name of the docker image to create."),
+    docker_base_image: str=TyperEx.typer.Option("ubuntu:latest", "--base-image", help="Name of the docker image used as a base for the created image."),
+    force: bool=TyperEx.typer.Option(False, "--force", help="Force the (re)generation of layers within the image."),
+    no_squash: bool=TyperEx.typer.Option(False, "--no-squash", help="Do not squash layers within the image."),
     verbose: bool=TyperEx.typer.Option(False, "--verbose", help="Write verbose information to the terminal."),
     debug: bool=TyperEx.typer.Option(False, "--verbose", help="Write debug information to the terminal."),
 ) -> int:
-    """Creates a binary that can be used to run AutoSemVer without installing all python dependencies."""
+    """Creates a docker image that can be used to run AutoSemVer without installing the code or python dependencies."""
 
     with DoneManager.CreateCommandLine(
         output_flags=DoneManagerFlags.Create(verbose=verbose, debug=debug),
@@ -183,7 +185,7 @@ def CreateBinary(
                 lambda: version,
             ):
                 result = SubprocessEx.Run(
-                    "AutoSemVer{} --no-metadata --quiet".format(CurrentShell.script_extensions[0]),
+                    "AutoSemVer{} --no-metadata --no-branch-name --quiet".format(CurrentShell.script_extensions[0]),
                     cwd=source_root,
                 )
 
@@ -192,8 +194,12 @@ def CreateBinary(
 
             # Create the docker file
             docker_filename = working_dir / "Dockerfile"
+            archive_name = "AutoSemVer-{}-{}.tgz".format(version, docker_base_image.split(":")[0])
 
             with dm.Nested("Creating dockerfile..."):
+                # Remove the local build directory (if it exists), as we don't want it to be copied to the docker image
+                PathEx.RemoveTree(Path(__file__).parent / "build")
+
                 with docker_filename.open("w") as f:
                     f.write(
                         textwrap.dedent(
@@ -216,17 +222,16 @@ def CreateBinary(
 
                             RUN bash -c "mkdir /tmp/AutoSemVer_binary \\
                                 && cd /tmp/AutoSemVer \\
-                                && tar -czvf /tmp/AutoSemVer_binary/AutoSemVer-{version}-{os}.tgz *"
+                                && tar -czvf /tmp/AutoSemVer_binary/{archive_name} *"
                             """,
                         ).format(
                             base_image=docker_base_image,
-                            version=version,
-                            os=docker_base_image.split(":")[0],
+                            archive_name=archive_name,
                         ),
                     )
 
-            # Build the image
-            with dm.Nested("Building archive...") as build_dm:
+            # Create the image that includes the built archive
+            with dm.Nested("Building the archive via a docker image...") as build_dm:
                 command_line = 'docker build --tag {tag} -f {dockerfile} .'.format(
                     tag=unique_id,
                     dockerfile=docker_filename,
@@ -234,7 +239,7 @@ def CreateBinary(
 
                 build_dm.WriteVerbose("Command line: {}\n\n".format(command_line))
 
-                with _GenerateStreamAndSink(build_dm) as (stream, sink):
+                with build_dm.YieldStream() as stream:
                     build_dm.result = SubprocessEx.Stream(
                         command_line,
                         stream,
@@ -242,82 +247,43 @@ def CreateBinary(
                     )
 
                     if build_dm.result != 0:
-                        if not build_dm.is_verbose:
-                            build_dm.WriteError(sink.getvalue())
-
                         return build_dm.result
 
-            with dm.Nested("Extracting archive...") as extract_dm:
-                output_dir.mkdir(parents=True, exist_ok=True)
-
+            # Extract the archive within the image
+            with dm.Nested("Extracting the archive from the docker image...") as extract_dm:
                 command_line = 'docker run --rm -v "{output_dir}:/local" {tag} bash -c "cp /tmp/AutoSemVer_binary/* /local"'.format(
                     tag=unique_id,
-                    output_dir=output_dir,
+                    output_dir=working_dir,
                 )
 
                 extract_dm.WriteVerbose("Command line: {}\n\n".format(command_line))
 
-                with _GenerateStreamAndSink(extract_dm) as (stream, sink):
+                with extract_dm.YieldStream() as stream:
                     extract_dm.result = SubprocessEx.Stream(command_line, stream)
                     if extract_dm.result != 0:
-                        if not extract_dm.is_verbose:
-                            extract_dm.WriteError(sink.getvalue())
-
                         return extract_dm.result
 
-            with dm.Nested("Removing image...") as remove_dm:
+            # Remove the image
+            with dm.Nested("Removing docker image...") as remove_dm:
                 command_line = 'docker image rm {}'.format(unique_id)
 
-                remove_dm.WriteVerbose("Command line: {}\n\n".format(command_line))
+                remove_dm.WriteVerbose("Command Line: {}\n\n".format(command_line))
 
-                with _GenerateStreamAndSink(remove_dm) as (stream, sink):
+                with remove_dm.YieldStream() as stream:
                     remove_dm.result = SubprocessEx.Stream(command_line, stream)
-                    if remove_dm.result != 0:
-                        if not remove_dm.is_verbose:
-                            remove_dm.WriteError(sink.getvalue())
 
+                    if remove_dm.result != 0:
                         return remove_dm.result
 
-            return 0
-
-
-# ----------------------------------------------------------------------
-def CreateDockerImage(
-    docker_image_name: str=TyperEx.typer.Argument(..., help="Name of the docker image to create."),
-    binary_filename: Path=TyperEx.typer.Argument(..., file_okay=True, dir_okay=False, exists=True, help="Path to the binary file produced by calls to 'CreateBinary'."),
-    docker_base_image: Optional[str]=TyperEx.typer.Option(None, "--base-image", help="Name of the docker image used as a base for the created image; the value will be extracted from the binary name if not provided on the command line."),
-    force: bool=TyperEx.typer.Option(False, "--force", help="Force the (re)generation of layers within the image."),
-    no_squash: bool=TyperEx.typer.Option(False, "--no-squash", help="Do not squash layers within the image."),
-    verbose: bool=TyperEx.typer.Option(False, "--verbose", help="Write verbose information to the terminal."),
-    debug: bool=TyperEx.typer.Option(False, "--verbose", help="Write debug information to the terminal."),
-) -> int:
-    """Create a docker image capable of executing a binary produced by `CreateBinary`."""
-
-    with DoneManager.CreateCommandLine(
-        output_flags=DoneManagerFlags.Create(verbose=verbose, debug=debug),
-    ) as dm:
-        match = re.match(r"^AutoSemVer-(?P<version>[^-]+)-(?P<image_name>[^\.]+)\.tgz$", binary_filename.name)
-        if not match:
-            dm.WriteError("The filename '{}' is not in the expected format.".format(binary_filename.name))
-            return dm.result
-
-        if docker_base_image is None:
-            docker_base_image = "{}:latest".format(match.group("image_name"))
-
-        binary_version = match.group("version").lstrip("v")
-
-        working_dir = CurrentShell.CreateTempDirectory()
-        with ExitStack(lambda: PathEx.RemoveTree(working_dir)):
-            docker_filename = working_dir / "Dockerfile"
-
-            with dm.Nested("Creating dockerfile..."):
+            # Create the execute dockerfile
+            with dm.Nested("Creating the execute dockerfile..."):
                 with docker_filename.open("w") as f:
                     f.write(
                         textwrap.dedent(
                             """\
                             FROM {base_image}
 
-                            # Note that these instructions assume a debian-based distribution.
+                            # Note that these instructions assume a debian-based distribution
 
                             RUN apt update \\
                                 && apt install -y git mercurial \\
@@ -332,77 +298,52 @@ def CreateDockerImage(
                             WORKDIR AutoSemVer
 
                             COPY . .
-                            RUN bash -c "tar -xvf {name} && rm {name}"
+                            RUN bash -c "tar -xvf {archive_name} \\
+                                && rm {archive_name}"
 
                             ENTRYPOINT ["./AutoSemVer"]
                             """,
                         ).format(
                             base_image=docker_base_image,
-                            name=binary_filename.name,
+                            archive_name=archive_name,
                         ),
                     )
 
-            with dm.Nested("Building image...") as build_dm:
+            with dm.Nested("Building docker image...") as build_dm:
                 command_line = 'docker build --tag {image_name} -f {dockerfile}{squash}{no_cache} .'.format(
                     image_name=docker_image_name,
                     dockerfile=docker_filename,
                     squash="" if no_squash else " --squash",
-                    no_cache="" if not force else " --no-cache",
+                    no_cache="" if force else " --no-cache",
                 )
 
-                build_dm.WriteVerbose("Command line: {}\n\n".format(command_line))
+                build_dm.WriteVerbose("Command Line: {}\n\n".format(command_line))
 
-                with _GenerateStreamAndSink(build_dm) as (stream, sink):
+                with build_dm.YieldStream() as stream:
                     build_dm.result = SubprocessEx.Stream(
                         command_line,
                         stream,
-                        cwd=binary_filename.parent,
+                        cwd=working_dir,
                     )
 
                     if build_dm.result != 0:
-                        if not build_dm.is_verbose:
-                            build_dm.WriteError(sink.getvalue())
-
                         return build_dm.result
 
             with dm.Nested("Tagging image...") as tag_dm:
-                command_line = 'docker tag {image_name}:latest {image_name}:{binary_version}'.format(
+                command_line = 'docker tag {image_name}:latest {image_name}:{version}'.format(
                     image_name=docker_image_name,
-                    binary_version=binary_version,
+                    version=version,
                 )
 
-                tag_dm.WriteVerbose("Command line: {}\n\n".format(command_line))
+                tag_dm.WriteVerbose("Command Line: {}\n\n".format(command_line))
 
-                with _GenerateStreamAndSink(tag_dm) as (stream, sink):
-                    tag_dm.result = SubprocessEx.Stream(
-                        command_line,
-                        stream,
-                        cwd=binary_filename.parent,
-                    )
+                with tag_dm.YieldStream() as stream:
+                    tag_dm.result = SubprocessEx.Stream(command_line, stream)
 
                     if tag_dm.result != 0:
-                        if not tag_dm.is_verbose:
-                            tag_dm.WriteError(sink.getvalue())
-
                         return tag_dm.result
 
-            return 0
-
-
-# ----------------------------------------------------------------------
-# ----------------------------------------------------------------------
-# ----------------------------------------------------------------------
-@contextmanager
-def _GenerateStreamAndSink(
-    dm: DoneManager,
-) -> Iterator[tuple[Any, StringIO]]:
-    sink = StringIO()
-
-    if dm.is_verbose:
-        with dm.YieldVerboseStream() as stream:
-            yield stream, sink
-    else:
-        yield sink, sink
+            return dm.result
 
 
 # ----------------------------------------------------------------------
