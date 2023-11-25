@@ -289,7 +289,13 @@ else
 fi
 
 unset DEVELOPMENT_ENVIRONMENT_ORIGINAL_PATH
-unset PYTHONPATH
+
+if [[ ! -z ${_DEVELOPMENT_ENVIRONMENT_PYTHONPATH} ]]
+then
+    export PYTHONPATH=${_DEVELOPMENT_ENVIRONMENT_PYTHONPATH}
+else
+    unset PYTHONPATH
+fi
 
 if [[ ${should_continue} != 1 ]]
 then
