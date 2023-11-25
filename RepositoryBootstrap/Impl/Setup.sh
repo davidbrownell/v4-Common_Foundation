@@ -36,6 +36,7 @@ else
     export LD_LIBRARY_PATH=/opt/Common_Foundation/openssl/1.1.1/lib:${LD_LIBRARY_PATH}
 fi
 
+_previous_pythonpath=${PYTHONPATH}
 export PYTHONPATH=${this_dir}/../..:${this_dir}/../../Libraries/Python/Common_Foundation/src
 
 # Invoke custom functionality if the first arg is a positional argument
@@ -113,4 +114,4 @@ else
 fi
 
 export LD_LIBRARY_PATH=${prev_ld_library_path}
-unset PYTHONPATH
+export PYTHONPATH=${_previous_pythonpath}

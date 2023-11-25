@@ -280,6 +280,12 @@ def Activate(
         debug=debug,
     )
 
+    commands_str = CurrentShell.GenerateCommands(commands)
+
+    # The PYTHONPATH is reset during activation, so rename any instances of "PYTHONPATH" to a sentinel
+    # value that will be read by the activation script invoking this script.
+    commands_str = commands_str.replace("PYTHONPATH", "_DEVELOPMENT_ENVIRONMENT_PYTHONPATH")
+
     if output_filename_or_stdout == "stdout":
         final_output_stream = sys.stdout
         close_stream_func = lambda: None
@@ -288,7 +294,7 @@ def Activate(
         close_stream_func = final_output_stream.close
 
     with ExitStack(close_stream_func):
-        final_output_stream.write(CurrentShell.GenerateCommands(commands))
+        final_output_stream.write(commands_str)
 
     return result
 
