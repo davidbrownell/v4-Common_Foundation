@@ -367,9 +367,9 @@ def ProcessDynamicArgs(
 ) -> dict[str, Any]:
     """\
     Process arguments dynamically added. This functionality is used when the
-    types of some arguments are dynamically dependent upon the value if arguments
-    that come before them or plugin architectures where the types of arguments is
-    not known by base classes.
+    types of some arguments are dynamically dependent upon the value of arguments
+    that come before them or plugin architectures where the types of arguments are
+    not known until the plugins are dynamically loaded.
 
     Example:
         app = typer.Typer()
@@ -407,6 +407,10 @@ def ProcessDynamicArgs(
                 raise typer.BadParameter("Got unexpected extra argument ({})".format(arg))
 
             arguments[-1] = (arguments[-1][0], arg)
+
+    # Read default_map, which may be populated by typer-config
+    for k, v in (ctx.default_map or {}).items():
+        arguments.append((k, v))
 
     # Invoke the dynamic functionality
     return ProcessArguments(
